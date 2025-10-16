@@ -14,8 +14,8 @@
     "typescript",
     "prisma"
   ],
-  "author": "Seu Nome",
-  "license": "ISC",
+  "author": "Neri",
+  "license": " ",
   "dependencies": {
     "@types/jsonwebtoken": "^9.0.10",
     "cors": "^2.8.5",
