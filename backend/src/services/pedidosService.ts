@@ -26,7 +26,7 @@ export class PedidosService {
     return (ultimoPedidoDeHoje?.numero_sequencial_dia || 0) + 1;
   }
 
-  async criar(data: CreatePedidoDto) {
+  async criar(data: CreatePedidoDto, atendenteId: string) {
     const { cliente_nome, itens } = data;
 
     if (!itens || itens.length === 0) {
@@ -51,7 +51,7 @@ export class PedidosService {
 
         const subtotal = produto.preco * item.quantidade;
         valorTotalCalculado += subtotal;
-        
+
         itensDoPedidoData.push({
           produto_id: item.produto_id,
           quantidade: item.quantidade,
@@ -67,6 +67,7 @@ export class PedidosService {
           numero_sequencial_dia: numeroSequencial,
           valor_total: valorTotalCalculado,
           cliente_nome,
+          atendente_id: atendenteId,
           itens: {
             create: itensDoPedidoData,
           },
@@ -137,7 +138,7 @@ export class PedidosService {
         where: { id: pedidoId },
         data: { status: StatusPedido.PRONTO },
       });
-      
+
       // Simulação da geração de comprovante (RN04)
       const pedidoCompleto = await tx.pedido.findUnique({
         where: { id: pedidoId },

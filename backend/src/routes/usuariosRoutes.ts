@@ -4,6 +4,8 @@ import { UsuariosController } from '../controllers/usuarios.controller';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { roleMiddleware } from '../middlewares/role.middleware';
 import { PerfilUsuario } from '@prisma/client';
+import { validate } from '../middlewares/validate.middleware'; 
+import { criarUsuarioSchema } from '../validations/usuario.validation'; 
 
 const router = Router();
 const usuariosController = new UsuariosController();
@@ -19,7 +21,7 @@ router.get('/', usuariosController.listarTodos);
 router.get('/:id', usuariosController.obterPorId);
 
 // POST /api/usuarios - Criar um novo usuário (Apenas Admin)
-router.post('/', usuariosController.criar);
+router.post('/', validate(criarUsuarioSchema), usuariosController.criar);
 
 // PUT /api/usuarios/:id - Atualizar um usuário (Apenas Admin)
 router.put('/:id', usuariosController.atualizar);

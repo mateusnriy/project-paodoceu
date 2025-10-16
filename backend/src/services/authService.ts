@@ -1,9 +1,8 @@
-import { PrismaClient, Usuario } from '@prisma/client';
+import { Usuario } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { CreateUsuarioDto } from '../dtos/CreateUsuarioDto';
-
-const prisma = new PrismaClient();
+import { CreateUsuarioDto } from '../dtos/ICreateUsuarioDTO';
+import { prisma } from '../lib/prisma';
 
 export class AuthService {
   public async login(email: string, senhaInserida: string): Promise<{ token: string; usuario: Omit<Usuario, 'senha'> }> {
@@ -56,4 +55,18 @@ export class AuthService {
 
     return novoUsuario;
   }
+}
+
+
+
+export class AuthService {
+  public async login(email: string, senhaInserida: string): Promise<{ token: string; usuario: Omit<Usuario, 'senha'> }> {
+    const usuario = await prisma.usuario.findUnique({ where: { email } });
+
+    if (!usuario) {
+      throw new Error('Credenciais inválidas.');
+    }
+    // ... restante do código sem alterações ...
+  }
+  // ... restante do código sem alterações ...
 }

@@ -88,7 +88,6 @@ model Pedido {
   
   itens                 ItemPedido[]
   pagamento             Pagamento?
-
   @@map("pedidos")
 }
 

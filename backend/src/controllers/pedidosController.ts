@@ -7,7 +7,12 @@ const pedidosService = new PedidosService();
 export class PedidosController {
   async criar(req: Request, res: Response) {
     try {
-      const novoPedido = await pedidosService.criar(req.body);
+      const atendenteId = req.usuario?.id;
+      if (!atendenteId) {
+        return res.status(401).json({ message: 'Atendente não identificado.' });
+      }
+
+      const novoPedido = await pedidosService.criar(req.body, atendenteId);
       return res.status(201).json(novoPedido);
     } catch (error: any) {
       return res.status(400).json({ message: error.message });
