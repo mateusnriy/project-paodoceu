@@ -1,11 +1,11 @@
 // src/routes/usuarios.routes.ts
 import { Router } from 'express';
-import { UsuariosController } from '../controllers/usuarios.controller';
+import { UsuariosController } from '../controllers/usuariosController';
 import { authMiddleware } from '../middlewares/authMiddleware';
-import { roleMiddleware } from '../middlewares/role.middleware';
+import { roleMiddleware } from '../middlewares/roleMiddleware';
 import { PerfilUsuario } from '@prisma/client';
-import { validate } from '../middlewares/validate.middleware'; 
-import { criarUsuarioSchema } from '../validations/usuario.validation'; 
+import { validate } from '../middlewares/validateMiddleware'; 
+import { criarUsuarioSchema } from '../validations/usuarioValidation'; 
 
 const router = Router();
 const usuariosController = new UsuariosController();

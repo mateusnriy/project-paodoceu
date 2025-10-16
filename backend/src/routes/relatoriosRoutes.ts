@@ -1,8 +1,8 @@
 // src/routes/relatorios.routes.ts
 import { Router } from 'express';
-import { RelatoriosController } from '../controllers/relatorios.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
-import { roleMiddleware } from '../middlewares/role.middleware';
+import { RelatoriosController } from '../controllers/relatoriosController';
+import { authMiddleware } from '../middlewares/authMiddleware';
+import { roleMiddleware } from '../middlewares/roleMiddleware';
 import { PerfilUsuario } from '@prisma/client';
 
 const router = Router();

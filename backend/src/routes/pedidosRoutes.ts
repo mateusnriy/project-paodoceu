@@ -1,7 +1,7 @@
 // src/routes/pedidos.routes.ts
 import { Router } from 'express';
-import { PedidosController } from '../controllers/pedidos.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
+import { PedidosController } from '../controllers/pedidosController';
+import { authMiddleware } from '../middlewares/authMiddleware';
 
 const router = Router();
 const pedidosController = new PedidosController();

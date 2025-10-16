@@ -1,7 +1,7 @@
 // src/controllers/relatorios.controller.ts
 import { Request, Response } from 'express';
-import { RelatoriosService } from '../services/relatorios.service';
-import { ImpressaoService } from '../services/impressao.service';
+import { RelatoriosService } from '../services/relatoriosService';
+import { ImpressaoService } from '../services/impressaoService';
 
 const relatoriosService = new RelatoriosService();
 const impressaoService = new ImpressaoService();

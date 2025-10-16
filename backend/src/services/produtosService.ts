@@ -1,7 +1,7 @@
 // src/services/produtos.service.ts
 import { PrismaClient, Produto } from '@prisma/client';
-import { CreateProdutoDto } from '../dtos/CreateProdutoDto';
-import { UpdateProdutoDto } from '../dtos/UpdateProdutoDto';
+import { CreateProdutoDto } from '../dtos/ICreateProdutoDTO';
+import { UpdateProdutoDto } from '../dtos/IUpdateProdutoDTO';
 
 const prisma = new PrismaClient();
 

@@ -1,6 +1,6 @@
 // src/controllers/usuarios.controller.ts
 import { Request, Response } from 'express';
-import { UsuariosService } from '../services/usuarios.service';
+import { UsuariosService } from '../services/usuariosService';
 
 const usuariosService = new UsuariosService();
 
@@ -50,7 +50,7 @@ export class UsuariosController {
     try {
       const { id } = req.params;
       await usuariosService.deletar(id);
-      return res.status(204).send(); // 204 No Content
+      return res.status(204).send();
     } catch (error: any) {
       return res.status(404).json({ message: error.message });
     }

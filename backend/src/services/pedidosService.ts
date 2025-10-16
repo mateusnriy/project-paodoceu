@@ -1,7 +1,7 @@
 // src/services/pedidos.service.ts
 import { PrismaClient, StatusPedido, MetodoPagamento } from '@prisma/client';
-import { CreatePedidoDto } from '../dtos/CreatePedidoDto';
-import { ProcessarPagamentoDto } from '../dtos/ProcessarPagamentoDto';
+import { CreatePedidoDto } from '../dtos/ICreatePedidoDTO';
+import { ProcessarPagamentoDto } from '../dtos/IProcessarPagamentoDTO';
 import { startOfDay } from 'date-fns';
 
 const prisma = new PrismaClient();

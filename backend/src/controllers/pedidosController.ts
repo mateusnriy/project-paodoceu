@@ -1,6 +1,6 @@
 // src/controllers/pedidos.controller.ts
 import { Request, Response } from 'express';
-import { PedidosService } from '../services/pedidos.service';
+import { PedidosService } from '../services/pedidosService';
 
 const pedidosService = new PedidosService();
 

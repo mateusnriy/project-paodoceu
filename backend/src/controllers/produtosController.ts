@@ -1,6 +1,6 @@
 // src/controllers/produtos.controller.ts
 import { Request, Response } from 'express';
-import { ProdutosService } from '../services/produtos.service';
+import { ProdutosService } from '../services/produtosService';
 
 const produtosService = new ProdutosService();
 

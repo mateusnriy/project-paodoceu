@@ -1,6 +1,6 @@
 // src/controllers/categorias.controller.ts
 import { Request, Response } from 'express';
-import { CategoriasService } from '../services/categorias.service';
+import { CategoriasService } from '../services/categoriasService';
 
 const categoriasService = new CategoriasService();
 
