@@ -2,17 +2,15 @@
 import { Request, Response, NextFunction } from 'express';
 import { PerfilUsuario } from '@prisma/client';
 
-export const roleMiddleware = (perfilRequerido: PerfilUsuario) => {
+export const roleMiddleware = (perfisRequeridos: PerfilUsuario[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    // req.usuario é adicionado pelo authMiddleware
     const usuario = req.usuario;
 
-    if (!usuario || usuario.perfil !== perfilRequerido) {
+    if (!usuario || !perfisRequeridos.includes(usuario.perfil)) {
       return res.status(403).json({ 
-        message: 'Acesso negado. Você não tem permissão para acessar este recurso.' 
+        message: 'Acesso negado.' 
       });
     }
-
     next();
   };
 };

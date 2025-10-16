@@ -2,8 +2,7 @@
 import { PrismaClient, Categoria } from '@prisma/client';
 import { CreateCategoriaDto } from '../dtos/ICreateCategoriaDTO';
 import { UpdateCategoriaDto } from '../dtos/IUpdateCategoriaDTO';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 export class CategoriasService {
   async listarTodas(): Promise<Categoria[]> {

@@ -56,17 +56,3 @@ export class AuthService {
     return novoUsuario;
   }
 }
-
-
-
-export class AuthService {
-  public async login(email: string, senhaInserida: string): Promise<{ token: string; usuario: Omit<Usuario, 'senha'> }> {
-    const usuario = await prisma.usuario.findUnique({ where: { email } });
-
-    if (!usuario) {
-      throw new Error('Credenciais inválidas.');
-    }
-    // ... restante do código sem alterações ...
-  }
-  // ... restante do código sem alterações ...
-}
