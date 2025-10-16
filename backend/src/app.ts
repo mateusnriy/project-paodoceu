@@ -2,13 +2,13 @@
 import 'express-async-errors'; // Importa para capturar erros em rotas assíncronas
 import express, { Request, Response, Application } from 'express';
 import cors from 'cors';
-import authRoutes from './routes/auth.routes';
-import userRoutes from './routes/usuarios.routes';
-import categoriasRoutes from './routes/categorias.routes';
-import produtosRoutes from './routes/produtos.routes';
-import pedidosRoutes from './routes/pedidos.routes';
+import authRoutes from './routes/authRoutes';
+import userRoutes from './routes/usuariosRoutes';
+import categoriasRoutes from './routes/categoriasRoutes';
+import produtosRoutes from './routes/produtosRoutes';
+import pedidosRoutes from './routes/pedidosRoutes';
 import relatoriosRoutes from './routes/relatoriosRoutes';
-import { errorMiddleware } from './middlewares/error.middleware'; // Importa o novo middleware
+import { errorMiddleware } from './middlewares/errorMiddleware'; // Importa o novo middleware
 
 // Cria a instância do aplicativo Express
 const app: Application = express();
