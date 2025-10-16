@@ -1,100 +1,126 @@
-Sistema de PDV - Pão do Céu (Backend)
+# 🥖 Pão do Céu — Sistema de PDV (Backend)
 
-Bem-vindo ao repositório do backend do Pão do Céu, um sistema de Ponto de Venda (PDV) completo para lanchonetes, padarias e pequenas cafeterias, construído com Node.js, Express, TypeScript e Prisma.
+Bem-vindo ao **Pão do Céu**, um sistema de **Ponto de Venda (PDV)** moderno e completo, desenvolvido para **lanchonetes, padarias e pequenas cafeterias**.  
+Este é o **backend** da aplicação, construído com **Node.js**, **Express**, **TypeScript** e **Prisma ORM**.
 
-Funcionalidades Principais
+---
 
-Autenticação: Sistema de login seguro com JWT e perfis de usuário (Admin/Atendente).
+## ⚙️ Pré-requisitos
 
-Gestão de Cardápio: CRUD completo para Produtos e Categorias.
+Antes de começar, certifique-se de ter os seguintes itens instalados na sua máquina:
 
-Controle de Vendas: Criação de pedidos, processamento de pagamentos e baixa automática de estoque.
+| Ferramenta | Versão Requerida | Link de Instalação |
+|-------------|------------------|--------------------|
+| **Node.js** | 18.x ou superior | [nodejs.org](https://nodejs.org/) |
+| **npm** ou **Yarn** | Última versão | [npmjs.com](https://www.npmjs.com/) / [yarnpkg.com](https://yarnpkg.com/) |
+| **Docker** | Última versão | [docker.com](https://www.docker.com/) |
+| **Cliente de API** | (Opcional) | [Postman](https://www.postman.com/) / [Insomnia](https://insomnia.rest/) |
 
-Relatórios: Geração de relatórios de vendas por período, produto e categoria.
+Verifique se o Docker está em execução antes de prosseguir com o setup do banco de dados.
 
-Segurança: Senhas criptografadas com bcrypt e rotas protegidas por middlewares.
+---
 
-1. Pré-requisitos
+## 🧭 Instalação e Configuração
 
-Antes de começar, certifique-se de ter instalado em sua máquina:
+### 1️⃣ Clonar o Repositório
 
-Node.js (versão 18.x ou superior)
-
-npm ou Yarn
-
-Docker (para o banco de dados PostgreSQL)
-
-Um cliente de API como Postman ou Insomnia
-
-2. Instalação e Configuração
-
-Siga os passos abaixo para rodar o projeto localmente.
-
-Passo 1: Clonar o Repositório
-
-git clone <url-do-seu-repositorio>
+```bash
+git clone https://github.com/seu-usuario/paodoceu-backend.git
 cd paodoceu-backend
+```
 
+---
 
-Passo 2: Instalar Dependências
+### 2️⃣ Instalar Dependências
 
+Instale as dependências do projeto utilizando **npm**:
+
+```bash
 npm install
+```
 
+Ou, se preferir, utilizando **yarn**:
 
-Passo 3: Configurar o Banco de Dados com Docker
+```bash
+yarn install
+```
 
-Execute o comando abaixo no terminal para iniciar um container Docker com uma instância do PostgreSQL:
+---
 
-docker run --name paodoceu-db -e POSTGRES_USER=docker -e POSTGRES_PASSWORD=docker -e POSTGRES_DB=paodoceu -p 5432:5432 -d postgres
+### 3️⃣ Configurar o Banco de Dados com Docker
 
+Execute o comando abaixo para criar e iniciar um container com **PostgreSQL**:
 
-Este comando cria um banco chamado paodoceu com o usuário e senha docker.
+```bash
+docker run --name paodoceu-db   -e POSTGRES_USER=docker   -e POSTGRES_PASSWORD=docker   -e POSTGRES_DB=paodoceu   -p 5432:5432 -d postgres
+```
 
-Passo 4: Configurar Variáveis de Ambiente
+> 💡 Esse comando cria um banco chamado `paodoceu` com usuário e senha `docker`.
 
-Crie um arquivo .env na raiz do projeto, copiando o conteúdo do .env.example. Ele deve ficar assim:
+---
 
-# Arquivo: .env
+### 4️⃣ Criar o Arquivo `.env`
 
+Crie um arquivo `.env` na raiz do projeto com o seguinte conteúdo:
+
+```env
 # Banco de Dados
 DATABASE_URL="postgresql://docker:docker@localhost:5432/paodoceu?schema=public"
 
-# Autenticação (JWT)
+# Autenticação JWT
 JWT_SECRET="SEGREDO_SUPER_SEGURO_PARA_PRODUCAO"
 JWT_EXPIRES_IN="1d"
+```
 
+> ⚠️ **Importante:** Em produção, altere o valor de `JWT_SECRET` para uma chave segura e única.
 
-Importante: Para produção, altere o JWT_SECRET para uma chave complexa e segura.
+---
 
-Passo 5: Rodar as Migrações e Popular o Banco
+### 5️⃣ Executar Migrações e Popular o Banco de Dados
 
-Execute os comandos do Prisma para criar as tabelas no banco de dados e popular com dados iniciais (usuário admin, categorias e produtos):
+Execute as migrações do **Prisma** para criar as tabelas e popular o banco com dados iniciais:
 
-# Aplica as migrações para criar a estrutura do banco
+```bash
 npx prisma migrate dev
-
-# Executa o script de seed para popular o banco
 npx prisma db seed
+```
 
+Após o seed, será criado um usuário administrador padrão:
 
-Após o seed, você terá um usuário admin@paodoceu.com com a senha admin123.
+| Campo | Valor |
+|--------|--------|
+| **E-mail** | `admin@paodoceu.com` |
+| **Senha** | `admin123` |
 
-3. Executando a Aplicação
+---
 
-Para iniciar o servidor de desenvolvimento, execute:
+## ▶️ Executando a Aplicação
 
+Inicie o servidor de desenvolvimento com o comando:
+
+```bash
 npm run dev
+```
 
+O servidor estará rodando em:
 
-O servidor estará rodando em http://localhost:3333. Você pode acessar esta URL no navegador para ver a mensagem de status da API.
+```
+http://localhost:3333
+```
 
-4. Estrutura do Projeto
+Acesse essa URL no navegador ou em um cliente de API para verificar o status da API.
 
+---
+
+## 🗂️ Estrutura do Projeto
+
+```bash
 /
 ├── prisma/
 │   ├── migrations/
 │   ├── schema.prisma
 │   └── seed.ts
+│
 ├── src/
 │   ├── controllers/
 │   ├── dtos/
@@ -104,9 +130,28 @@ O servidor estará rodando em http://localhost:3333. Você pode acessar esta URL
 │   ├── types/
 │   ├── app.ts
 │   └── server.ts
+│
 ├── .env
 ├── package.json
 └── tsconfig.json
+```
 
+---
 
-Este guia fornece tudo que você precisa para começar a desenvolver e testar o sistema Pão do Céu. Para mais detalhes sobre os endpoints, consulte o arquivo API_DOCS.md.
+## 📘 Documentação da API
+
+A documentação completa dos endpoints está disponível em:  
+📄 **[`API_DOCS.md`](./API_DOCS.md)**
+
+---
+
+## Scripts Úteis
+
+| Comando | Descrição |
+|----------|------------|
+| `npm run dev` | Inicia o servidor em modo desenvolvimento |
+| `npm run build` | Compila o projeto TypeScript |
+| `npm run start` | Executa a versão compilada |
+| `npx prisma studio` | Abre o painel visual do Prisma |
+| `npx prisma migrate dev` | Executa migrações do banco de dados |
+| `npx prisma db seed` | Popula o banco de dados inicial |
