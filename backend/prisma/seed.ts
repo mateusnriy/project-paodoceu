@@ -26,28 +26,6 @@ async function main() {
     },
   });
   console.log(`Usuário Administrador criado: ${admin.email}`);
-
-  const categoriaPao = await prisma.categoria.create({ data: { nome: 'Pães' } });
-  const categoriaSalgado = await prisma.categoria.create({ data: { nome: 'Salgados' } });
-  const categoriaBebida = await prisma.categoria.create({ data: { nome: 'Bebidas' } });
-  const categoriaDoce = await prisma.categoria.create({ data: { nome: 'Doces e Sobremesas' } });
-  console.log('Categorias criadas: Pães, Salgados, Bebidas, Doces e Sobremesas');
-
-  await prisma.produto.createMany({
-    data: [
-      { nome: 'Pão Francês', preco: 0.8, estoque: 100, categoria_id: categoriaPao.id },
-      { nome: 'Pão de Queijo', preco: 3.5, estoque: 50, categoria_id: categoriaPao.id },
-      { nome: 'Coxinha de Frango', preco: 7.0, estoque: 30, categoria_id: categoriaSalgado.id },
-      { nome: 'Esfiha de Carne', preco: 6.5, estoque: 40, categoria_id: categoriaSalgado.id },
-      { nome: 'Café Expresso', preco: 5.0, estoque: 200, categoria_id: categoriaBebida.id },
-      { nome: 'Suco de Laranja (500ml)', preco: 9.0, estoque: 25, categoria_id: categoriaBebida.id },
-      { nome: 'Refrigerante Lata', preco: 6.0, estoque: 80, categoria_id: categoriaBebida.id },
-      { nome: 'Brigadeiro', preco: 4.0, estoque: 60, categoria_id: categoriaDoce.id },
-      { nome: 'Bolo de Chocolate (Fatia)', preco: 8.5, estoque: 15, categoria_id: categoriaDoce.id },
-    ],
-  });
-  console.log('Produtos de exemplo criados.');
-  console.log('Processo de seed concluído com sucesso!');
 }
 
 main()

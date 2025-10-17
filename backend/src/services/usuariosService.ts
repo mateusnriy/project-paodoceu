@@ -8,6 +8,7 @@ type CreateUsuarioAdminDto = {
   email: string;
   senha?: string;
   perfil: PerfilUsuario;
+  ativo?: boolean;
 }
 
 type UpdateUsuarioDto = Partial<CreateUsuarioAdminDto>;
@@ -66,7 +67,7 @@ export class UsuariosService {
       const salt = await bcrypt.genSalt(10);
       dadosParaAtualizar.senha = await bcrypt.hash(data.senha, salt);
     }
-    
+  
     const usuarioAtualizado = await prisma.usuario.update({
       where: { id },
       data: dadosParaAtualizar,
@@ -74,7 +75,7 @@ export class UsuariosService {
     
     return this.omitirSenha(usuarioAtualizado);
   }
-
+  
   async deletar(id: string): Promise<void> {
     const usuario = await prisma.usuario.findUnique({ where: { id } });
     if (!usuario) {

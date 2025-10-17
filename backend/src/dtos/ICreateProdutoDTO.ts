@@ -4,4 +4,5 @@ export type CreateProdutoDto = {
   preco: number;
   estoque?: number;
   categoria_id: string;
+  imagem_url?: string;
 };

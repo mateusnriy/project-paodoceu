@@ -4,8 +4,14 @@ import { UpdateCategoriaDto } from '../dtos/IUpdateCategoriaDTO';
 import { prisma } from '../lib/prisma';
 
 export class CategoriasService {
-  async listarTodas(): Promise<Categoria[]> {
-    return prisma.categoria.findMany();
+  async listarTodas(): Promise<any[]> { 
+    return prisma.categoria.findMany({
+      include: {
+        _count: {
+          select: { produtos: true },
+        },
+      },
+    });
   }
 
   async obterPorId(id: string): Promise<Categoria | null> {

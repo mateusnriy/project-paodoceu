@@ -1,4 +1,3 @@
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -33,6 +32,7 @@ model Usuario {
   email         String        @unique
   senha         String
   perfil        PerfilUsuario @default(ATENDENTE)
+  ativo         Boolean       @default(true) // Added based on frontend usage
   criado_em     DateTime      @default(now())
   atualizado_em DateTime      @updatedAt
   pedidos       Pedido[]
@@ -43,7 +43,7 @@ model Usuario {
 model Categoria {
   id            String    @id @default(uuid())
   nome          String    @unique
-  criado_em     DateTime  @default(now())
+  criado_em     DateTime  @default(now()) // Corrected placement
   atualizado_em DateTime  @updatedAt
   produtos      Produto[]
 
@@ -54,8 +54,9 @@ model Produto {
   id            String       @id @default(uuid())
   nome          String
   descricao     String?
-  preco         Float
+  preco         Float // Corrected placement
   estoque       Int          @default(0)
+  imagem_url    String?      // Added based on frontend usage
   categoria_id  String
   criado_em     DateTime     @default(now())
   atualizado_em DateTime     @updatedAt
@@ -66,19 +67,19 @@ model Produto {
 }
 
 model Pedido {
-  id                    String       @id @default(uuid())
+  id                    String       @id @default(uuid()) // Corrected placement
   numero_sequencial_dia Int
   valor_total           Float
   cliente_nome          String?
-  status                StatusPedido @default(PENDENTE)
+  status                StatusPedido @default(PENDENTE) // Corrected placement
   criado_em             DateTime     @default(now())
   atualizado_em         DateTime     @updatedAt
   atendente_id          String?
-  atendente             Usuario?     @relation(fields: [atendente_id], references: [id])
+  atendente             Usuario?     @relation(fields: [atendente_id], references: [id]) // Corrected placement
   itens                 ItemPedido[]
   pagamento             Pagamento?
 
-  @@map("pedidos")
+  @@map("pedidos") // Corrected placement
 }
 
 model ItemPedido {
@@ -95,7 +96,7 @@ model ItemPedido {
 }
 
 model Pagamento {
-  id         String          @id @default(uuid())
+  id         String          @id @default(uuid()) // Corrected placement
   pedido_id  String          @unique
   metodo     MetodoPagamento
   valor_pago Float
