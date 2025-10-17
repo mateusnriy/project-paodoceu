@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import axios from 'axios'; // Importação que faltava
 
 // Tipo para o usuário (omitindo a senha)
 interface Usuario {
@@ -50,6 +51,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUsuario(newUsuario);
       api.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
       
+      // Redireciona para a tela de PDV após o login
       navigate('/pos');
     } catch (error) {
       console.error("Erro no login:", error);
