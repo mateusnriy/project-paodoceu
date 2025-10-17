@@ -3,8 +3,8 @@ import { UsuariosController } from '../controllers/usuariosController';
 import { authMiddleware } from '../middlewares/authMiddleware';
 import { roleMiddleware } from '../middlewares/roleMiddleware';
 import { PerfilUsuario } from '@prisma/client';
-import { validate } from '../middlewares/validateMiddleware'; 
-import { criarUsuarioSchema, atualizarUsuarioSchema } from '../validations/usuarioValidation'; 
+import { validate } from '../middlewares/validateMiddleware';
+import { criarUsuarioSchema, atualizarUsuarioSchema } from '../validations/usuarioValidation';
 
 const router = Router();
 const usuariosController = new UsuariosController();

@@ -1,4 +1,3 @@
-// src/dtos/ProcessarPagamentoDto.ts
 import { MetodoPagamento } from '@prisma/client';
 
 export type ProcessarPagamentoDto = {

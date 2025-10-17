@@ -1,4 +1,3 @@
-// src/validations/pedidoValidation.ts
 import { z } from 'zod';
 import { MetodoPagamento } from '@prisma/client';
 

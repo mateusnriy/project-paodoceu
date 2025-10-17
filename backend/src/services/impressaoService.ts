@@ -1,13 +1,9 @@
-// src/services/impressao.service.ts
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, ItemPedido } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 export class ImpressaoService {
-  /**
-   * Busca os dados de um pedido e os formata em um objeto estruturado,
-   * pronto para ser usado por um gerador de PDF ou enviado para uma impressora térmica.
-   */
+
   async gerarDadosComprovante(pedidoId: string) {
     const pedido = await prisma.pedido.findUnique({
       where: { id: pedidoId },
@@ -28,6 +24,9 @@ export class ImpressaoService {
       throw new Error('Este pedido ainda não foi pago.');
     }
 
+    // Define o tipo para o item dentro do map para resolver o erro 'any'
+    type ItemComProduto = ItemPedido & { produto: { nome: string } };
+
     // Formata os dados para um formato de comprovante limpo
     const comprovante = {
       cabecalho: {
@@ -40,7 +39,7 @@ export class ImpressaoService {
         data: pedido.criado_em.toLocaleString('pt-BR'),
         cliente: pedido.cliente_nome || 'Não informado',
       },
-      itens: pedido.itens.map(item => ({
+      itens: pedido.itens.map((item: ItemComProduto) => ({
         quantidade: item.quantidade,
         nome: item.produto.nome,
         preco_unitario: item.preco_unitario,

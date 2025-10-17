@@ -1,12 +1,9 @@
-// prisma/schema.prisma
 
-// Este é o datasource, que aponta para as variáveis de ambiente.
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// O gerador de cliente Prisma, que cria o cliente TypeScript.
 generator client {
   provider = "prisma-client-js"
 }
@@ -42,7 +39,7 @@ model Usuario {
   perfil        PerfilUsuario @default(ATENDENTE)
   criado_em     DateTime      @default(now())
   atualizado_em DateTime      @updatedAt
-  pedidos       Pedido[]      // Relacionamento: Um usuário pode ter vários pedidos.
+  pedidos       Pedido[]
 
   @@map("usuarios")
 }
@@ -50,24 +47,24 @@ model Usuario {
 model Categoria {
   id            String    @id @default(uuid())
   nome          String    @unique
-  produtos      Produto[] // Relacionamento: Uma categoria tem vários produtos.
   criado_em     DateTime  @default(now())
   atualizado_em DateTime  @updatedAt
+  produtos      Produto[]
 
   @@map("categorias")
 }
 
 model Produto {
-  id           String      @id @default(uuid())
-  nome         String
-  descricao    String?
-  preco        Float
-  estoque      Int         @default(0)
-  categoria_id String
-  categoria    Categoria   @relation(fields: [categoria_id], references: [id])
-  criado_em    DateTime    @default(now())
-  atualizado_em DateTime   @updatedAt
-  itens_pedido ItemPedido[]
+  id            String       @id @default(uuid())
+  nome          String
+  descricao     String?
+  preco         Float
+  estoque       Int          @default(0)
+  categoria_id  String
+  criado_em     DateTime     @default(now())
+  atualizado_em DateTime     @updatedAt
+  categoria     Categoria    @relation(fields: [categoria_id], references: [id])
+  itens_pedido  ItemPedido[]
 
   @@map("produtos")
 }
@@ -80,26 +77,23 @@ model Pedido {
   status                StatusPedido @default(PENDENTE)
   criado_em             DateTime     @default(now())
   atualizado_em         DateTime     @updatedAt
-  
-  // --- CAMPO ADICIONADO ---
-  // Relacionamento com o usuário que registrou o pedido.
   atendente_id          String?
   atendente             Usuario?     @relation(fields: [atendente_id], references: [id])
-  
   itens                 ItemPedido[]
   pagamento             Pagamento?
+
   @@map("pedidos")
 }
 
 model ItemPedido {
-  id           String  @id @default(uuid())
-  pedido_id    String
-  pedido       Pedido  @relation(fields: [pedido_id], references: [id])
-  produto_id   String
-  produto      Produto @relation(fields: [produto_id], references: [id])
-  quantidade   Int
+  id             String  @id @default(uuid())
+  pedido_id      String
+  produto_id     String
+  quantidade     Int
   preco_unitario Float
-  subtotal     Float
+  subtotal       Float
+  pedido         Pedido  @relation(fields: [pedido_id], references: [id])
+  produto        Produto @relation(fields: [produto_id], references: [id])
 
   @@map("itens_pedido")
 }
@@ -107,11 +101,11 @@ model ItemPedido {
 model Pagamento {
   id         String          @id @default(uuid())
   pedido_id  String          @unique
-  pedido     Pedido          @relation(fields: [pedido_id], references: [id])
   metodo     MetodoPagamento
   valor_pago Float
   troco      Float           @default(0)
   criado_em  DateTime        @default(now())
+  pedido     Pedido          @relation(fields: [pedido_id], references: [id])
 
   @@map("pagamentos")
 }

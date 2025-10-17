@@ -1,4 +1,3 @@
-// src/services/produtos.service.ts
 import { PrismaClient, Produto } from '@prisma/client';
 import { CreateProdutoDto } from '../dtos/ICreateProdutoDTO';
 import { UpdateProdutoDto } from '../dtos/IUpdateProdutoDTO';

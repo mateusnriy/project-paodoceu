@@ -1,4 +1,3 @@
-// src/middlewares/error.middleware.ts
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
 

@@ -1,5 +1,4 @@
-// src/services/pedidos.service.ts
-import { PrismaClient, StatusPedido, MetodoPagamento } from '@prisma/client';
+import { PrismaClient, StatusPedido, MetodoPagamento, Prisma } from '@prisma/client';
 import { CreatePedidoDto } from '../dtos/ICreatePedidoDTO';
 import { ProcessarPagamentoDto } from '../dtos/IProcessarPagamentoDTO';
 import { startOfDay } from 'date-fns';
@@ -36,7 +35,7 @@ export class PedidosService {
     let valorTotalCalculado = 0;
 
     // Usando uma transação para garantir a consistência da leitura dos preços e do estoque
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const itensDoPedidoData = [];
 
       for (const item of itens) {
@@ -87,7 +86,7 @@ export class PedidosService {
 
   async processarPagamento(pedidoId: string, data: ProcessarPagamentoDto) {
     // RN13 + RN02 + RN04 - Operação atômica de pagamento e baixa de estoque
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const pedido = await tx.pedido.findUnique({
         where: { id: pedidoId },
         include: { itens: true, pagamento: true },

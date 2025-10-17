@@ -1,5 +1,4 @@
-// src/services/categorias.service.ts
-import { PrismaClient, Categoria } from '@prisma/client';
+import { Categoria } from '@prisma/client';
 import { CreateCategoriaDto } from '../dtos/ICreateCategoriaDTO';
 import { UpdateCategoriaDto } from '../dtos/IUpdateCategoriaDTO';
 import { prisma } from '../lib/prisma';

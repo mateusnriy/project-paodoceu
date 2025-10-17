@@ -1,5 +1,4 @@
-// src/services/relatorios.service.ts
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Pedido, ItemPedido, Produto, Categoria } from '@prisma/client';
 import { endOfDay, startOfDay } from 'date-fns';
 
 const prisma = new PrismaClient();
@@ -26,7 +25,7 @@ export class RelatoriosService {
       }
     });
 
-    const totalVendido = pedidosPagos.reduce((acc, pedido) => acc + pedido.valor_total, 0);
+    const totalVendido = pedidosPagos.reduce((acc: number, pedido: Pedido) => acc + pedido.valor_total, 0);
     const totalPedidos = pedidosPagos.length;
     const ticketMedio = totalPedidos > 0 ? totalVendido / totalPedidos : 0;
 
@@ -58,14 +57,19 @@ export class RelatoriosService {
       }
     });
 
-    const relatorio = itensVendidos.reduce((acc, item) => {
+    // Define um tipo para o acumulador do reduce
+    type RelatorioProduto = Record<string, { quantidade: number, valor: number }>;
+    // Define um tipo para o item do reduce
+    type ItemComNomeProduto = ItemPedido & { produto: { nome: string } };
+
+    const relatorio = itensVendidos.reduce((acc: RelatorioProduto, item: ItemComNomeProduto) => {
       if (!acc[item.produto.nome]) {
         acc[item.produto.nome] = { quantidade: 0, valor: 0 };
       }
       acc[item.produto.nome].quantidade += item.quantidade;
       acc[item.produto.nome].valor += item.subtotal;
       return acc;
-    }, {} as Record<string, { quantidade: number, valor: number }>);
+    }, {} as RelatorioProduto);
     
     return relatorio;
   }
@@ -86,7 +90,12 @@ export class RelatoriosService {
         }
     });
 
-    const relatorio = itensVendidos.reduce((acc, item) => {
+    // Define um tipo para o acumulador do reduce
+    type RelatorioCategoria = Record<string, { quantidade: number, valor: number }>;
+    // Define um tipo para o item do reduce
+    type ItemComProdutoCategoria = ItemPedido & { produto: Produto & { categoria: Categoria } };
+
+    const relatorio = itensVendidos.reduce((acc: RelatorioCategoria, item: ItemComProdutoCategoria) => {
         const nomeCategoria = item.produto.categoria.nome;
         if (!acc[nomeCategoria]) {
             acc[nomeCategoria] = { quantidade: 0, valor: 0 };
@@ -94,7 +103,7 @@ export class RelatoriosService {
         acc[nomeCategoria].quantidade += item.quantidade;
         acc[nomeCategoria].valor += item.subtotal;
         return acc;
-    }, {} as Record<string, { quantidade: number, valor: number }>);
+    }, {} as RelatorioCategoria);
 
     return relatorio;
   }

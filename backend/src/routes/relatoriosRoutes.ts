@@ -10,7 +10,7 @@ const relatoriosController = new RelatoriosController();
 
 // Todas as rotas de relatórios exigem autenticação e perfil de ADMINISTRADOR
 router.use(authMiddleware);
-router.use(roleMiddleware(PerfilUsuario.ADMINISTRADOR));
+router.use(roleMiddleware([PerfilUsuario.ADMINISTRADOR]));
 
 // Rota para gerar o comprovante de um pedido para impressão
 router.get('/pedidos/:id/comprovante', relatoriosController.gerarComprovante);

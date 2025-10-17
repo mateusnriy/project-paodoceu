@@ -1,4 +1,3 @@
-// src/validations/usuario.validation.ts
 import { z } from 'zod';
 import { PerfilUsuario } from '@prisma/client';
 

@@ -1,4 +1,3 @@
-// src/services/usuarios.service.ts
 import { PrismaClient, Usuario, PerfilUsuario } from '@prisma/client';
 import bcrypt from 'bcrypt';
 

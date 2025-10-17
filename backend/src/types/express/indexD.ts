@@ -1,4 +1,3 @@
-// src/types/express/index.d.ts
 import { Usuario } from '@prisma/client';
 
 // Sobrescrevendo a interface Request do Express para adicionar nossa propriedade 'usuario'
