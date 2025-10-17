@@ -4,9 +4,10 @@ import ReactDOM from 'react-dom/client';
 import { App } from './App';
 import * as Sentry from "@sentry/react";
 
-const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
+const _env = (import.meta as any).env;
+const SENTRY_DSN = _env.VITE_SENTRY_DSN;
 
-if (SENTRY_DSN && import.meta.env.PROD) { 
+if (SENTRY_DSN && _env.PROD) { 
   Sentry.init({
     dsn: SENTRY_DSN,
     integrations: [
@@ -20,7 +21,7 @@ if (SENTRY_DSN && import.meta.env.PROD) {
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
 
-    environment: import.meta.env.MODE, 
+    environment: _env.MODE, 
   });
   console.log("Sentry initialized for production.");
 } else {
