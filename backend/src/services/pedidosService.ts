@@ -7,7 +7,6 @@ const prisma = new PrismaClient();
 
 export class PedidosService {
 
-  // RN01: Geração de número sequencial diário
   private async getProximoNumeroSequencial(): Promise<number> {
     const hoje = startOfDay(new Date());
 
@@ -34,7 +33,6 @@ export class PedidosService {
 
     let valorTotalCalculado = 0;
 
-    // Usando uma transação para garantir a consistência da leitura dos preços e do estoque
     return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const itensDoPedidoData = [];
 
@@ -85,7 +83,7 @@ export class PedidosService {
   }
 
   async processarPagamento(pedidoId: string, data: ProcessarPagamentoDto) {
-    // RN13 + RN02 + RN04 - Operação atômica de pagamento e baixa de estoque
+
     return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const pedido = await tx.pedido.findUnique({
         where: { id: pedidoId },
@@ -110,7 +108,7 @@ export class PedidosService {
         troco = data.valor_pago - pedido.valor_total;
       }
 
-      // Baixa de estoque
+
       for (const item of pedido.itens) {
         await tx.produto.update({
           where: { id: item.produto_id },
@@ -122,7 +120,7 @@ export class PedidosService {
         });
       }
 
-      // Registrar o pagamento
+
       const pagamento = await tx.pagamento.create({
         data: {
           pedido_id: pedidoId,
@@ -132,13 +130,13 @@ export class PedidosService {
         },
       });
 
-      // Atualizar o status do pedido
+
       await tx.pedido.update({
         where: { id: pedidoId },
         data: { status: StatusPedido.PRONTO },
       });
 
-      // Simulação da geração de comprovante (RN04)
+
       const pedidoCompleto = await tx.pedido.findUnique({
         where: { id: pedidoId },
         include: {

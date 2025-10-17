@@ -1,7 +1,6 @@
 import { z } from 'zod';
 import { PerfilUsuario } from '@prisma/client';
 
-// Schema de validação para a criação de um novo usuário pelo admin
 export const criarUsuarioSchema = z.object({
   body: z.object({
     nome: z.string({ required_error: "O nome é obrigatório." }).min(3, "O nome precisa ter no mínimo 3 caracteres."),
@@ -11,7 +10,6 @@ export const criarUsuarioSchema = z.object({
   }),
 });
 
-// Schema de validação para a atualização de um usuário
 export const atualizarUsuarioSchema = z.object({
   body: z.object({
     nome: z.string().min(3, "O nome precisa ter no mínimo 3 caracteres.").optional(),

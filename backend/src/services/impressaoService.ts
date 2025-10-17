@@ -24,10 +24,8 @@ export class ImpressaoService {
       throw new Error('Este pedido ainda não foi pago.');
     }
 
-    // Define o tipo para o item dentro do map para resolver o erro 'any'
     type ItemComProduto = ItemPedido & { produto: { nome: string } };
 
-    // Formata os dados para um formato de comprovante limpo
     const comprovante = {
       cabecalho: {
         nomeEstabelecimento: 'Padaria Pão do Céu',

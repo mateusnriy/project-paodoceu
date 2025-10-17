@@ -25,10 +25,9 @@ export class AuthService {
     const token = jwt.sign(
       { id: usuario.id, email: usuario.email, perfil: usuario.perfil },
       jwtSecret,
-      { expiresIn: '8h' } // Token expira em 8 horas
+      { expiresIn: '8h' }
     );
     
-    // Omitir a senha do objeto de usuário retornado
     const { senha, ...usuarioSemSenha } = usuario;
 
     return { token, usuario: usuarioSemSenha };

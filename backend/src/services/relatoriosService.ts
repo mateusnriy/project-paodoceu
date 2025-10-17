@@ -11,7 +11,6 @@ export class RelatoriosService {
     return { gte: inicio, lte: fim };
   }
   
-  // Relatório de vendas geral por período
   async vendasPorPeriodo(dataInicio?: Date, dataFim?: Date) {
     const range = this.getDateRange(dataInicio, dataFim);
 
@@ -41,7 +40,6 @@ export class RelatoriosService {
     };
   }
 
-  // Relatório de vendas agrupado por produto
   async vendasPorProduto(dataInicio?: Date, dataFim?: Date) {
     const range = this.getDateRange(dataInicio, dataFim);
     
@@ -57,9 +55,8 @@ export class RelatoriosService {
       }
     });
 
-    // Define um tipo para o acumulador do reduce
     type RelatorioProduto = Record<string, { quantidade: number, valor: number }>;
-    // Define um tipo para o item do reduce
+
     type ItemComNomeProduto = ItemPedido & { produto: { nome: string } };
 
     const relatorio = itensVendidos.reduce((acc: RelatorioProduto, item: ItemComNomeProduto) => {
@@ -74,7 +71,6 @@ export class RelatoriosService {
     return relatorio;
   }
   
-  // Relatório de vendas agrupado por categoria
   async vendasPorCategoria(dataInicio?: Date, dataFim?: Date) {
     const range = this.getDateRange(dataInicio, dataFim);
 
@@ -90,9 +86,8 @@ export class RelatoriosService {
         }
     });
 
-    // Define um tipo para o acumulador do reduce
     type RelatorioCategoria = Record<string, { quantidade: number, valor: number }>;
-    // Define um tipo para o item do reduce
+
     type ItemComProdutoCategoria = ItemPedido & { produto: Produto & { categoria: Categoria } };
 
     const relatorio = itensVendidos.reduce((acc: RelatorioCategoria, item: ItemComProdutoCategoria) => {

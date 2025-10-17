@@ -3,7 +3,6 @@ import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-// DTO para criação de usuário, omitindo campos que não devem ser passados
 type CreateUsuarioAdminDto = {
   nome: string;
   email: string;
@@ -11,7 +10,6 @@ type CreateUsuarioAdminDto = {
   perfil: PerfilUsuario;
 }
 
-// DTO para atualização, todos os campos são opcionais
 type UpdateUsuarioDto = Partial<CreateUsuarioAdminDto>;
 
 export class UsuariosService {
@@ -64,7 +62,6 @@ export class UsuariosService {
   async atualizar(id: string, data: UpdateUsuarioDto): Promise<Omit<Usuario, 'senha'>> {
     const dadosParaAtualizar: any = { ...data };
 
-    // Se uma nova senha for fornecida, criptografá-la
     if (data.senha) {
       const salt = await bcrypt.genSalt(10);
       dadosParaAtualizar.senha = await bcrypt.hash(data.senha, salt);

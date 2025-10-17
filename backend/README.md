@@ -1,91 +1,95 @@
-# 🥖 Pão do Céu — Sistema de PDV (Backend)
+# Sistema de PDV (Backend)
 
 Bem-vindo ao **Pão do Céu**, um sistema de **Ponto de Venda (PDV)** moderno e completo, desenvolvido para **lanchonetes, padarias e pequenas cafeterias**.  
+
 Este é o **backend** da aplicação, construído com **Node.js**, **Express**, **TypeScript** e **Prisma ORM**.
 
 ---
 
 ## ⚙️ Pré-requisitos
 
-Antes de começar, certifique-se de ter os seguintes itens instalados na sua máquina:
+Antes de começar, certifique-se de ter os seguintes softwares instalados e funcionando corretamente na sua máquina:
 
-| Ferramenta | Versão Requerida | Link de Instalação |
-|-------------|------------------|--------------------|
-| **Node.js** | 18.x ou superior | [nodejs.org](https://nodejs.org/) |
-| **npm** ou **Yarn** | Última versão | [npmjs.com](https://www.npmjs.com/) / [yarnpkg.com](https://yarnpkg.com/) |
-| **Docker** | Última versão | [docker.com](https://www.docker.com/) |
-| **Cliente de API** | (Opcional) | [Postman](https://www.postman.com/) / [Insomnia](https://insomnia.rest/) |
+| Ferramenta | Versão Mínima | Link de Instalação |
+|-------------|----------------|--------------------|
+| **Node.js** | 18.x ou superior | [nodejs.org](https://nodejs.org) |
+| **npm** | 8.x ou superior | Vem junto com o Node.js |
+| **Docker** | Última versão | [docker.com](https://www.docker.com) |
 
-Verifique se o Docker está em execução antes de prosseguir com o setup do banco de dados.
+> ⚠️ **Importante:** Certifique-se de que o **Docker Desktop** esteja em execução antes de prosseguir com a configuração do banco de dados.
 
 ---
 
-## 🧭 Instalação e Configuração
+## 🧭 Instalação e Execução (Passo a Passo)
+
+Siga estes passos na **ordem exata** para configurar e rodar o ambiente de desenvolvimento.
+
+---
 
 ### 1️⃣ Clonar o Repositório
 
 ```bash
-git clone https://github.com/seu-usuario/paodoceu-backend.git
+git clone <URL_DO_SEU_REPOSITORIO>
 cd paodoceu-backend
 ```
 
 ---
 
-### 2️⃣ Instalar Dependências
-
-Instale as dependências do projeto utilizando **npm**:
+### 2️⃣ Instalar as Dependências
 
 ```bash
 npm install
 ```
 
-Ou, se preferir, utilizando **yarn**:
+---
+
+### 3️⃣ Configurar e Iniciar o Banco de Dados
+
+Use o **Docker** para criar um contêiner isolado com o banco de dados **PostgreSQL**:
 
 ```bash
-yarn install
+docker run --name paodoceu-db   -e POSTGRES_USER=docker   -e POSTGRES_PASSWORD=docker   -e POSTGRES_DB=paodoceu   -p 5432:5432   -d postgres
 ```
+
+💡 Este comando cria um banco chamado `paodoceu` com usuário e senha `docker` e o expõe na porta **5432**.  
+Se a porta **5432** já estiver em uso, você precisará parar o serviço que a está utilizando.
 
 ---
 
-### 3️⃣ Configurar o Banco de Dados com Docker
+### 4️⃣ Criar o Arquivo de Variáveis de Ambiente (`.env`)
 
-Execute o comando abaixo para criar e iniciar um container com **PostgreSQL**:
-
-```bash
-docker run --name paodoceu-db   -e POSTGRES_USER=docker   -e POSTGRES_PASSWORD=docker   -e POSTGRES_DB=paodoceu   -p 5432:5432 -d postgres
-```
-
-> 💡 Esse comando cria um banco chamado `paodoceu` com usuário e senha `docker`.
-
----
-
-### 4️⃣ Criar o Arquivo `.env`
-
-Crie um arquivo `.env` na raiz do projeto com o seguinte conteúdo:
+Crie um arquivo chamado `.env` na raiz da pasta **backend** e cole o conteúdo abaixo.  
+Este arquivo guarda as credenciais de acesso ao banco e outras chaves secretas.
 
 ```env
-# Banco de Dados
+# URL de Conexão com o Banco de Dados (PostgreSQL)
 DATABASE_URL="postgresql://docker:docker@localhost:5432/paodoceu?schema=public"
 
-# Autenticação JWT
-JWT_SECRET="SEGREDO_SUPER_SEGURO_PARA_PRODUCAO"
-JWT_EXPIRES_IN="1d"
+# Chave secreta para assinatura de tokens JWT
+JWT_SECRET="GERAR_UMA_CHAVE_SEGURA_AQUI"
 ```
 
-> ⚠️ **Importante:** Em produção, altere o valor de `JWT_SECRET` para uma chave segura e única.
+🔐 Para gerar uma chave segura para `JWT_SECRET`, abra o terminal, digite `node` para entrar no console, e execute o seguinte comando:
+
+```javascript
+require('crypto').randomBytes(32).toString('hex')
+```
+
+Copie o resultado e cole na variável `JWT_SECRET`.
 
 ---
 
-### 5️⃣ Executar Migrações e Popular o Banco de Dados
+### 5️⃣ Preparar o Banco de Dados (Migração e Seed)
 
-Execute as migrações do **Prisma** para criar as tabelas e popular o banco com dados iniciais:
+Com o banco de dados rodando e o `.env` configurado, execute os comandos do **Prisma** para criar as tabelas e popular o banco com dados iniciais (usuário admin, categorias, produtos, etc.):
+
 
 ```bash
 npx prisma migrate dev
 npx prisma db seed
 ```
 
-Após o seed, será criado um usuário administrador padrão:
+Após a execução, um usuário administrador padrão será criado com as seguintes credenciais:
 
 | Campo | Valor |
 |--------|--------|
@@ -94,64 +98,53 @@ Após o seed, será criado um usuário administrador padrão:
 
 ---
 
-## ▶️ Executando a Aplicação
+### 6️⃣ Iniciar a Aplicação
 
-Inicie o servidor de desenvolvimento com o comando:
+Finalmente, inicie o servidor em modo de desenvolvimento:
 
 ```bash
 npm run dev
 ```
 
-O servidor estará rodando em:
+O backend estará rodando e acessível em:
 
-```
-http://localhost:3333
-```
+👉 [http://localhost:3333](http://localhost:3333)
 
-Acesse essa URL no navegador ou em um cliente de API para verificar o status da API.
+Você pode usar um cliente de API como o **Insomnia** para começar a testar os endpoints.
 
 ---
 
 ## 🗂️ Estrutura do Projeto
 
-```bash
+A estrutura de pastas segue uma arquitetura em camadas para organizar responsabilidades:
+
+```
 /
-├── prisma/
-│   ├── migrations/
-│   ├── schema.prisma
-│   └── seed.ts
-│
+├── prisma/         # Configurações do Prisma ORM, schema e seed
 ├── src/
-│   ├── controllers/
-│   ├── dtos/
-│   ├── middlewares/
-│   ├── routes/
-│   ├── services/
-│   ├── types/
-│   ├── app.ts
-│   └── server.ts
+│   ├── controllers/  # Camada que recebe as requisições HTTP
+│   ├── dtos/         # Definições de tipos para transferência de dados
+│   ├── lib/          # Configurações de bibliotecas (ex: Prisma Client)
+│   ├── middlewares/  # Funções que interceptam requisições
+│   ├── routes/       # Definição dos endpoints da API
+│   ├── services/     # Camada de lógica de negócio
+│   └── validations/  # Schemas de validação de dados (Zod)
 │
-├── .env
+├── .env            # Arquivo com variáveis de ambiente (NÃO versionado)
 ├── package.json
 └── tsconfig.json
 ```
 
 ---
 
-## 📘 Documentação da API
-
-A documentação completa dos endpoints está disponível em:  
-📄 **[`API_DOCS.md`](./API_DOCS.md)**
-
----
-
-## Scripts Úteis
+## 🧩 Scripts Úteis
 
 | Comando | Descrição |
 |----------|------------|
-| `npm run dev` | Inicia o servidor em modo desenvolvimento |
-| `npm run build` | Compila o projeto TypeScript |
-| `npm run start` | Executa a versão compilada |
-| `npx prisma studio` | Abre o painel visual do Prisma |
-| `npx prisma migrate dev` | Executa migrações do banco de dados |
-| `npx prisma db seed` | Popula o banco de dados inicial |
+| `npm run dev` | Inicia o servidor em modo de desenvolvimento. |
+| `npm run build` | Compila o código TypeScript para JavaScript. |
+| `npm run start` | Executa a versão compilada do projeto. |
+| `npx prisma migrate dev` | Aplica as migrações e cria o banco de dados. |
+| `npx prisma db seed` | Popula o banco com os dados do arquivo `seed.ts`. |
+| `npx prisma studio` | Abre uma interface visual para gerenciar o banco. |
+| `npx prisma generate` | Gera/atualiza o cliente Prisma e os tipos. |

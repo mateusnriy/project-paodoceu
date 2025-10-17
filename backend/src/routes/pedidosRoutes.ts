@@ -19,10 +19,8 @@ router.post('/', validate(criarPedidoSchema), pedidosController.criar);
 
 router.post('/:id/pagar', validate(processarPagamentoSchema), pedidosController.processarPagamento);
 
-// Ações que podem ser feitas por qualquer perfil logado
 router.patch('/:id/entregar', pedidosController.marcarComoEntregue);
 
-// Apenas administradores podem cancelar um pedido
 router.patch('/:id/cancelar', roleMiddleware([PerfilUsuario.ADMINISTRADOR]), pedidosController.cancelar);
 
 export default router;

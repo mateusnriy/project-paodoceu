@@ -41,7 +41,6 @@ export class CategoriasService {
       throw new Error('Categoria não encontrada.');
     }
     
-    // Verifica se a categoria está sendo usada por algum produto
     const produtoComCategoria = await prisma.produto.findFirst({ where: { categoria_id: id } });
     if (produtoComCategoria) {
       throw new Error('Não é possível deletar a categoria pois ela está associada a produtos.');

@@ -6,7 +6,7 @@ const prisma = new PrismaClient();
 
 export class ProdutosService {
   async listarTodos(): Promise<any[]> {
-    // Inclui a informação da categoria no retorno
+
     return prisma.produto.findMany({
       include: {
         categoria: {
@@ -40,7 +40,7 @@ export class ProdutosService {
     if (!produto) {
       throw new Error('Produto não encontrado.');
     }
-    // Se a categoria for alterada, verifica se a nova categoria existe
+
     if (data.categoria_id) {
         const categoria = await prisma.categoria.findUnique({ where: { id: data.categoria_id } });
         if (!categoria) {

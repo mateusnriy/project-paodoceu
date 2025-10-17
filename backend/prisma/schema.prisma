@@ -8,8 +8,6 @@ generator client {
   provider = "prisma-client-js"
 }
 
-// --- ENUMS ---
-
 enum PerfilUsuario {
   ADMINISTRADOR
   ATENDENTE
@@ -28,8 +26,6 @@ enum MetodoPagamento {
   CARTAO_DEBITO
   PIX
 }
-
-// --- MODELS ---
 
 model Usuario {
   id            String        @id @default(uuid())

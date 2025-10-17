@@ -1,4 +1,3 @@
-// src/dtos/CreatePedidoDto.ts
 type ItemPedidoDto = {
   produto_id: string;
   quantidade: number;

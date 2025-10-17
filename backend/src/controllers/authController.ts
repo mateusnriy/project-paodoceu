@@ -16,7 +16,6 @@ export class AuthController {
 
   async registrar(req: Request, res: Response, next: NextFunction) {
     const novoUsuario = await authService.registrar(req.body);
-    // Omitir a senha da resposta
     const { senha, ...usuarioSemSenha } = novoUsuario;
     return res.status(201).json(usuarioSemSenha);
   }

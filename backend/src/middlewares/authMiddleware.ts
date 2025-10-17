@@ -15,7 +15,6 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
     return res.status(401).json({ message: 'Token não fornecido.' });
   }
 
-  // Formato do token: "Bearer eyJhbGciOi..."
   const [, token] = authorization.split(' ');
 
   try {
@@ -32,10 +31,8 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       return res.status(401).json({ message: 'Token inválido.' });
     }
 
-    // Omitindo a senha antes de anexar ao request
     const { senha, ...usuarioLogado } = usuario;
 
-    // Anexando o usuário ao objeto de requisição para uso posterior
     req.usuario = usuarioLogado;
 
     next();
