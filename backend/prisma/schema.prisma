@@ -31,8 +31,9 @@ model Usuario {
   nome          String
   email         String        @unique
   senha         String
-  perfil        PerfilUsuario @default(ATENDENTE)
-  ativo         Boolean       @default(true) // Added based on frontend usage
+  // Alterar o default aqui
+  perfil        PerfilUsuario @default(ADMINISTRADOR) // <<< ALTERADO de ATENDENTE para ADMINISTRADOR
+  ativo         Boolean       @default(true)
   criado_em     DateTime      @default(now())
   atualizado_em DateTime      @updatedAt
   pedidos       Pedido[]
@@ -43,7 +44,7 @@ model Usuario {
 model Categoria {
   id            String    @id @default(uuid())
   nome          String    @unique
-  criado_em     DateTime  @default(now()) // Corrected placement
+  criado_em     DateTime  @default(now())
   atualizado_em DateTime  @updatedAt
   produtos      Produto[]
 
@@ -54,9 +55,9 @@ model Produto {
   id            String       @id @default(uuid())
   nome          String
   descricao     String?
-  preco         Float // Corrected placement
+  preco         Float
   estoque       Int          @default(0)
-  imagem_url    String?      // Added based on frontend usage
+  imagem_url    String?
   categoria_id  String
   criado_em     DateTime     @default(now())
   atualizado_em DateTime     @updatedAt
@@ -67,19 +68,19 @@ model Produto {
 }
 
 model Pedido {
-  id                    String       @id @default(uuid()) // Corrected placement
+  id                    String       @id @default(uuid())
   numero_sequencial_dia Int
   valor_total           Float
   cliente_nome          String?
-  status                StatusPedido @default(PENDENTE) // Corrected placement
+  status                StatusPedido @default(PENDENTE)
   criado_em             DateTime     @default(now())
   atualizado_em         DateTime     @updatedAt
   atendente_id          String?
-  atendente             Usuario?     @relation(fields: [atendente_id], references: [id]) // Corrected placement
+  atendente             Usuario?     @relation(fields: [atendente_id], references: [id])
   itens                 ItemPedido[]
   pagamento             Pagamento?
 
-  @@map("pedidos") // Corrected placement
+  @@map("pedidos")
 }
 
 model ItemPedido {
@@ -96,7 +97,7 @@ model ItemPedido {
 }
 
 model Pagamento {
-  id         String          @id @default(uuid()) // Corrected placement
+  id         String          @id @default(uuid())
   pedido_id  String          @unique
   metodo     MetodoPagamento
   valor_pago Float

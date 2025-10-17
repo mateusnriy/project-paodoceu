@@ -16,9 +16,9 @@ export const getErrorMessage = (error: unknown): string => {
   }
   // Erro padrão do JavaScript (ex: new Error("mensagem"))
   if (error instanceof Error && error.message) {
-     // Poderia logar error.message aqui para debug interno, mas não retornar ao usuário
-     console.error("Caught client-side error:", error.message);
-     return GENERIC_ERROR_MESSAGE; // Retorna a genérica
+    // Poderia logar error.message aqui para debug interno, mas não retornar ao usuário
+    console.error('Caught client-side error:', error.message);
+    return GENERIC_ERROR_MESSAGE; // Retorna a genérica
   }
   // Fallback final
   return GENERIC_ERROR_MESSAGE;

@@ -19,7 +19,9 @@ const CustomerDisplay: React.FC = () => {
       <main className="flex-grow container mx-auto px-4 py-12">
         <ErrorMessage message={error} />
         {orders.length === 0 && !error && (
-          <p className="text-center text-gray-600 text-xl mt-10">Nenhum pedido pronto no momento.</p>
+          <p className="text-center text-gray-600 text-xl mt-10">
+            Nenhum pedido pronto no momento.
+          </p>
         )}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
           {orders.map((order) => (

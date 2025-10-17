@@ -15,7 +15,13 @@ interface ProductFormModalProps {
   categories: Category[];
 }
 
-export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onClose, onSubmit, product, categories }) => {
+export const ProductFormModal: React.FC<ProductFormModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  product,
+  categories,
+}) => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -91,32 +97,47 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
             <div>
               <label className="block text-sm mb-1">Nome do Produto</label>
               <input
-                type="text" name="nome" value={nome} onChange={(e) => setNome(e.target.value)}
+                type="text"
+                name="nome"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
                 className="w-full px-4 py-3 rounded-4xl border focus:outline-none focus:ring-2 focus:ring-primary"
-                disabled={isSubmitting} required
+                disabled={isSubmitting}
+                required
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm mb-1">Preço (R$)</label>
                 <input
-                  type="text" name="preco" value={preco} onChange={(e) => setPreco(e.target.value)}
+                  type="text"
+                  name="preco"
+                  value={preco}
+                  onChange={(e) => setPreco(e.target.value)}
                   inputMode="decimal"
                   className="w-full px-4 py-3 rounded-4xl border focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="0,00"
-                  disabled={isSubmitting} required
+                  disabled={isSubmitting}
+                  required
                 />
               </div>
               <div>
                 <label className="block text-sm mb-1">Categoria</label>
                 <select
-                  name="categoria_id" value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)}
+                  name="categoria_id"
+                  value={categoriaId}
+                  onChange={(e) => setCategoriaId(e.target.value)}
                   className="w-full px-4 py-3 rounded-4xl border focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                  disabled={isSubmitting} required
+                  disabled={isSubmitting}
+                  required
                 >
-                  <option value="" disabled>Selecione...</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.nome}</option>
+                  <option value="" disabled>
+                    Selecione...
+                  </option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.nome}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -124,16 +145,23 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
             <div>
               <label className="block text-sm mb-1">Estoque</label>
               <input
-                type="number" name="estoque" value={estoque} onChange={(e) => setEstoque(e.target.value)}
+                type="number"
+                name="estoque"
+                value={estoque}
+                onChange={(e) => setEstoque(e.target.value)}
                 min="0"
                 className="w-full px-4 py-3 rounded-4xl border focus:outline-none focus:ring-2 focus:ring-primary"
-                disabled={isSubmitting} required
+                disabled={isSubmitting}
+                required
               />
             </div>
             <div>
               <label className="block text-sm mb-1">URL da Imagem</label>
               <input
-                type="text" name="imagem_url" value={imagemUrl} onChange={(e) => setImagemUrl(e.target.value)}
+                type="text"
+                name="imagem_url"
+                value={imagemUrl}
+                onChange={(e) => setImagemUrl(e.target.value)}
                 className="w-full px-4 py-3 rounded-4xl border focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="https://..."
                 disabled={isSubmitting}
@@ -141,14 +169,20 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({ isOpen, onCl
             </div>
             {/* --- Botões --- */}
             <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outlined" onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
+              <Button type="button" variant="outlined" onClick={onClose} disabled={isSubmitting}>
+                Cancelar
+              </Button>
               <Button type="submit" color="accent" disabled={isSubmitting}>
                 {isSubmitting ? (
-                    <div className="flex items-center justify-center">
-                        <LoadingSpinner size={18} />
-                        <span className="ml-2">Salvando...</span>
-                    </div>
-                ) : (product ? 'Salvar Alterações' : 'Adicionar Produto')}
+                  <div className="flex items-center justify-center">
+                    <LoadingSpinner size={18} />
+                    <span className="ml-2">Salvando...</span>
+                  </div>
+                ) : product ? (
+                  'Salvar Alterações'
+                ) : (
+                  'Adicionar Produto'
+                )}
               </Button>
             </div>
           </form>

@@ -44,9 +44,14 @@ const Orders: React.FC = () => {
           >
             <div className="p-4 bg-primary/10 flex justify-between items-center">
               <div className="flex items-center gap-2">
-                <span className="text-xl font-bold text-accent">#{order.numero_sequencial_dia}</span>
+                <span className="text-xl font-bold text-accent">
+                  #{order.numero_sequencial_dia}
+                </span>
                 <span className="text-sm text-gray-600">
-                  {new Date(order.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(order.criado_em).toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
                 </span>
               </div>
               <div className="flex items-center gap-1 text-gray-600">
@@ -88,13 +93,19 @@ const Orders: React.FC = () => {
       <main className="flex-grow container mx-auto px-4 py-6">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/pos')} className="flex items-center gap-2 text-gray-600 hover:text-accent">
+            <button
+              onClick={() => navigate('/pos')}
+              className="flex items-center gap-2 text-gray-600 hover:text-accent"
+            >
               <ArrowLeftIcon size={20} />
               <span className="hidden sm:inline">Voltar ao PDV</span>
             </button>
             <h1 className="text-2xl font-bold text-accent">Pedidos Aguardando Retirada</h1>
           </div>
-          <button onClick={() => navigate('/display')} className="text-accent hover:underline flex items-center gap-2">
+          <button
+            onClick={() => navigate('/display')}
+            className="text-accent hover:underline flex items-center gap-2"
+          >
             <span className="hidden sm:inline">Ver Tela de Chamada</span>
             <span className="sm:hidden">Tela de Chamada</span>
           </button>

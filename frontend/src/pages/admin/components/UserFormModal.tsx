@@ -13,7 +13,12 @@ interface UserFormModalProps {
   user: User | null;
 }
 
-export const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, onSubmit, user }) => {
+export const UserFormModal: React.FC<UserFormModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  user,
+}) => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -67,20 +72,28 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, o
           <form onSubmit={handleSubmit} className="space-y-4">
             <ErrorMessage message={error} />
             {/* --- Campos do Formulário --- */}
-             <div>
+            <div>
               <label className="block text-sm mb-1">Nome Completo</label>
               <input
-                type="text" name="nome" value={nome} onChange={(e) => setNome(e.target.value)}
+                type="text"
+                name="nome"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
                 className="w-full px-4 py-3 rounded-4xl border focus:outline-none focus:ring-2 focus:ring-primary"
-                disabled={isSubmitting} required
+                disabled={isSubmitting}
+                required
               />
             </div>
             <div>
               <label className="block text-sm mb-1">Email (Nome de Usuário)</label>
               <input
-                type="email" name="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                type="email"
+                name="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-4xl border focus:outline-none focus:ring-2 focus:ring-primary"
-                disabled={isSubmitting} required
+                disabled={isSubmitting}
+                required
               />
             </div>
             <div>
@@ -88,7 +101,10 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, o
                 Senha {user ? '(Deixe em branco para manter)' : ''}
               </label>
               <input
-                type="password" name="senha" value={senha} onChange={(e) => setSenha(e.target.value)}
+                type="password"
+                name="senha"
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
                 className="w-full px-4 py-3 rounded-4xl border focus:outline-none focus:ring-2 focus:ring-primary"
                 disabled={isSubmitting}
                 autoComplete="new-password"
@@ -97,9 +113,12 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, o
             <div>
               <label className="block text-sm mb-1">Função</label>
               <select
-                name="perfil" value={perfil} onChange={(e) => setPerfil(e.target.value as 'ADMINISTRADOR' | 'ATENDENTE')}
+                name="perfil"
+                value={perfil}
+                onChange={(e) => setPerfil(e.target.value as 'ADMINISTRADOR' | 'ATENDENTE')}
                 className="w-full px-4 py-3 rounded-4xl border focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-                disabled={isSubmitting} required
+                disabled={isSubmitting}
+                required
               >
                 <option value="ADMINISTRADOR">Administrador</option>
                 <option value="ATENDENTE">Atendente</option>
@@ -108,8 +127,12 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, o
             <div className="flex items-center">
               <label className="inline-flex items-center cursor-pointer">
                 <input
-                  type="checkbox" name="ativo" checked={ativo} onChange={(e) => setAtivo(e.target.checked)}
-                  className="sr-only peer" disabled={isSubmitting}
+                  type="checkbox"
+                  name="ativo"
+                  checked={ativo}
+                  onChange={(e) => setAtivo(e.target.checked)}
+                  className="sr-only peer"
+                  disabled={isSubmitting}
                 />
                 <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
                 <span className="ms-3 text-sm font-medium text-gray-700">Ativo</span>
@@ -117,14 +140,20 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({ isOpen, onClose, o
             </div>
             {/* --- Botões --- */}
             <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outlined" onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
+              <Button type="button" variant="outlined" onClick={onClose} disabled={isSubmitting}>
+                Cancelar
+              </Button>
               <Button type="submit" color="accent" disabled={isSubmitting}>
-                 {isSubmitting ? (
-                    <div className="flex items-center justify-center">
-                        <LoadingSpinner size={18} />
-                        <span className="ml-2">Salvando...</span>
-                    </div>
-                ) : (user ? 'Salvar Alterações' : 'Adicionar Usuário')}
+                {isSubmitting ? (
+                  <div className="flex items-center justify-center">
+                    <LoadingSpinner size={18} />
+                    <span className="ml-2">Salvando...</span>
+                  </div>
+                ) : user ? (
+                  'Salvar Alterações'
+                ) : (
+                  'Adicionar Usuário'
+                )}
               </Button>
             </div>
           </form>

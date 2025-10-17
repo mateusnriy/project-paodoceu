@@ -28,7 +28,7 @@ export const Sidebar = memo<SidebarProps>(({ className = '' }) => {
       <button
         onClick={toggleSidebar}
         className="md:hidden fixed top-4 right-4 z-50 bg-primary text-white p-2 rounded-full shadow-soft"
-        aria-label={isOpen ? "Fechar menu" : "Abrir menu"} // Label para acessibilidade
+        aria-label={isOpen ? 'Fechar menu' : 'Abrir menu'} // Label para acessibilidade
       >
         {isOpen ? <XIcon size={20} /> : <MenuIcon size={20} />}
       </button>
@@ -68,7 +68,9 @@ export const Sidebar = memo<SidebarProps>(({ className = '' }) => {
                 onClick={() => setIsOpen(false)} // Fecha ao clicar no link
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-4 py-3 rounded-4xl transition-colors ${
-                    isActive ? 'bg-primary/10 text-accent font-medium' : 'text-gray-600 hover:bg-gray-100'
+                    isActive
+                      ? 'bg-primary/10 text-accent font-medium'
+                      : 'text-gray-600 hover:bg-gray-100'
                   }`
                 }
               >

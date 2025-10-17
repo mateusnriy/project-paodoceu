@@ -59,10 +59,13 @@ export const useAdminReports = () => {
         setPeriodoData(resPeriodo.data);
 
         // 2. Dados de Produtos (Unidades vendidas)
-        const prodEntries = Object.entries(resProduto.data) as [string, { quantidade: number, valor: number }][];
+        const prodEntries = Object.entries(resProduto.data) as [
+          string,
+          { quantidade: number; valor: number },
+        ][];
         const prodDataFormatted: ChartData[] = prodEntries.map(([nome, data]) => ({
-            name: nome,
-            vendas: data.quantidade, // Usar quantidade para o gráfico de unidades
+          name: nome,
+          vendas: data.quantidade, // Usar quantidade para o gráfico de unidades
         }));
         setProdutoData(prodDataFormatted);
 
@@ -75,13 +78,15 @@ export const useAdminReports = () => {
         }
 
         // 3. Dados de Categoria (Valor R$ vendido)
-        const catEntries = Object.entries(resCategoria.data) as [string, { quantidade: number, valor: number }][];
+        const catEntries = Object.entries(resCategoria.data) as [
+          string,
+          { quantidade: number; valor: number },
+        ][];
         const catDataFormatted: ChartData[] = catEntries.map(([nome, data]) => ({
-            name: nome,
-            vendas: data.valor, // Usar valor R$ para os gráficos de categoria
+          name: nome,
+          vendas: data.valor, // Usar valor R$ para os gráficos de categoria
         }));
         setCategoriaData(catDataFormatted);
-
       } catch (err) {
         const message = getErrorMessage(err);
         setError(message);

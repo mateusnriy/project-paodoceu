@@ -1,13 +1,14 @@
 import './index.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { BrowserRouter } from 'react-router-dom'; // <<< Importar BrowserRouter
 import { App } from './App';
-import * as Sentry from "@sentry/react";
+import * as Sentry from '@sentry/react';
 
 const _env = (import.meta as any).env;
 const SENTRY_DSN = _env.VITE_SENTRY_DSN;
 
-if (SENTRY_DSN && _env.PROD) { 
+if (SENTRY_DSN && _env.PROD) {
   Sentry.init({
     dsn: SENTRY_DSN,
     integrations: [
@@ -21,22 +22,27 @@ if (SENTRY_DSN && _env.PROD) {
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
 
-    environment: _env.MODE, 
+    environment: _env.MODE,
   });
-  console.log("Sentry initialized for production.");
+  console.log('Sentry initialized for production.');
 } else {
-    console.log("Sentry DSN not found or not in production mode. Sentry not initialized.");
+  console.log('Sentry DSN not found or not in production mode. Sentry not initialized.');
 }
-
 
 const rootElement = document.getElementById('root');
 if (rootElement) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <React.StrictMode>
-      <App />
+      {/* Adicionar BrowserRouter envolvendo o App */}
+      <BrowserRouter>
+        {' '}
+        {/* <<< ADICIONADO */}
+        <App />
+      </BrowserRouter>{' '}
+      {/* <<< ADICIONADO */}
     </React.StrictMode>
   );
 } else {
-  console.error("Root element not found");
+  console.error('Root element not found');
 }

@@ -19,27 +19,26 @@ export const useCustomerDisplay = () => {
         if (!isMounted) return; // Não atualiza se desmontado
 
         const newOrderNumbers = response.data.map((order) => order.numero_sequencial_dia);
-        
+
         setError(null); // Limpa erro anterior
 
         setOrders((prevOrders) => {
           // Encontra a nova ordem para destacar
           const newOrder = newOrderNumbers.find((num) => !prevOrders.includes(num));
-          
+
           if (newOrder) {
             setHighlightOrder(newOrder);
             setTimeout(() => {
-                if(isMounted) setHighlightOrder(null);
+              if (isMounted) setHighlightOrder(null);
             }, 2000); // Duração do destaque
           }
-          
+
           return newOrderNumbers; // Atualiza a lista
         });
-
       } catch (err) {
         if (!isMounted) return;
         // Não usar getErrorMessage aqui, pois pode ser erro de rede intermitente
-        const message = "Não foi possível atualizar a lista de pedidos.";
+        const message = 'Não foi possível atualizar a lista de pedidos.';
         setError(message);
         logError('Erro no polling do Customer Display:', err);
       }
@@ -50,8 +49,8 @@ export const useCustomerDisplay = () => {
 
     // Limpa o intervalo e a flag ao desmontar
     return () => {
-        isMounted = false;
-        clearInterval(timer);
+      isMounted = false;
+      clearInterval(timer);
     };
   }, []); // Executa apenas uma vez
 

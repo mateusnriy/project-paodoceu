@@ -94,7 +94,7 @@ export const POS: React.FC = () => {
             onCancelOrder={handleCancelOrder}
           />
         </div>
-        
+
         {/* Mobile Cart Button */}
         <button
           onClick={toggleMobileCart}

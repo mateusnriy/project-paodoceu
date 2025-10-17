@@ -19,19 +19,16 @@ export const usePOS = () => {
       try {
         setIsLoading(true);
         setError(null);
-        const [catRes, prodRes] = await Promise.all([
-          api.get('/categorias'),
-          api.get('/produtos'),
-        ]);
-        
+        const [catRes, prodRes] = await Promise.all([api.get('/categorias'), api.get('/produtos')]);
+
         setCategories(catRes.data);
         setProducts(prodRes.data);
-        
+
         if (catRes.data.length > 0) {
           setActiveCategory(catRes.data[0].id);
         }
       } catch (err) {
-        setError("Erro ao carregar dados do PDV.");
+        setError('Erro ao carregar dados do PDV.');
       } finally {
         setIsLoading(false);
       }
@@ -43,53 +40,55 @@ export const usePOS = () => {
     return products.filter((product) => product.categoria.id === activeCategory);
   }, [products, activeCategory]);
 
-  const handleAddToCart = useCallback((productId: string) => {
-    const product = products.find((p) => p.id === productId);
-    if (!product) return;
+  const handleAddToCart = useCallback(
+    (productId: string) => {
+      const product = products.find((p) => p.id === productId);
+      if (!product) return;
 
-    const existingItem = cartItems.find((item) => item.id === productId);
-    const newQuantity = (existingItem?.quantity || 0) + 1;
+      const existingItem = cartItems.find((item) => item.id === productId);
+      const newQuantity = (existingItem?.quantity || 0) + 1;
 
-    if (newQuantity > product.estoque) {
-      alert(`Estoque insuficiente. Disponível: ${product.estoque}`);
-      return;
-    }
+      if (newQuantity > product.estoque) {
+        alert(`Estoque insuficiente. Disponível: ${product.estoque}`);
+        return;
+      }
 
-    if (existingItem) {
-      setCartItems((prev) =>
-        prev.map((item) =>
-          item.id === productId ? { ...item, quantity: newQuantity } : item
-        )
-      );
-    } else {
-      setCartItems((prev) => [
-        ...prev,
-        {
-          id: product.id,
-          name: product.nome,
-          price: product.preco,
-          quantity: 1,
-        },
-      ]);
-    }
-  }, [products, cartItems]);
+      if (existingItem) {
+        setCartItems((prev) =>
+          prev.map((item) => (item.id === productId ? { ...item, quantity: newQuantity } : item))
+        );
+      } else {
+        setCartItems((prev) => [
+          ...prev,
+          {
+            id: product.id,
+            name: product.nome,
+            price: product.preco,
+            quantity: 1,
+          },
+        ]);
+      }
+    },
+    [products, cartItems]
+  );
 
-  const handleUpdateQuantity = useCallback((id: string, quantity: number) => {
-    if (quantity <= 0) {
-      setCartItems((prev) => prev.filter((item) => item.id !== id));
-      return;
-    }
+  const handleUpdateQuantity = useCallback(
+    (id: string, quantity: number) => {
+      if (quantity <= 0) {
+        setCartItems((prev) => prev.filter((item) => item.id !== id));
+        return;
+      }
 
-    const product = products.find(p => p.id === id);
-    if (product && quantity > product.estoque) {
-      alert(`Estoque insuficiente. Disponível: ${product.estoque}`);
-      return;
-    }
+      const product = products.find((p) => p.id === id);
+      if (product && quantity > product.estoque) {
+        alert(`Estoque insuficiente. Disponível: ${product.estoque}`);
+        return;
+      }
 
-    setCartItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, quantity } : item))
-    );
-  }, [products]);
+      setCartItems((prev) => prev.map((item) => (item.id === id ? { ...item, quantity } : item)));
+    },
+    [products]
+  );
 
   const handleRemoveItem = useCallback((id: string) => {
     setCartItems((prev) => prev.filter((item) => item.id !== id));
@@ -110,7 +109,7 @@ export const usePOS = () => {
       setCartItems([]);
       navigate(`/payment/${response.data.id}`);
     } catch (error) {
-      setError("Erro ao finalizar pedido. Verifique o estoque.");
+      setError('Erro ao finalizar pedido. Verifique o estoque.');
     }
   }, [cartItems, navigate]);
 

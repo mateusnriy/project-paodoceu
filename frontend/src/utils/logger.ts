@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/react";
+import * as Sentry from '@sentry/react';
 
 const isSentryEnabled = !!import.meta.env.VITE_SENTRY_DSN && import.meta.env.PROD;
 
@@ -24,11 +24,9 @@ export const logError = (message: string, error?: any, context?: Record<string, 
   }
 };
 
-
 export const logInfo = (message: string, context?: Record<string, any>) => {
   console.log(`[LOG INFO] ${message}`, {
     context,
     timestamp: new Date().toISOString(),
   });
-
 };

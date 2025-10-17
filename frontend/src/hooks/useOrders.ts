@@ -19,7 +19,7 @@ export const useOrders = () => {
       setIsLoading(true);
       setError(null);
       const response = await api.get<Order[]>('/pedidos/prontos');
-      setOrders(response.data.map(order => ({ ...order, completed: false }))); // Inicializa completed
+      setOrders(response.data.map((order) => ({ ...order, completed: false }))); // Inicializa completed
     } catch (err) {
       const message = getErrorMessage(err);
       setError(message);
@@ -31,16 +31,14 @@ export const useOrders = () => {
 
   useEffect(() => {
     loadOrders();
-     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Executa apenas na montagem
 
   // Não precisa de useCallback se só é passado para a página
   const handleCompleteOrder = async (orderId: string) => {
     // UI otimista
     setOrders((prevOrders) =>
-      prevOrders.map((order) =>
-        order.id === orderId ? { ...order, completed: true } : order
-      )
+      prevOrders.map((order) => (order.id === orderId ? { ...order, completed: true } : order))
     );
 
     try {
@@ -49,16 +47,13 @@ export const useOrders = () => {
       setTimeout(() => {
         setOrders((prevOrders) => prevOrders.filter((order) => order.id !== orderId));
       }, 1500);
-
     } catch (err) {
       const message = getErrorMessage(err);
       setError(message); // Mostra erro na UI
       logError('Erro ao marcar pedido como entregue:', err, { orderId });
       // Reverte UI
       setOrders((prevOrders) =>
-        prevOrders.map((order) =>
-          order.id === orderId ? { ...order, completed: false } : order
-        )
+        prevOrders.map((order) => (order.id === orderId ? { ...order, completed: false } : order))
       );
     }
   };

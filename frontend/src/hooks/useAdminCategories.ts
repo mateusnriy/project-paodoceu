@@ -24,7 +24,7 @@ export const useAdminCategories = () => {
   // Carrega categorias paginadas
   const loadCategories = async (page = currentPage) => {
     try {
-      if(categories.length === 0) setIsLoading(true);
+      if (categories.length === 0) setIsLoading(true);
       setError(null);
       const params = { page, limit: ITEMS_PER_PAGE };
       // Assumindo que o backend suporta paginação para categorias
@@ -44,7 +44,7 @@ export const useAdminCategories = () => {
 
   useEffect(() => {
     loadCategories(currentPage);
-     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]); // Recarrega ao mudar de página
 
   const handleOpenModal = useCallback((category: Category | null) => {
@@ -56,38 +56,49 @@ export const useAdminCategories = () => {
   }, []);
 
   // Retorna boolean
-  const handleSaveCategory = useCallback(async (nome: string): Promise<boolean> => {
-    try {
-      setError(null);
-      if (modalState.category) {
-        await api.put(`/categorias/${modalState.category.id}`, { nome });
-      } else {
-        await api.post('/categorias', { nome });
-      }
-      handleCloseModal();
-      await loadCategories(modalState.category ? currentPage : 1); // Recarrega
-      return true; // Sucesso
-    } catch (err) {
-      const message = getErrorMessage(err);
-      logError('Erro ao salvar categoria:', err, { categoryId: modalState.category?.id });
-      throw new Error(message); // Lança para o modal
-    }
-  }, [modalState.category, handleCloseModal, currentPage]); // Removido loadCategories
-
-  const handleDeleteCategory = useCallback(async (categoryId: string) => {
-    if (window.confirm("Tem certeza? A exclusão falhará se a categoria estiver em uso por produtos.")) {
+  const handleSaveCategory = useCallback(
+    async (nome: string): Promise<boolean> => {
       try {
         setError(null);
-        await api.delete(`/categorias/${categoryId}`);
-        const newPage = categories.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
-        await loadCategories(newPage);
+        if (modalState.category) {
+          await api.put(`/categorias/${modalState.category.id}`, { nome });
+        } else {
+          await api.post('/categorias', { nome });
+        }
+        handleCloseModal();
+        await loadCategories(modalState.category ? currentPage : 1); // Recarrega
+        return true; // Sucesso
       } catch (err) {
         const message = getErrorMessage(err);
-        setError(message);
-        logError('Erro ao excluir categoria:', err, { categoryId });
+        logError('Erro ao salvar categoria:', err, { categoryId: modalState.category?.id });
+        throw new Error(message); // Lança para o modal
       }
-    }
-  }, [categories, currentPage]); // Removido loadCategories
+    },
+    [modalState.category, handleCloseModal, currentPage]
+  ); // Removido loadCategories
+
+  const handleDeleteCategory = useCallback(
+    async (categoryId: string) => {
+      if (
+        window.confirm(
+          'Tem certeza? A exclusão falhará se a categoria estiver em uso por produtos.'
+        )
+      ) {
+        try {
+          setError(null);
+          await api.delete(`/categorias/${categoryId}`);
+          const newPage =
+            categories.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+          await loadCategories(newPage);
+        } catch (err) {
+          const message = getErrorMessage(err);
+          setError(message);
+          logError('Erro ao excluir categoria:', err, { categoryId });
+        }
+      }
+    },
+    [categories, currentPage]
+  ); // Removido loadCategories
 
   return {
     isLoading,

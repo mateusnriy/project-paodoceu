@@ -1,8 +1,8 @@
-import React, { memo } from 'react'; // Importado memo
+import React, { memo } from 'react';
 import { Button } from './Button';
 import { TrashIcon, MinusIcon, PlusIcon } from 'lucide-react';
-import { CartItem } from '../../types'; // Barrel file
-import { formatCurrency } from '../../utils/formatters'; // Formatador
+import { CartItem } from '../../types';
+import { formatCurrency } from '../../utils/formatters';
 
 interface OrderSummaryProps {
   items: CartItem[];
@@ -12,7 +12,6 @@ interface OrderSummaryProps {
   onCancelOrder: () => void;
 }
 
-// Envolvido com React.memo
 export const OrderSummary = memo<OrderSummaryProps>(({
   items,
   onUpdateQuantity,
@@ -35,34 +34,34 @@ export const OrderSummary = memo<OrderSummaryProps>(({
           <ul className="space-y-3">
             {items.map((item) => (
               <li key={item.id} className="flex justify-between items-center border-b pb-3 last:border-b-0">
-                <div className="flex-grow pr-2"> {/* Adicionado padding para evitar sobreposição */}
-                  <p className="font-medium truncate">{item.name}</p> {/* Truncate para nomes longos */}
+                <div className="flex-grow pr-2">
+                  <p className="font-medium truncate">{item.name}</p>
                   <p className="text-sm text-gray-600">
                     R$ {formatCurrency(item.price)} x {item.quantity}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0"> {/* Evita que botões encolham */}
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
                     className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={item.quantity <= 1}
-                    aria-label={`Diminuir quantidade de ${item.name}`} // Acessibilidade
+                    aria-label={`Diminuir quantidade de ${item.name}`}
                   >
                     <MinusIcon size={14} />
                   </button>
-                  <span className="w-6 text-center" aria-live="polite">{item.quantity}</span> {/* Notifica mudanças */}
+                  {/* Span da quantidade já tinha aria-live */}
+                  <span className="w-6 text-center" aria-live="polite">{item.quantity}</span>
                   <button
                     onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
                     className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200"
-                     aria-label={`Aumentar quantidade de ${item.name}`} // Acessibilidade
-                     // Adicionar disabled se houver lógica de estoque máximo aqui
+                     aria-label={`Aumentar quantidade de ${item.name}`}
                   >
                     <PlusIcon size={14} />
                   </button>
                   <button
                     onClick={() => onRemoveItem(item.id)}
                     className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-error hover:text-white"
-                     aria-label={`Remover ${item.name} do carrinho`} // Acessibilidade
+                     aria-label={`Remover ${item.name} do carrinho`}
                   >
                     <TrashIcon size={14} />
                   </button>
@@ -73,10 +72,14 @@ export const OrderSummary = memo<OrderSummaryProps>(({
         </div>
       )}
 
-      <div className="border-t pt-4 mt-auto"> {/* mt-auto para empurrar para baixo */}
+      <div className="border-t pt-4 mt-auto">
         <div className="flex justify-between items-center mb-4">
           <span className="font-medium text-lg">Total:</span>
-          <span className="font-bold text-xl text-accent">
+          {/* Adicionar aria-live="polite" para anunciar mudanças no total */}
+          <span
+            className="font-bold text-xl text-accent"
+            aria-live="polite" /* <<< ADICIONADO */
+          >
             R$ {formatCurrency(total)}
           </span>
         </div>
@@ -104,4 +107,4 @@ export const OrderSummary = memo<OrderSummaryProps>(({
   );
 });
 
-OrderSummary.displayName = 'OrderSummary'; // DisplayName adicionado
+OrderSummary.displayName = 'OrderSummary';

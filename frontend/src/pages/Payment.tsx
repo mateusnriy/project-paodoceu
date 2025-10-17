@@ -2,7 +2,13 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/common/Header';
 import { Button } from '../components/common/Button';
-import { BanknoteIcon, CreditCardIcon, ZapIcon, CheckCircleIcon, ArrowLeftIcon } from 'lucide-react';
+import {
+  BanknoteIcon,
+  CreditCardIcon,
+  ZapIcon,
+  CheckCircleIcon,
+  ArrowLeftIcon,
+} from 'lucide-react';
 import { usePayment } from '../hooks/usePayment';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { ErrorMessage } from '../components/ui/ErrorMessage';
@@ -69,12 +75,8 @@ const Payment: React.FC = () => {
               <div className="bg-success/10 p-4 rounded-full mb-4">
                 <CheckCircleIcon size={64} className="text-success" />
               </div>
-              <h2 className="text-xl font-semibold text-success mb-2">
-                Pagamento Confirmado!
-              </h2>
-              <p className="text-gray-600">
-                Redirecionando para a tela de pedidos...
-              </p>
+              <h2 className="text-xl font-semibold text-success mb-2">Pagamento Confirmado!</h2>
+              <p className="text-gray-600">Redirecionando para a tela de pedidos...</p>
             </div>
           ) : (
             <>

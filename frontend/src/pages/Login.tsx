@@ -36,15 +36,15 @@ export const Login: React.FC = () => {
       <div className="w-full max-w-md bg-white rounded-4xl shadow-soft p-8">
         <div className="flex flex-col items-center mb-8">
           <CloudIcon className="h-16 w-16 text-primary mb-4" />
-          <h1 className="text-2xl font-bold text-accent text-center">
-            Lanchonete Pão do Céu
-          </h1>
+          <h1 className="text-2xl font-bold text-accent text-center">Lanchonete Pão do Céu</h1>
         </div>
         <form onSubmit={handleSubmit} className="space-y-6">
           <ErrorMessage message={error} />
-          
+
           <div className="space-y-2">
-            <label htmlFor="email" className="block text-gray-700">Email</label>
+            <label htmlFor="email" className="block text-gray-700">
+              Email
+            </label>
             <input
               id="email"
               type="email"
@@ -57,7 +57,9 @@ export const Login: React.FC = () => {
             />
           </div>
           <div className="space-y-2">
-            <label htmlFor="password" className="block text-gray-700">Senha</label>
+            <label htmlFor="password" className="block text-gray-700">
+              Senha
+            </label>
             <input
               id="password"
               type="password"

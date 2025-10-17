@@ -1,6 +1,15 @@
 import React from 'react';
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  LineChart,
+  Line,
 } from 'recharts';
 import { Button } from '../../components/common/Button';
 import { CalendarIcon, DownloadIcon } from 'lucide-react';
@@ -23,7 +32,11 @@ const AdminReports: React.FC = () => {
 
   const renderCharts = () => {
     if (isLoading) {
-      return <div className="flex justify-center py-20"><LoadingSpinner size={40} /></div>;
+      return (
+        <div className="flex justify-center py-20">
+          <LoadingSpinner size={40} />
+        </div>
+      );
     }
     if (error) {
       return <ErrorMessage message={error} />;
@@ -48,23 +61,36 @@ const AdminReports: React.FC = () => {
         </div>
         {/* Gráfico 2: Produtos Mais Vendidos (Unidades) (Barra Vertical) */}
         <div className="bg-white rounded-4xl shadow-soft p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Produtos Mais Vendidos (Unidades)</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            Produtos Mais Vendidos (Unidades)
+          </h2>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={produtoData} layout="vertical" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}>
+              <BarChart
+                data={produtoData}
+                layout="vertical"
+                margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
                 <YAxis dataKey="name" type="category" width={100} />
                 <Tooltip formatter={(value: number) => [value, 'Unidades']} />
                 <Legend />
-                <Bar dataKey="vendas" name="Unidades Vendidas" fill="#1D4ED8" radius={[0, 8, 8, 0]} />
+                <Bar
+                  dataKey="vendas"
+                  name="Unidades Vendidas"
+                  fill="#1D4ED8"
+                  radius={[0, 8, 8, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
         {/* Gráfico 3: Tendência de Vendas por Categoria (R$) (Linha) */}
         <div className="bg-white rounded-4xl shadow-soft p-6">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">Tendência de Vendas por Categoria (R$)</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            Tendência de Vendas por Categoria (R$)
+          </h2>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={categoriaData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
@@ -73,7 +99,14 @@ const AdminReports: React.FC = () => {
                 <YAxis tickFormatter={(value) => `R$ ${value}`} />
                 <Tooltip formatter={(value: number) => [`R$ ${formatCurrency(value)}`, 'Vendas']} />
                 <Legend />
-                <Line type="monotone" dataKey="vendas" name="Vendas (R$)" stroke="#5DADEC" strokeWidth={2} activeDot={{ r: 8 }} />
+                <Line
+                  type="monotone"
+                  dataKey="vendas"
+                  name="Vendas (R$)"
+                  stroke="#5DADEC"
+                  strokeWidth={2}
+                  activeDot={{ r: 8 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -109,7 +142,7 @@ const AdminReports: React.FC = () => {
           </Button>
         </div>
       </div>
-      
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-4xl shadow-soft p-4">

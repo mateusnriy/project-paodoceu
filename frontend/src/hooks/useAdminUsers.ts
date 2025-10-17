@@ -26,7 +26,7 @@ export const useAdminUsers = () => {
   // Carrega usuários paginados
   const loadUsers = async (page = currentPage) => {
     try {
-      if(users.length === 0) setIsLoading(true);
+      if (users.length === 0) setIsLoading(true);
       setError(null);
       const params = { page, limit: ITEMS_PER_PAGE };
       // Assumindo que o backend suporta paginação para usuários
@@ -46,7 +46,7 @@ export const useAdminUsers = () => {
 
   useEffect(() => {
     loadUsers(currentPage);
-     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]); // Recarrega ao mudar de página
 
   const handleOpenModal = useCallback((user: User | null) => {
@@ -58,48 +58,54 @@ export const useAdminUsers = () => {
   }, []);
 
   // Retorna boolean
-  const handleSaveUser = useCallback(async (formData: UserFormData): Promise<boolean> => {
-    try {
-      setError(null);
-      const dataToSend = { ...formData }; // Copia para não modificar o original
-
-      if (modalState.user) {
-        // Atualizar: Remove senha se vazia
-        if (!dataToSend.senha) {
-          delete dataToSend.senha;
-        }
-        await api.put(`/usuarios/${modalState.user.id}`, dataToSend);
-      } else {
-        // Criar: Senha é obrigatória
-        if (!dataToSend.senha) {
-          throw new Error("A senha é obrigatória para criar um novo usuário.");
-        }
-        await api.post('/usuarios', dataToSend);
-      }
-      handleCloseModal();
-      await loadUsers(modalState.user ? currentPage : 1);
-      return true; // Sucesso
-    } catch (err) {
-      const message = getErrorMessage(err);
-      logError('Erro ao salvar usuário:', err, { userId: modalState.user?.id });
-      throw new Error(message); // Lança para o modal
-    }
-  }, [modalState.user, handleCloseModal, currentPage]); // Removido loadUsers
-
-  const handleDeleteUser = useCallback(async (userId: string) => {
-    if (window.confirm("Tem certeza que deseja excluir este usuário?")) {
+  const handleSaveUser = useCallback(
+    async (formData: UserFormData): Promise<boolean> => {
       try {
         setError(null);
-        await api.delete(`/usuarios/${userId}`);
-        const newPage = users.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
-        await loadUsers(newPage);
+        const dataToSend = { ...formData }; // Copia para não modificar o original
+
+        if (modalState.user) {
+          // Atualizar: Remove senha se vazia
+          if (!dataToSend.senha) {
+            delete dataToSend.senha;
+          }
+          await api.put(`/usuarios/${modalState.user.id}`, dataToSend);
+        } else {
+          // Criar: Senha é obrigatória
+          if (!dataToSend.senha) {
+            throw new Error('A senha é obrigatória para criar um novo usuário.');
+          }
+          await api.post('/usuarios', dataToSend);
+        }
+        handleCloseModal();
+        await loadUsers(modalState.user ? currentPage : 1);
+        return true; // Sucesso
       } catch (err) {
         const message = getErrorMessage(err);
-        setError(message);
-        logError('Erro ao excluir usuário:', err, { userId });
+        logError('Erro ao salvar usuário:', err, { userId: modalState.user?.id });
+        throw new Error(message); // Lança para o modal
       }
-    }
-  }, [users, currentPage]); // Removido loadUsers
+    },
+    [modalState.user, handleCloseModal, currentPage]
+  ); // Removido loadUsers
+
+  const handleDeleteUser = useCallback(
+    async (userId: string) => {
+      if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
+        try {
+          setError(null);
+          await api.delete(`/usuarios/${userId}`);
+          const newPage = users.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+          await loadUsers(newPage);
+        } catch (err) {
+          const message = getErrorMessage(err);
+          setError(message);
+          logError('Erro ao excluir usuário:', err, { userId });
+        }
+      }
+    },
+    [users, currentPage]
+  ); // Removido loadUsers
 
   return {
     isLoading,

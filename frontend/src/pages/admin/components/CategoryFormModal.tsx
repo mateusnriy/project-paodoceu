@@ -12,7 +12,12 @@ interface CategoryFormModalProps {
   category: Category | null;
 }
 
-export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({ isOpen, onClose, onSubmit, category }) => {
+export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  category,
+}) => {
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,7 +59,10 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({ isOpen, on
           <form onSubmit={handleSubmit} className="space-y-4">
             <ErrorMessage message={error} />
             <div>
-              <label htmlFor="categoryName" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="categoryName"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Nome da Categoria
               </label>
               <input
@@ -77,7 +85,11 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({ isOpen, on
                     <LoadingSpinner size={18} />
                     <span className="ml-2">Salvando...</span>
                   </div>
-                ) : (category ? 'Salvar Alterações' : 'Adicionar Categoria')}
+                ) : category ? (
+                  'Salvar Alterações'
+                ) : (
+                  'Adicionar Categoria'
+                )}
               </Button>
             </div>
           </form>

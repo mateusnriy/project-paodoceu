@@ -46,7 +46,9 @@ export const useAdminProducts = () => {
       const [prodRes, catRes] = await Promise.all([
         api.get<PaginatedResponse<Product>>('/produtos', { params }),
         // Carrega categorias apenas se ainda não foram carregadas
-        categories.length === 0 ? api.get<Category[]>('/categorias') : Promise.resolve({ data: categories }),
+        categories.length === 0
+          ? api.get<Category[]>('/categorias')
+          : Promise.resolve({ data: categories }),
       ]);
 
       setProducts(prodRes.data.data);
@@ -57,7 +59,6 @@ export const useAdminProducts = () => {
       if (catRes.data !== categories) {
         setCategories(catRes.data);
       }
-
     } catch (err) {
       const message = getErrorMessage(err);
       setError(message);
@@ -72,7 +73,7 @@ export const useAdminProducts = () => {
     // Quando a busca muda, sempre volta para a página 1
     const pageToLoad = debouncedSearchTerm !== searchTerm ? 1 : currentPage;
     loadData(pageToLoad, debouncedSearchTerm);
-     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, debouncedSearchTerm]); // Depende da página e da busca debounced
 
   const handleOpenModal = useCallback((product: Product | null) => {
@@ -84,42 +85,48 @@ export const useAdminProducts = () => {
   }, []);
 
   // Retorna boolean para indicar sucesso/falha ao modal
-  const handleSaveProduct = useCallback(async (formData: ProductFormData): Promise<boolean> => {
-    try {
-      setError(null);
-      if (modalState.product) {
-        await api.put(`/produtos/${modalState.product.id}`, formData);
-      } else {
-        await api.post('/produtos', formData);
-      }
-      handleCloseModal();
-      // Recarrega na página atual ou na primeira se for novo item
-      await loadData(modalState.product ? currentPage : 1);
-      return true; // Sucesso
-    } catch (err) {
-      const message = getErrorMessage(err);
-      // Define o erro no hook para ser exibido no modal através do retorno
-      logError('Erro ao salvar produto:', err, { productId: modalState.product?.id });
-      // Lança o erro para o modal poder pegar e exibir
-      throw new Error(message);
-    }
-  }, [modalState.product, handleCloseModal, currentPage]); // Removido loadData
-
-  const handleDeleteProduct = useCallback(async (productId: string) => {
-    if (window.confirm("Tem certeza que deseja excluir este produto?")) {
+  const handleSaveProduct = useCallback(
+    async (formData: ProductFormData): Promise<boolean> => {
       try {
         setError(null);
-        await api.delete(`/produtos/${productId}`);
-        // Decide se volta uma página
-        const newPage = products.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
-        await loadData(newPage);
+        if (modalState.product) {
+          await api.put(`/produtos/${modalState.product.id}`, formData);
+        } else {
+          await api.post('/produtos', formData);
+        }
+        handleCloseModal();
+        // Recarrega na página atual ou na primeira se for novo item
+        await loadData(modalState.product ? currentPage : 1);
+        return true; // Sucesso
       } catch (err) {
         const message = getErrorMessage(err);
-        setError(message);
-        logError('Erro ao excluir produto:', err, { productId });
+        // Define o erro no hook para ser exibido no modal através do retorno
+        logError('Erro ao salvar produto:', err, { productId: modalState.product?.id });
+        // Lança o erro para o modal poder pegar e exibir
+        throw new Error(message);
       }
-    }
-  }, [products, currentPage]); // Removido loadData
+    },
+    [modalState.product, handleCloseModal, currentPage]
+  ); // Removido loadData
+
+  const handleDeleteProduct = useCallback(
+    async (productId: string) => {
+      if (window.confirm('Tem certeza que deseja excluir este produto?')) {
+        try {
+          setError(null);
+          await api.delete(`/produtos/${productId}`);
+          // Decide se volta uma página
+          const newPage = products.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
+          await loadData(newPage);
+        } catch (err) {
+          const message = getErrorMessage(err);
+          setError(message);
+          logError('Erro ao excluir produto:', err, { productId });
+        }
+      }
+    },
+    [products, currentPage]
+  ); // Removido loadData
 
   return {
     isLoading,

@@ -1,8 +1,20 @@
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay, formatISO } from 'date-fns';
+import {
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  startOfYear,
+  endOfYear,
+  startOfDay,
+  endOfDay,
+  formatISO,
+} from 'date-fns';
 
 export type DateRangeOption = 'today' | 'week' | 'month' | 'year';
 
-export const getDateRangeQuery = (rangeType: DateRangeOption): { data_inicio?: string; data_fim?: string } => {
+export const getDateRangeQuery = (
+  rangeType: DateRangeOption
+): { data_inicio?: string; data_fim?: string } => {
   const now = new Date();
   let startDate: Date;
   let endDate: Date;
@@ -25,9 +37,9 @@ export const getDateRangeQuery = (rangeType: DateRangeOption): { data_inicio?: s
       endDate = endOfYear(now);
       break;
     default:
-       startDate = startOfWeek(now, { weekStartsOn: 1 });
-       endDate = endOfWeek(now, { weekStartsOn: 1 });
-       break;
+      startDate = startOfWeek(now, { weekStartsOn: 1 });
+      endDate = endOfWeek(now, { weekStartsOn: 1 });
+      break;
   }
   const formatOptions = { representation: 'date' } as const;
 
