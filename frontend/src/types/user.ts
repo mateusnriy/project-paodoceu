@@ -1,9 +1,26 @@
-export interface User {
+
+export enum PerfilUsuario {
+  ADMINISTRADOR = 'ADMINISTRADOR',
+  ATENDENTE = 'ATENDENTE',
+}
+
+export interface Usuario {
   id: string;
   nome: string;
   email: string;
-  perfil: 'ADMINISTRADOR' | 'ATENDENTE';
+  perfil: PerfilUsuario; // Usa o Enum
   ativo: boolean;
+  dataCriacao: string;
+  dataAtualizacao: string;
 }
 
-export interface AuthUser extends Omit<User, 'senha'> {}
+// Tipo usado no AuthContext (sem dados sensíveis)
+export interface AuthUsuario extends Omit<Usuario, 'ativo'> {}
+
+// Tipo usado nos formulários de criação/edição
+export interface UsuarioFormData {
+  nome: string;
+  email: string;
+  senha?: string;
+  perfil: PerfilUsuario;
+}

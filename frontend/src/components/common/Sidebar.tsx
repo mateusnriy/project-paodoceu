@@ -1,88 +1,82 @@
-import React, { useState, memo } from 'react'; // Importado memo
+import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { BarChartIcon, UsersIcon, TagIcon, MenuIcon, XIcon, ShoppingCartIcon } from 'lucide-react'; // ShoppingCartIcon adicionado para o link "Voltar ao PDV"
+import {
+  BarChart3,
+  Package,
+  Users,
+  LayoutGrid,
+} from 'lucide-react';
 
-interface SidebarProps {
-  className?: string;
-}
+// Interface de props removida, pois o sidebar não é mais colapsável
+// O estado de abertura (isSidebarOpen) e a função (toggleSidebar) foram removidos.
 
-// Envolvido com React.memo
-export const Sidebar = memo<SidebarProps>(({ className = '' }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  // Removido useLocation pois não era utilizado
-
-  const menuItems = [
-    { name: 'Produtos', path: '/admin/products', icon: <TagIcon size={20} /> }, // Ícone ajustado
-    { name: 'Categorias', path: '/admin/categories', icon: <TagIcon size={20} /> },
-    { name: 'Usuários', path: '/admin/users', icon: <UsersIcon size={20} /> },
-    { name: 'Relatórios', path: '/admin/reports', icon: <BarChartIcon size={20} /> },
-  ];
-
-  const toggleSidebar = () => {
-    setIsOpen(!isOpen);
-  };
+// Componente interno para os links da navegação
+const SidebarLink: React.FC<{ to: string; icon: React.ReactNode; label: string }> = ({
+  to,
+  icon,
+  label,
+}) => {
+  // Define as classes base, de hover e de foco (usando cores arbitrárias do Guia de Estilo)
+  const baseClasses =
+    'flex items-center px-4 py-3 rounded-lg text-[#333333] font-medium transition-colors duration-150'; // text-primary
+  const hoverClasses = 'hover:bg-[#F0F7FF] hover:text-[#4A90E2]'; // background-light-blue, primary-blue
+  const focusClasses = 'focus:outline-none focus:ring-2 focus:ring-[#4A90E2]'; // primary-blue
+  
+  // Classes para o link ATIVO
+  const activeClasses = 'bg-[#F0F7FF] text-[#4A90E2]'; // background-light-blue, primary-blue
 
   return (
-    <>
-      {/* Mobile menu button */}
-      <button
-        onClick={toggleSidebar}
-        className="md:hidden fixed top-4 right-4 z-50 bg-primary text-white p-2 rounded-full shadow-soft"
-        aria-label={isOpen ? 'Fechar menu' : 'Abrir menu'} // Label para acessibilidade
-      >
-        {isOpen ? <XIcon size={20} /> : <MenuIcon size={20} />}
-      </button>
+    <NavLink
+      to={to}
+      end // Garante que o link só esteja ativo se a rota for exata (ex: /gestao/relatorios)
+      className={({ isActive }) =>
+        `${baseClasses} ${hoverClasses} ${focusClasses} ${isActive ? activeClasses : ''}`
+      }
+    >
+      <span className="mr-3">{icon}</span>
+      {label}
+    </NavLink>
+  );
+};
 
-      {/* Overlay for mobile */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-          onClick={toggleSidebar}
-          aria-hidden="true" // Esconde do leitor de tela
-        ></div>
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed md:static left-0 top-0 h-full z-50 bg-white shadow-soft transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
-        } ${className}`}
-        aria-label="Menu de Administração" // Label para acessibilidade
-      >
-        <div className="flex flex-col h-full p-4 w-64">
-          <div className="mb-6 flex items-center gap-2">
-            <NavLink
-              to="/pos"
-              className="flex items-center gap-2 text-accent hover:opacity-80"
-              onClick={() => setIsOpen(false)} // Fecha ao clicar no link
-            >
-              <ShoppingCartIcon className="text-primary" size={24} /> {/* Ícone adicionado */}
-              <span className="font-medium">Voltar ao PDV</span>
-            </NavLink>
-          </div>
-          <nav className="space-y-1">
-            {menuItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                onClick={() => setIsOpen(false)} // Fecha ao clicar no link
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-4xl transition-colors ${
-                    isActive
-                      ? 'bg-primary/10 text-accent font-medium'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`
-                }
-              >
-                {item.icon}
-                <span>{item.name}</span>
-              </NavLink>
-            ))}
-          </nav>
-        </div>
-      </aside>
-    </>
+const Sidebar: React.FC = React.memo(() => {
+  // Componente agora é fixo e não tem estado.
+  // O link "Voltar ao PDV" foi removido.
+  // O menu mobile (X/Menu) foi removido.
+  return (
+    <aside
+      className="
+        w-64 h-screen bg-white shadow-soft 
+        hidden md:flex flex-col flex-shrink-0 
+        border-r border-gray-200
+      "
+    >
+      <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+        <nav className="flex-1 px-4 space-y-2"> {/* Espaçamento (space-y-2) de 8px entre os links */}
+          <SidebarLink
+            to="/gestao/relatorios"
+            icon={<BarChart3 size={20} />}
+            label="Relatórios"
+          />
+          <SidebarLink
+            to="/gestao/produtos"
+            icon={<Package size={20} />}
+            label="Produtos"
+          />
+          <SidebarLink
+            to="/gestao/categorias"
+            icon={<LayoutGrid size={20} />}
+            label="Categorias"
+          />
+          <SidebarLink
+            to="/gestao/usuarios"
+            icon={<Users size={20} />}
+            label="Usuários"
+          />
+        </nav>
+      </div>
+    </aside>
   );
 });
 
-Sidebar.displayName = 'Sidebar'; // DisplayName adicionado
+export { Sidebar };

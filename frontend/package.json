@@ -15,14 +15,17 @@
     "@sentry/react": "^7.100.1",
     "@sentry/vite-plugin": "^2.16.1",
     "axios": "^1.6.8",
+    "class-variance-authority": "^0.7.1",
     "date-fns": "^3.6.0",
     "lucide-react": "0.331.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-hook-form": "^7.65.0",
     "react-router-dom": "^6.22.3",
     "recharts": "^2.12.3"
   },
   "devDependencies": {
+    "@tailwindcss/forms": "^0.5.10",
     "@types/node": "^20.11.18",
     "@types/react": "^18.2.56",
     "@types/react-dom": "^18.2.19",

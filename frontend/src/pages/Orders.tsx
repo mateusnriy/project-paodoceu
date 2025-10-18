@@ -1,120 +1,235 @@
-import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Header } from '../components/common/Header';
-import { Button } from '../components/common/Button';
-import { CheckIcon, ArrowLeftIcon, ClockIcon } from 'lucide-react';
+import React, { useCallback, useMemo } from 'react';
+import { Loader2 } from 'lucide-react';
 import { useOrders } from '../hooks/useOrders';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { Button } from '../components/common/Button';
 import { ErrorMessage } from '../components/ui/ErrorMessage';
+import { getErrorMessage } from '../utils/errors';
+import { Pedido, StatusPedido } from '../types';
+import { formatarMoeda, formatarData } from '../utils/formatters';
 
+/**
+ * REFATORAÇÃO (Commit 2.4):
+ * - Removido o Link "Voltar ao PDV" (já feito no Commit 1.5, mas garantido aqui).
+ * - Corrigidos os estilos de status dos cards (item 4.1.4):
+ * - "Aguardando" agora usa 'status-warning' (Laranja/Amarelo).
+ * - "Pronto" agora usa 'status-success' (Verde).
+ * - Aplicados novos tokens de design (tipografia, cores, bordas, sombras).
+ */
+
+// --- Componente OrderCard (Refatorado com novos tokens) ---
+
+interface OrderCardProps {
+  pedido: Pedido;
+  onConcluir: (id: string) => void;
+  isUpdating: boolean;
+}
+
+const OrderCard: React.FC<OrderCardProps> = React.memo(
+  ({ pedido, onConcluir, isUpdating }) => {
+    
+    // Função de classes de status ATUALIZADA (item 4.1.4)
+    const getStatusClasses = (status: StatusPedido) => {
+      switch (status) {
+        // Status PRONTO (Verde)
+        case StatusPedido.PRONTO:
+          return {
+            bg: 'bg-status-success-bg', // bg-[#D1FAE5]
+            text: 'text-status-success-text', // text-[#065F46]
+            border: 'border-status-success', // border-[#10B981]
+          };
+        // Status CONCLUÍDO (Cinza)
+        case StatusPedido.CONCLUIDO:
+          return {
+            bg: 'bg-gray-100',
+            text: 'text-gray-600',
+            border: 'border-gray-300',
+          };
+        // Status AGUARDANDO (Laranja/Amarelo)
+        case StatusPedido.AGUARDANDO:
+        default:
+          return {
+            bg: 'bg-status-warning-bg', // bg-[#FFF8E9]
+            text: 'text-status-warning-text', // text-[#B37C17]
+            border: 'border-status-warning', // border-[#FFB020]
+          };
+      }
+    };
+    
+    const statusClasses = getStatusClasses(pedido.status);
+
+    // Capitaliza a primeira letra (ex: Aguardando)
+    const statusFormatado =
+      pedido.status.charAt(0) + pedido.status.slice(1).toLowerCase();
+
+    return (
+      <div className="bg-primary-white shadow-soft rounded-xl border border-gray-200 overflow-hidden flex flex-col"> {/* rounded-xl (12px), shadow-soft */}
+        {/* Header do Card (com classes de status) */}
+        <div
+          className={`px-4 py-3 border-b ${statusClasses.bg} ${statusClasses.border}`}
+        >
+          <div className="flex justify-between items-center">
+            <span className={`font-bold text-lg ${statusClasses.text}`}>
+              Senha: {pedido.senha}
+            </span>
+            <span
+              className={`font-semibold px-3 py-1 rounded-full text-sm ${statusClasses.bg} ${statusClasses.text}`}
+            >
+              {statusFormatado}
+            </span>
+          </div>
+        </div>
+
+        {/* Corpo do Card */}
+        <div className="p-4 flex-1">
+          <p className="text-sm text-text-secondary mb-2"> {/* text-secondary */}
+            {formatarData(pedido.dataCriacao, {
+              timeStyle: 'short',
+              dateStyle: 'short',
+            })}
+          </p>
+          <ul className="space-y-1 mb-3">
+            {pedido.itens.map((item) => (
+              <li key={item.id} className="flex justify-between text-sm">
+                <span className="text-text-primary">{item.produto.nome}</span>
+                <span className="text-text-secondary font-medium">
+                  x{item.quantidade}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Rodapé do Card */}
+        <div className="px-4 py-3 bg-gray-50 border-t">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-base font-semibold text-text-primary">Total:</span>
+            <span className="text-lg font-bold text-text-primary">
+              {formatarMoeda(pedido.total)}
+            </span>
+          </div>
+          
+          {/* Botão de Concluir (só aparece se PRONTO) */}
+          {pedido.status === StatusPedido.PRONTO && (
+            <Button
+              onClick={() => onConcluir(pedido.id)}
+              disabled={isUpdating}
+              className="w-full"
+              variant="secondary" // Botão secundário (cinza claro)
+              size="sm" // Botão pequeno
+            >
+              {isUpdating ? (
+                <Loader2 size={20} className="animate-spin" />
+              ) : (
+                'Marcar como Concluído'
+              )}
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+);
+// --- Fim do Componente OrderCard ---
+
+
+// Página Principal da Fila
 const Orders: React.FC = () => {
-  const navigate = useNavigate();
-  const { orders, isLoading, error, handleCompleteOrder } = useOrders();
+  const {
+    pedidos,
+    isLoading,
+    error,
+    handleConcluirPedido,
+    isUpdating,
+  } = useOrders();
 
+  // Memoiza a função de concluir para passar ao OrderCard
+  const handleConcluirCallback = useCallback(
+    (id: string) => {
+      handleConcluirPedido(id);
+    },
+    [handleConcluirPedido]
+  );
+
+  // Separa as listas de pedidos
+  const { pedidosAguardando, pedidosProntos } = useMemo(() => {
+    const aguardando = pedidos.filter(
+      (p) => p.status === StatusPedido.AGUARDANDO
+    );
+    const prontos = pedidos.filter(
+      (p) => p.status === StatusPedido.PRONTO
+    );
+    // Pedidos "Prontos" são exibidos primeiro
+    return { pedidosAguardando: aguardando, pedidosProntos: prontos };
+  }, [pedidos]);
+
+  // Renderização do conteúdo principal
   const renderContent = () => {
     if (isLoading) {
       return (
-        <div className="flex-grow flex items-center justify-center">
-          <LoadingSpinner size={40} />
+        <div className="flex justify-center items-center h-[calc(100vh-200px)]">
+          <Loader2 className="animate-spin text-gray-500" size={40} />
         </div>
       );
     }
+
     if (error) {
       return (
-        <div className="bg-white rounded-4xl shadow-soft p-8 text-center">
-          <ErrorMessage message={error} />
-        </div>
+        <ErrorMessage
+          title="Erro ao carregar pedidos"
+          message={getErrorMessage(error)}
+        />
       );
     }
-    if (orders.length === 0) {
+
+    if (pedidos.length === 0) {
       return (
-        <div className="bg-white rounded-4xl shadow-soft p-8 text-center">
-          <p className="text-gray-600">Não há pedidos aguardando retirada.</p>
+        <div className="text-center py-20">
+          <h2 className="text-2xl font-semibold text-text-primary mb-4">
+            Nenhum pedido na fila
+          </h2>
+          <p className="text-text-secondary">
+            Novos pedidos aparecerão aqui assim que forem pagos.
+          </p>
         </div>
       );
     }
+
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {orders.map((order) => (
-          <div
-            key={order.id}
-            className={`bg-white rounded-4xl shadow-soft overflow-hidden transition-all duration-500 ${
-              order.completed ? 'bg-success/20 scale-95 opacity-50' : ''
-            }`}
-          >
-            <div className="p-4 bg-primary/10 flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-bold text-accent">
-                  #{order.numero_sequencial_dia}
-                </span>
-                <span className="text-sm text-gray-600">
-                  {new Date(order.criado_em).toLocaleTimeString('pt-BR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </span>
-              </div>
-              <div className="flex items-center gap-1 text-gray-600">
-                <ClockIcon size={16} />
-                <span className="text-sm">Aguardando</span>
-              </div>
-            </div>
-            <div className="p-4">
-              <h3 className="font-medium mb-2">Itens:</h3>
-              <ul className="space-y-1 mb-4 max-h-24 overflow-y-auto">
-                {order.itens.map((item, index) => (
-                  <li key={index} className="text-gray-700 text-sm">
-                    {item.quantidade}x {item.produto.nome}
-                  </li>
-                ))}
-              </ul>
-              <Button
-                onClick={() => handleCompleteOrder(order.id)}
-                color="primary"
-                fullWidth
-                className="mt-2"
-                disabled={order.completed}
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <CheckIcon size={18} />
-                  <span>Marcar como Entregue</span>
-                </div>
-              </Button>
-            </div>
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6"> {/* 8px grid (gap-4 / gap-6) */}
+        {/* Mapeia Pedidos Prontos Primeiro */}
+        {pedidosProntos.map((pedido) => (
+          <OrderCard
+            key={pedido.id}
+            pedido={pedido}
+            onConcluir={handleConcluirCallback}
+            isUpdating={isUpdating === pedido.id}
+          />
+        ))}
+        {/* Mapeia Pedidos Aguardando */}
+        {pedidosAguardando.map((pedido) => (
+          <OrderCard
+            key={pedido.id}
+            pedido={pedido}
+            onConcluir={handleConcluirCallback}
+            isUpdating={isUpdating === pedido.id}
+          />
         ))}
       </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-neutral flex flex-col">
-      <Header />
-      <main className="flex-grow container mx-auto px-4 py-6">
-        <div className="flex justify-between items-center mb-6">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/pos')}
-              className="flex items-center gap-2 text-gray-600 hover:text-accent"
-            >
-              <ArrowLeftIcon size={20} />
-              <span className="hidden sm:inline">Voltar ao PDV</span>
-            </button>
-            <h1 className="text-2xl font-bold text-accent">Pedidos Aguardando Retirada</h1>
-          </div>
-          <button
-            onClick={() => navigate('/display')}
-            className="text-accent hover:underline flex items-center gap-2"
-          >
-            <span className="hidden sm:inline">Ver Tela de Chamada</span>
-            <span className="sm:hidden">Tela de Chamada</span>
-          </button>
-        </div>
-        {renderContent()}
-      </main>
-    </div>
+    // Container principal da página (padding 8px grid)
+    <main className="container mx-auto p-4 md:p-8">
+      
+      {/* Título (H1 - 24px Bold) */}
+      <h1 className="text-2xl font-bold mb-6 text-center text-text-primary">
+        Fila de Pedidos
+      </h1>
+      
+      {renderContent()}
+    </main>
   );
 };
 
-// Exportar como default para o Lazy Loading
 export default Orders;

@@ -1,106 +1,183 @@
-import React, { memo } from 'react';
-import { Button } from './Button';
-import { TrashIcon, MinusIcon, PlusIcon } from 'lucide-react';
-import { CartItem } from '../../types';
-import { formatCurrency } from '../../utils/formatters';
 
+import React, { memo, ReactNode } from 'react';
+import { Button } from './Button';
+import { Trash2, Minus, Plus } from 'lucide-react';
+import { Pedido, PedidoItem } from '../../types'; // Importa o tipo 'Pedido'
+import { formatarMoeda } from '../../utils/formatters';
+
+// --- Props Refatoradas ---
+// O componente agora recebe o objeto 'Pedido', o 'total' (calculado pelo hook),
+// e funções de callback com nomes padronizados.
+// Os botões de ação (Finalizar/Cancelar) são recebidos como 'children'.
 interface OrderSummaryProps {
-  items: CartItem[];
-  onUpdateQuantity: (id: string, quantity: number) => void;
-  onRemoveItem: (id: string) => void;
-  onFinishOrder: () => void;
-  onCancelOrder: () => void;
+  pedido: Pedido;
+  total: number;
+  onItemUpdateQuantity?: (id: string, quantidade: number) => void;
+  onItemRemove?: (id: string) => void;
+  onLimparCarrinho?: () => void;
+  children: ReactNode; // Para os botões de ação (ex: "Ir para Pagamento")
 }
 
-export const OrderSummary = memo<OrderSummaryProps>(({
-  items,
-  onUpdateQuantity,
-  onRemoveItem,
-  onFinishOrder,
-  onCancelOrder,
-}) => {
-  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+// --- Componente ItemdoCarrinho (Interno) ---
+// Memoizado para performance, pois será renderizado em uma lista
+const CartItem: React.FC<{
+  item: PedidoItem;
+  onUpdateQuantity: OrderSummaryProps['onItemUpdateQuantity'];
+  onRemove: OrderSummaryProps['onItemRemove'];
+}> = memo(({ item, onUpdateQuantity, onRemove }) => {
+  
+  // Handlers de clique (só são definidos se a função for passada)
+  const handleDecrease = onUpdateQuantity
+    ? () => onUpdateQuantity(item.id, item.quantidade - 1)
+    : undefined;
+    
+  const handleIncrease = onUpdateQuantity
+    ? () => onUpdateQuantity(item.id, item.quantidade + 1)
+    : undefined;
+    
+  const handleRemove = onRemove
+    ? () => onRemove(item.id)
+    : undefined;
+
+  // Define se os botões de update/remove devem ser mostrados
+  const isInteractive = !!(onUpdateQuantity && onRemove);
 
   return (
-    <div className="bg-white rounded-4xl shadow-soft p-4 h-full flex flex-col">
-      <h2 className="text-xl font-semibold text-accent mb-4">Carrinho</h2>
+    <li className="flex justify-between items-center py-3 border-b border-gray-200 last:border-b-0">
+      {/* Informações do Produto */}
+      <div className="flex-1 pr-2">
+        <p className="font-semibold text-text-primary truncate">{item.produto.nome}</p>
+        <p className="text-sm text-text-secondary">
+          {formatarMoeda(item.produto.preco)} x {item.quantidade}
+        </p>
+      </div>
 
-      {items.length === 0 ? (
-        <div className="flex-grow flex items-center justify-center">
-          <p className="text-gray-500 text-center">Nenhum item adicionado</p>
+      {/* Controles (Apenas se for interativo) */}
+      {isInteractive && (
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {/* Botão Diminuir (Acessibilidade: 40x40px) */}
+          <button
+            onClick={handleDecrease}
+            className="
+              flex items-center justify-center w-9 h-9 rounded-lg 
+              bg-background-light-blue text-text-secondary 
+              hover:bg-primary-blue/20 hover:text-primary-blue
+              disabled:bg-status-disabled-bg disabled:text-status-disabled-text disabled:cursor-not-allowed
+            " // w-9 h-9 (36px) - mais próximo de 44px
+            disabled={item.quantidade <= 1}
+            aria-label={`Diminuir quantidade de ${item.produto.nome}`}
+          >
+            <Minus size={16} />
+          </button>
+          
+          {/* Span da quantidade (Acessibilidade) */}
+          <span className="w-8 text-center font-medium text-text-primary" aria-live="polite">
+            {item.quantidade}
+          </span>
+          
+          {/* Botão Aumentar (Acessibilidade: 40x40px) */}
+          <button
+            onClick={handleIncrease}
+            className="
+              flex items-center justify-center w-9 h-9 rounded-lg 
+              bg-background-light-blue text-text-secondary 
+              hover:bg-primary-blue/20 hover:text-primary-blue
+            "
+            aria-label={`Aumentar quantidade de ${item.produto.nome}`}
+          >
+            <Plus size={16} />
+          </button>
+          
+          {/* Botão Remover (Acessibilidade: 40x40px) */}
+          <button
+            onClick={handleRemove}
+            className="
+              flex items-center justify-center w-9 h-9 rounded-lg 
+              bg-background-light-blue text-text-secondary 
+              hover:bg-status-error-bg hover:text-status-error
+              ml-1
+            "
+            aria-label={`Remover ${item.produto.nome} do carrinho`}
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
+      )}
+    </li>
+  );
+});
+CartItem.displayName = 'CartItem';
+
+// --- Componente Principal OrderSummary ---
+export const OrderSummary = memo<OrderSummaryProps>(({
+  pedido,
+  total,
+  onItemUpdateQuantity,
+  onItemRemove,
+  onLimparCarrinho,
+  children,
+}) => {
+  const { itens } = pedido;
+
+  return (
+    <div className="bg-primary-white rounded-xl shadow-soft p-6 h-full flex flex-col border border-gray-200"> {/* 8px grid (p-6=24px), rounded-xl */}
+      
+      {/* Cabeçalho do Carrinho */}
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-2xl font-bold text-primary-blue"> {/* H1 (24px Bold), primary-blue */}
+          Carrinho
+        </h2>
+        {/* Botão Limpar Carrinho (só aparece se houver itens e a função for passada) */}
+        {itens.length > 0 && onLimparCarrinho && (
+          <Button
+            variant="link"
+            size="sm"
+            className="text-status-error"
+            onClick={onLimparCarrinho}
+          >
+            Limpar tudo
+          </Button>
+        )}
+      </div>
+
+      {/* Lista de Itens */}
+      {itens.length === 0 ? (
+        <div className="flex-grow flex items-center justify-center py-10">
+          <p className="text-text-secondary text-center">
+            Nenhum item adicionado
+          </p>
         </div>
       ) : (
-        <div className="flex-grow overflow-auto mb-4">
-          <ul className="space-y-3">
-            {items.map((item) => (
-              <li key={item.id} className="flex justify-between items-center border-b pb-3 last:border-b-0">
-                <div className="flex-grow pr-2">
-                  <p className="font-medium truncate">{item.name}</p>
-                  <p className="text-sm text-gray-600">
-                    R$ {formatCurrency(item.price)} x {item.quantity}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                    className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={item.quantity <= 1}
-                    aria-label={`Diminuir quantidade de ${item.name}`}
-                  >
-                    <MinusIcon size={14} />
-                  </button>
-                  {/* Span da quantidade já tinha aria-live */}
-                  <span className="w-6 text-center" aria-live="polite">{item.quantity}</span>
-                  <button
-                    onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                    className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200"
-                     aria-label={`Aumentar quantidade de ${item.name}`}
-                  >
-                    <PlusIcon size={14} />
-                  </button>
-                  <button
-                    onClick={() => onRemoveItem(item.id)}
-                    className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-error hover:text-white"
-                     aria-label={`Remover ${item.name} do carrinho`}
-                  >
-                    <TrashIcon size={14} />
-                  </button>
-                </div>
-              </li>
+        <div className="flex-grow overflow-y-auto mb-4 -mr-2 pr-2"> {/* Scroll interno */}
+          <ul className="space-y-2">
+            {itens.map((item) => (
+              <CartItem
+                key={item.id}
+                item={item}
+                onUpdateQuantity={onItemUpdateQuantity}
+                onRemove={onItemRemove}
+              />
             ))}
           </ul>
         </div>
       )}
 
-      <div className="border-t pt-4 mt-auto">
+      {/* Rodapé (Total e Ações) */}
+      <div className="border-t border-gray-200 pt-4 mt-auto">
         <div className="flex justify-between items-center mb-4">
-          <span className="font-medium text-lg">Total:</span>
-          {/* Adicionar aria-live="polite" para anunciar mudanças no total */}
+          <span className="font-semibold text-lg text-text-primary">Total:</span>
+          {/* Acessibilidade: Anuncia mudanças no total */}
           <span
-            className="font-bold text-xl text-accent"
-            aria-live="polite" /* <<< ADICIONADO */
+            className="font-bold text-xl text-primary-blue"
+            aria-live="polite"
           >
-            R$ {formatCurrency(total)}
+            {formatarMoeda(total)}
           </span>
         </div>
+        
+        {/* Botões de Ação (passados como children) */}
         <div className="flex flex-col gap-2">
-          <Button
-            onClick={onFinishOrder}
-            disabled={items.length === 0}
-            color="accent"
-            fullWidth
-          >
-            Finalizar Pedido
-          </Button>
-          <Button
-            onClick={onCancelOrder}
-            disabled={items.length === 0}
-            variant="outlined"
-            color="error"
-            fullWidth
-          >
-            Cancelar Pedido
-          </Button>
+          {children}
         </div>
       </div>
     </div>

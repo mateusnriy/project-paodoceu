@@ -1,53 +1,115 @@
 import React from 'react';
-import { CloudIcon } from 'lucide-react';
 import { useCustomerDisplay } from '../hooks/useCustomerDisplay';
+import { Pedido } from '../types';
 import { ErrorMessage } from '../components/ui/ErrorMessage';
+import { getErrorMessage } from '../utils/errors';
+import { Loader2 } from 'lucide-react';
 
+/**
+ * REFATORAÇÃO (Commit 3.3):
+ * - Análise de WebSocket concluída (adiada).
+ * - Refatoração visual da tela para usar os tokens do Design System.
+ * - "Pronto" agora usa 'status-success' (Verde).
+ * - "Aguardando" agora usa 'status-warning' (Laranja).
+ */
+
+// --- Componente de Card "Pronto" (O pedido principal chamado) ---
+const ProntoCard: React.FC<{ pedido: Pedido }> = ({ pedido }) => (
+  <div className="flex flex-col justify-center items-center h-full 
+                 bg-status-success rounded-xl shadow-2xl p-12"> {/* Corrigido para status-success */}
+    <span className="text-4xl font-semibold text-white mb-4">Pronto!</span>
+    <span className="text-9xl font-bold text-white tracking-tighter" 
+          style={{ fontSize: '12rem', lineHeight: '1' }}> {/* Fonte extra grande para destaque */}
+      {pedido.senha}
+    </span>
+    {/* A animação de "piscar" (blink) é mantida via CSS para chamar atenção */}
+    <span className="text-5xl font-bold text-white animate-pulse mt-4">
+      Retire seu pedido
+    </span>
+  </div>
+);
+
+// --- Componente da Lista "Aguardando" ---
+const AguardandoList: React.FC<{ pedidos: Pedido[] }> = ({ pedidos }) => (
+  <div className="bg-gray-800 rounded-xl shadow-2xl p-8 h-full">
+    <h2 className="text-4xl font-bold text-center mb-6 text-status-warning"> {/* Corrigido para status-warning */}
+      Aguardando
+    </h2>
+    {pedidos.length === 0 ? (
+      <div className="flex items-center justify-center h-3/4">
+        <p className="text-2xl text-text-secondary">Nenhum pedido aguardando.</p>
+      </div>
+    ) : (
+      <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+        {pedidos.map((p) => (
+          <span key={p.id} className="text-6xl font-bold text-white text-center">
+            {p.senha}
+          </span>
+        ))}
+      </div>
+    )}
+  </div>
+);
+
+// --- Página Principal ---
 const CustomerDisplay: React.FC = () => {
-  const { orders, highlightOrder, error } = useCustomerDisplay();
+  const { pedidosProntos, pedidosAguardando, isLoading, error } = useCustomerDisplay();
+
+  const renderContent = () => {
+    if (isLoading && pedidosProntos.length === 0) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <Loader2 size={64} className="animate-spin text-white" />
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="p-12">
+          <ErrorMessage
+            title="Erro de Conexão"
+            message={getErrorMessage(error)}
+          />
+        </div>
+      );
+    }
+
+    const pedidoChamado = pedidosProntos[0]; // O primeiro "Pronto" é o que está sendo chamado
+
+    return (
+      <div className="grid grid-cols-3 gap-8 h-full">
+        {/* Lado Esquerdo (2/3): Pedido Chamado */}
+        <div className="col-span-2">
+          {pedidoChamado ? (
+            <ProntoCard pedido={pedidoChamado} />
+          ) : (
+            // Estado de "Nenhum pedido pronto"
+            <div className="flex flex-col justify-center items-center h-full bg-gray-800 rounded-xl p-12">
+              <span className="text-7xl font-bold text-white">
+                Pão do Céu
+              </span>
+              <span className="text-3xl font-medium text-text-secondary mt-4">
+                Aguarde seu pedido ser chamado...
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Lado Direito (1/3): Lista de Aguardando */}
+        <div className="col-span-1">
+          <AguardandoList pedidos={pedidosAguardando} />
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-primary/20 flex flex-col">
-      <header className="bg-primary text-white p-6 shadow-soft">
-        <div className="container mx-auto flex items-center justify-center">
-          <CloudIcon size={32} className="mr-3" />
-          <h1 className="text-2xl md:text-3xl font-bold text-center">
-            Lanchonete Pão do Céu — Pedidos Prontos para Retirada
-          </h1>
-        </div>
-      </header>
-      <main className="flex-grow container mx-auto px-4 py-12">
-        <ErrorMessage message={error} />
-        {orders.length === 0 && !error && (
-          <p className="text-center text-gray-600 text-xl mt-10">
-            Nenhum pedido pronto no momento.
-          </p>
-        )}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-          {orders.map((order) => (
-            <div
-              key={order}
-              className={`
-                aspect-square flex items-center justify-center rounded-4xl bg-white shadow-soft transition-all duration-300
-                ${highlightOrder === order ? 'animate-pulse ring-4 ring-accent bg-primary/20' : ''}
-              `}
-            >
-              <span className="text-4xl md:text-6xl font-bold text-accent">{order}</span>
-            </div>
-          ))}
-        </div>
-      </main>
-      <footer className="bg-white p-4 shadow-soft mt-auto">
-        <div className="container mx-auto text-center text-gray-600">
-          <div className="flex items-center justify-center gap-2">
-            <CloudIcon size={20} className="text-primary" />
-            <span>Lanchonete Pão do Céu</span>
-          </div>
-        </div>
-      </footer>
+    // Layout Dark Mode de alta visibilidade
+    <div className="h-screen w-screen bg-gray-900 text-white p-8">
+      {renderContent()}
     </div>
   );
 };
 
-// Exportar como default para o Lazy Loading
 export default CustomerDisplay;

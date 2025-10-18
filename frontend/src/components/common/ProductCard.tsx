@@ -1,71 +1,92 @@
-import React, { memo, useCallback } from 'react'; // Importado memo e useCallback
-import { PlusIcon } from 'lucide-react';
-import { formatCurrency } from '../../utils/formatters'; // Formatador
+import React, { useCallback } from 'react';
+import { Plus } from 'lucide-react';
+import { Produto } from '../../types';
+import { formatarMoeda } from '../../utils/formatters';
 
 interface ProductCardProps {
-  id: string;
-  name: string;
-  price: number;
-  image: string;
-  available: boolean;
-  onAddToCart: (id: string) => void;
+  produto: Produto;
+  onAddToCart: (produto: Produto) => void;
 }
 
-// Envolvido com React.memo
-export const ProductCard = memo<ProductCardProps>(
-  ({ id, name, price, image, available, onAddToCart }) => {
-    // useCallback para estabilizar a função passada para o botão
-    const handleAddToCartClick = useCallback(() => {
-      if (available) {
-        onAddToCart(id);
-      }
-    }, [available, onAddToCart, id]);
+const ProductCard: React.FC<ProductCardProps> = React.memo(({ produto, onAddToCart }) => {
+  // Define se o produto está indisponível (estoque <= 0)
+  const indisponivel = produto.quantidadeEstoque <= 0;
 
-    return (
-      <div
-        className={`relative bg-white rounded-4xl shadow-soft overflow-hidden transition-opacity duration-300 ${
-          !available ? 'grayscale opacity-70 cursor-not-allowed' : ''
-        }`}
-      >
-        <div className="aspect-square overflow-hidden bg-gray-100">
-          {' '}
-          {/* Fundo cinza enquanto carrega */}
-          <img
-            src={image}
-            alt={name}
-            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-            loading="lazy" // Adiciona lazy loading nativo para imagens
-          />
-        </div>
-        <div className="p-3">
-          <h3 className="font-medium text-gray-800 truncate" title={name}>
-            {name}
-          </h3>{' '}
-          {/* title para nome completo */}
-          <div className="flex justify-between items-center mt-1">
-            <p className="text-accent font-semibold">R$ {formatCurrency(price)}</p>
-            <button
-              onClick={handleAddToCartClick}
-              disabled={!available}
-              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                available
-                  ? 'bg-primary text-white hover:bg-accent focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1'
-                  : 'bg-gray-300 cursor-not-allowed'
-              }`}
-              aria-label={`Adicionar ${name} ao carrinho`} // Acessibilidade
-            >
-              <PlusIcon size={16} />
-            </button>
-          </div>
-        </div>
-        {!available && (
-          <div className="absolute top-2 right-2 bg-error text-white text-xs font-medium py-1 px-2 rounded-full pointer-events-none">
-            Indisponível
-          </div>
-        )}
+  // Memoiza a função de clique para evitar re-renderizações desnecessárias
+  const handleAddToCart = useCallback(() => {
+    if (!indisponivel) {
+      onAddToCart(produto);
+    }
+  }, [produto, onAddToCart, indisponível]);
+
+  return (
+    <div
+      className="
+        relative bg-primary-white border border-gray-200 
+        rounded-xl shadow-soft overflow-hidden 
+        flex flex-col
+        transition-shadow hover:shadow-md
+      " // rounded-xl (12px) e shadow-soft
+    >
+      {/* Imagem */}
+      <div className="w-full h-40 overflow-hidden">
+        <img
+          src={produto.imagemUrl || 'https://via.placeholder.com/300x200?text=Sem+Imagem'}
+          alt={produto.nome}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
       </div>
-    );
-  }
-);
 
-ProductCard.displayName = 'ProductCard'; // DisplayName adicionado
+      {/* Informações do Produto */}
+      <div className="p-4 flex flex-col flex-1"> {/* 8px grid (p-4 = 16px) */}
+        <h3 className="text-lg font-bold text-text-primary mb-1 truncate"> {/* H1/H2 (18px Bold) text-primary */}
+          {produto.nome}
+        </h3>
+        <p className="text-sm text-text-secondary flex-1 mb-3"> {/* Body (14px) text-secondary */}
+          {produto.descricao}
+        </p>
+
+        {/* Preço e Botão de Adicionar */}
+        <div className="flex justify-between items-center mt-auto">
+          <span className="text-xl font-bold text-primary-blue"> {/* 20px Bold, primary-blue */}
+            {formatarMoeda(produto.preco)}
+          </span>
+          <button
+            onClick={handleAddToCart}
+            disabled={indisponivel}
+            aria-label={`Adicionar ${produto.nome} ao carrinho`}
+            className="
+              flex items-center justify-center w-10 h-10 
+              bg-primary-blue text-white rounded-lg 
+              transition-colors 
+              hover:bg-primary-blue-hover
+              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue
+              disabled:bg-status-disabled-bg disabled:text-status-disabled-text disabled:cursor-not-allowed
+            " // Tamanho 40x40 (w-10, h-10) e rounded-lg (8px)
+          >
+            <Plus size={20} />
+          </button>
+        </div>
+      </div>
+
+      {/* Overlay de Produto Indisponível (Guia de Estilo item 4.1.2) */}
+      {indisponivel && (
+        <div
+          className="
+            absolute inset-0 bg-status-disabled-bg/80 
+            flex items-center justify-center 
+            backdrop-blur-[2px]
+          "
+          aria-hidden="true"
+        >
+          <span className="text-lg font-bold text-status-disabled-text px-4 py-2 bg-white rounded-lg shadow-md">
+            Indisponível
+          </span>
+        </div>
+      )}
+    </div>
+  );
+});
+
+export { ProductCard };

@@ -1,176 +1,172 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Header } from '../components/common/Header';
+import { CreditCard, Banknote, QrCode, Loader2 } from 'lucide-react';
+import { OrderSummary } from '../components/common/OrderSummary';
 import { Button } from '../components/common/Button';
-import {
-  BanknoteIcon,
-  CreditCardIcon,
-  ZapIcon,
-  CheckCircleIcon,
-  ArrowLeftIcon,
-} from 'lucide-react';
 import { usePayment } from '../hooks/usePayment';
-import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { ErrorMessage } from '../components/ui/ErrorMessage';
-import { formatCurrency } from '../utils/formatters';
-import { PaymentMethod } from '../types/order';
+import { getErrorMessage } from '../utils/errors';
+import { TipoPagamento } from '../types';
+import { useNavigate } from 'react-router-dom'; // Importar useNavigate
 
-// Mapeamento dos métodos de pagamento para UI
-const paymentMethodsUI = [
-  { id: 'DINHEIRO', name: 'Dinheiro', icon: <BanknoteIcon size={20} /> },
-  { id: 'CARTAO_CREDITO', name: 'Cartão de Crédito', icon: <CreditCardIcon size={20} /> },
-  { id: 'CARTAO_DEBITO', name: 'Cartão de Débito', icon: <CreditCardIcon size={20} /> },
-  { id: 'PIX', name: 'Pix', icon: <ZapIcon size={20} /> },
-];
+/**
+ * REFATORAÇÃO (Commit 2.3):
+ * - Corrigida a seleção de Método de Pagamento (item 4.1.3).
+ * - Aplicados novos tokens de design (tipografia, cores).
+ * - Botão "Voltar para Vendas" agora usa useNavigate.
+ */
 
 const Payment: React.FC = () => {
-  const navigate = useNavigate();
   const {
+    pedido,
+    total,
     isLoading,
     isSubmitting,
-    isPaymentComplete,
     error,
-    order,
-    orderTotal,
-    selectedMethod,
-    setSelectedMethod,
-    receivedAmount,
-    setReceivedAmount,
-    change,
-    isConfirmDisabled,
-    handlePaymentConfirmation,
+    tipoPagamento,
+    setTipoPagamento,
+    handleFinalizarPedido,
+    handleLimparCarrinho,
   } = usePayment();
+  
+  const navigate = useNavigate(); // Hook para navegação
 
-  if (isLoading) {
+  const pagamentoOpcoes = [
+    { tipo: TipoPagamento.CREDITO, label: 'Cartão de Crédito', icon: CreditCard },
+    { tipo: TipoPagamento.DEBITO, label: 'Cartão de Débito', icon: CreditCard },
+    { tipo: TipoPagamento.PIX, label: 'PIX', icon: QrCode },
+    { tipo: TipoPagamento.DINHEIRO, label: 'Dinheiro', icon: Banknote },
+  ];
+
+  // Renderização principal
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="flex justify-center items-center h-[calc(100vh-200px)]">
+          <Loader2 className="animate-spin text-gray-500" size={40} />
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <ErrorMessage
+          title="Erro ao carregar pedido"
+          message={getErrorMessage(error)}
+        />
+      );
+    }
+
+    if (!pedido || pedido.itens.length === 0) {
+      return (
+        <div className="text-center py-20">
+          <h2 className="text-2xl font-semibold mb-4 text-text-primary">
+            Seu carrinho está vazio
+          </h2>
+          <p className="text-text-secondary">
+            Adicione produtos na tela de Vendas para continuar.
+          </p>
+          <Button
+            onClick={() => navigate('/vendas')} // Navega de volta para /vendas
+            variant="link"
+            className="mt-4"
+          >
+            Voltar para Vendas
+          </Button>
+        </div>
+      );
+    }
+
     return (
-      <div className="min-h-screen bg-neutral flex flex-col">
-        <Header />
-        <main className="flex-grow flex items-center justify-center">
-          <LoadingSpinner size={40} />
-        </main>
+      <div className="flex flex-col lg:flex-row gap-8">
+        {/* Lado Esquerdo: Opções de Pagamento */}
+        <div className="lg:w-2/3">
+          {/* Título (H1 - 24px Bold) */}
+          <h1 className="text-2xl font-bold mb-6 text-text-primary">Pagamento</h1>
+
+          <div className="bg-primary-white p-6 rounded-xl shadow-soft border border-gray-200"> {/* rounded-xl (12px) */}
+            <h2 className="text-lg font-semibold mb-4 text-text-primary">
+              Selecione o método de pagamento
+            </h2>
+            
+            {/* Grid de opções de pagamento (CORRIGIDO) */}
+            <div className="grid grid-cols-2 gap-4">
+              {pagamentoOpcoes.map((opcao) => {
+                const isSelected = tipoPagamento === opcao.tipo;
+                
+                // Classes base (Guia de Estilo item 4.1.3)
+                const baseClasses =
+                  'flex flex-col items-center justify-center p-6 border rounded-lg cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-primary-blue';
+                
+                // Classes para SELECIONADO (primary-blue, background-light-blue)
+                const selectedClasses =
+                  'bg-background-light-blue border-primary-blue ring-2 ring-primary-blue';
+                  
+                // Classes para NÃO SELECIONADO
+                const nonSelectedClasses =
+                  'bg-primary-white border-gray-300 hover:bg-background-light-blue';
+
+                return (
+                  <button
+                    key={opcao.tipo}
+                    onClick={() => setTipoPagamento(opcao.tipo)}
+                    className={`${baseClasses} ${
+                      isSelected ? selectedClasses : nonSelectedClasses
+                    }`}
+                    aria-pressed={isSelected}
+                  >
+                    <opcao.icon
+                      className={`mb-2 ${
+                        isSelected ? 'text-primary-blue' : 'text-text-secondary'
+                      }`}
+                      size={32}
+                    />
+                    <span
+                      className={`font-medium ${
+                        isSelected ? 'text-primary-blue' : 'text-text-primary'
+                      }`}
+                    >
+                      {opcao.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Lado Direito: Resumo do Pedido (fixo) */}
+        {/* 'top-[104px]' = 80px (Header) + 24px (padding p-8 da main) */}
+        <div className="lg:w-1/3 lg:sticky top-[112px] h-fit"> {/* Ajustado para p-8 (32px) -> 80+32=112 */}
+          <OrderSummary
+            pedido={pedido}
+            total={total}
+            onLimparCarrinho={handleLimparCarrinho}
+          >
+            {/* Botão de Finalizar Pedido */}
+            <Button
+              onClick={handleFinalizarPedido}
+              disabled={isSubmitting || !tipoPagamento}
+              className="w-full mt-4"
+              size="lg"
+            >
+              {isSubmitting ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                'Finalizar Pedido'
+              )}
+            </Button>
+          </OrderSummary>
+        </div>
       </div>
     );
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-neutral flex flex-col">
-      <Header />
-      <main className="flex-grow container mx-auto px-4 py-6">
-        <button
-          onClick={() => navigate('/pos')}
-          className="flex items-center gap-2 text-gray-600 hover:text-accent mb-6"
-        >
-          <ArrowLeftIcon size={20} />
-          <span>Voltar ao PDV</span>
-        </button>
-        <div className="bg-white rounded-4xl shadow-soft p-6 max-w-3xl mx-auto">
-          <h1 className="text-2xl font-bold text-accent mb-6">
-            Pagamento do Pedido #{order?.numero_sequencial_dia || '...'}
-          </h1>
-
-          <ErrorMessage message={error} />
-
-          {isPaymentComplete ? (
-            <div className="flex flex-col items-center justify-center py-12">
-              <div className="bg-success/10 p-4 rounded-full mb-4">
-                <CheckCircleIcon size={64} className="text-success" />
-              </div>
-              <h2 className="text-xl font-semibold text-success mb-2">Pagamento Confirmado!</h2>
-              <p className="text-gray-600">Redirecionando para a tela de pedidos...</p>
-            </div>
-          ) : (
-            <>
-              <div className="flex flex-col md:flex-row gap-8">
-                {/* Payment Methods */}
-                <div className="flex-1">
-                  <h2 className="text-lg font-medium mb-4">Forma de Pagamento</h2>
-                  <div className="space-y-3">
-                    {paymentMethodsUI.map((method) => (
-                      <button
-                        key={method.id}
-                        className={`w-full flex items-center gap-3 p-4 rounded-4xl border-2 transition-colors ${
-                          selectedMethod === method.id
-                            ? 'border-primary bg-primary/5'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                        onClick={() => setSelectedMethod(method.id as PaymentMethod)}
-                        disabled={isSubmitting}
-                      >
-                        <div
-                          className={`p-2 rounded-full ${
-                            selectedMethod === method.id ? 'bg-primary text-white' : 'bg-gray-100'
-                          }`}
-                        >
-                          {method.icon}
-                        </div>
-                        <span className="font-medium">{method.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {/* Order Summary */}
-                <div className="flex-1">
-                  <h2 className="text-lg font-medium mb-4">Resumo</h2>
-                  <div className="bg-neutral p-4 rounded-4xl">
-                    <div className="flex justify-between items-center mb-4 pb-4 border-b">
-                      <span className="text-gray-600">Valor Total</span>
-                      <span className="text-xl font-bold text-accent">
-                        R$ {formatCurrency(orderTotal)}
-                      </span>
-                    </div>
-                    {selectedMethod === 'DINHEIRO' && (
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <label htmlFor="received" className="block text-sm text-gray-600">
-                            Valor Recebido (R$)
-                          </label>
-                          <input
-                            id="received"
-                            type="text" // Usar 'text' para permitir vírgula
-                            inputMode="decimal" // Melhora a experiência mobile
-                            value={receivedAmount}
-                            onChange={(e) => setReceivedAmount(e.target.value)}
-                            className="w-full px-4 py-2 rounded-4xl border focus:outline-none focus:ring-2 focus:ring-primary"
-                            placeholder="0,00"
-                            disabled={isSubmitting}
-                          />
-                        </div>
-                        {change > 0 && (
-                          <div className="flex justify-between items-center pt-2">
-                            <span className="text-gray-600">Troco</span>
-                            <span className="font-medium">R$ {formatCurrency(change)}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-8 flex flex-col sm:flex-row gap-4">
-                <Button
-                  variant="outlined"
-                  onClick={() => navigate('/pos')}
-                  className="sm:flex-1"
-                  disabled={isSubmitting}
-                >
-                  Voltar
-                </Button>
-                <Button
-                  color="accent"
-                  onClick={handlePaymentConfirmation}
-                  disabled={isConfirmDisabled}
-                  className="sm:flex-1"
-                >
-                  {isSubmitting ? 'Processando...' : 'Confirmar Pagamento'}
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </main>
-    </div>
+    // Container da página (padding 8px grid)
+    <main className="container mx-auto p-4 md:p-8"> {/* p-8 = 32px */}
+      {renderContent()}
+    </main>
   );
 };
 
-// Exportar como default para o Lazy Loading
 export default Payment;

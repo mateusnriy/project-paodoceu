@@ -1,113 +1,103 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { getErrorMessage } from '../utils/errors';
-import { getDateRangeQuery } from '../utils/dates'; // Função auxiliar de data
-import { logError } from '../utils/logger'; // Log
+import { getDateRangeQuery, DateRangeOption } from '../utils/dates';
+import { logError } from '../utils/logger';
 
-// Tipos para os dados de relatório
-interface PeriodoData {
+// Tipos adaptados para o que o backend /relatorios/vendas retorna
+interface VendasPeriodoResponse {
   totalVendido: number;
   totalPedidos: number;
   ticketMedio: number;
 }
-interface ChartData {
-  name: string; // Nome da categoria ou produto
-  vendas: number; // Pode ser R$ ou Quantidade dependendo do gráfico
+interface VendasDiariasResponseItem { // Assumindo que tipo=diario retorna isso
+  data: string;
+  total: number;
 }
-interface TopProduct {
-  name: string;
-  vendas: number; // Quantidade
+interface TopProdutosResponseItem { // Assumindo que tipo=produto retorna isso
+  nome: string;
+  quantidade: number; // Backend retorna quantidade vendida
+  total: number;      // Backend retorna valor total vendido
 }
 
-// Tipo mais específico para o state
-type DateRangeOption = 'today' | 'week' | 'month' | 'year';
+// Interface unificada para o estado do hook
+export interface AdminReportsData {
+  receitaHoje: number;
+  totalPedidosHoje: number;
+  ticketMedioHoje: number;
+  vendasUltimos7Dias: VendasDiariasResponseItem[];
+  produtosMaisVendidos: TopProdutosResponseItem[];
+}
 
+/**
+ * @hook useAdminReports
+ * @description Hook para buscar dados consolidados para a tela de Relatórios.
+ * Utiliza o endpoint GET /relatorios/vendas com diferentes query params ('tipo').
+ */
 export const useAdminReports = () => {
-  const [dateRange, setDateRange] = useState<DateRangeOption>('week');
+  const [data, setData] = useState<AdminReportsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
 
-  // Estados para os dados dos relatórios
-  const [periodoData, setPeriodoData] = useState<PeriodoData | null>(null);
-  const [produtoData, setProdutoData] = useState<ChartData[]>([]); // Para gráfico de unidades por produto
-  const [categoriaData, setCategoriaData] = useState<ChartData[]>([]); // Para gráfico de R$ por categoria
-  const [topProduct, setTopProduct] = useState<TopProduct | null>(null);
+  /**
+   * @function fetchData
+   * @description Busca os dados para os relatórios usando o endpoint /relatorios/vendas.
+   */
+  const fetchData = useCallback(async () => {
+    // Só seta loading na primeira vez ou se não houver dados ainda
+    if (!data) setIsLoading(true);
+    setError(null);
+    try {
+        const todayRange = getDateRangeQuery('today'); // { data_inicio, data_fim } para hoje
+        const weekRange = getDateRangeQuery('week');   // { data_inicio, data_fim } para os últimos 7 dias
 
-  useEffect(() => {
-    const fetchData = async () => {
-      // Calcula as datas com base no estado 'dateRange'
-      const { data_inicio, data_fim } = getDateRangeQuery(dateRange);
-
-      // Monta os query params
-      const queryParams = new URLSearchParams();
-      if (data_inicio) queryParams.append('data_inicio', data_inicio);
-      if (data_fim) queryParams.append('data_fim', data_fim);
-      const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
-
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        // Busca os 3 tipos de relatório simultaneamente
-        const [resPeriodo, resProduto, resCategoria] = await Promise.all([
-          api.get(`/relatorios/vendas?tipo=periodo${queryString}`),
-          api.get(`/relatorios/vendas?tipo=produto${queryString}`),
-          api.get(`/relatorios/vendas?tipo=categoria${queryString}`),
+        // <<< VERIFICAÇÃO/CORREÇÃO: Chamadas usando o endpoint /relatorios/vendas com 'tipo' >>>
+        // Conforme backend/src/routes/relatoriosRoutes.ts
+        const [resHoje, res7Dias, resTopProdutos] = await Promise.all([
+          // tipo=periodo para totais de hoje
+          api.get<VendasPeriodoResponse>('/relatorios/vendas', { params: { ...todayRange, tipo: 'periodo' } }),
+          // tipo=diario para vendas por dia na semana
+          api.get<VendasDiariasResponseItem[]>('/relatorios/vendas', { params: { ...weekRange, tipo: 'diario' } }), // Assumindo que backend suporta tipo='diario'
+          // tipo=produto para top produtos na semana
+          api.get<TopProdutosResponseItem[]>('/relatorios/vendas', { params: { ...weekRange, tipo: 'produto', limite: 5 } }), // Assumindo que backend suporta tipo='produto' e limite
         ]);
 
-        // 1. Dados dos Cards (Vendas, Pedidos, Ticket Médio)
-        setPeriodoData(resPeriodo.data);
+        // Monta o objeto de dados unificado
+        const aggregatedData: AdminReportsData = {
+          receitaHoje: resHoje.data.totalVendido,
+          totalPedidosHoje: resHoje.data.totalPedidos,
+          ticketMedioHoje: resHoje.data.ticketMedio,
+          vendasUltimos7Dias: res7Dias.data,
+          produtosMaisVendidos: resTopProdutos.data,
+        };
+        setData(aggregatedData);
 
-        // 2. Dados de Produtos (Unidades vendidas)
-        const prodEntries = Object.entries(resProduto.data) as [
-          string,
-          { quantidade: number; valor: number },
-        ][];
-        const prodDataFormatted: ChartData[] = prodEntries.map(([nome, data]) => ({
-          name: nome,
-          vendas: data.quantidade, // Usar quantidade para o gráfico de unidades
-        }));
-        setProdutoData(prodDataFormatted);
-
-        // Encontrar produto mais vendido (baseado em quantidade)
-        if (prodDataFormatted.length > 0) {
-          const top = [...prodDataFormatted].sort((a, b) => b.vendas - a.vendas)[0];
-          setTopProduct(top);
-        } else {
-          setTopProduct(null);
-        }
-
-        // 3. Dados de Categoria (Valor R$ vendido)
-        const catEntries = Object.entries(resCategoria.data) as [
-          string,
-          { quantidade: number; valor: number },
-        ][];
-        const catDataFormatted: ChartData[] = catEntries.map(([nome, data]) => ({
-          name: nome,
-          vendas: data.valor, // Usar valor R$ para os gráficos de categoria
-        }));
-        setCategoriaData(catDataFormatted);
-      } catch (err) {
+    } catch (err) {
+        // Erro 403 aqui indica problema de permissão (usuário não é ADMIN ou rota não protegida corretamente no backend)
+        // ERR_CONNECTION_REFUSED indica que o backend não está rodando/acessível
+        // Outros erros (404, 500) indicam problemas na API (rota não existe, erro interno)
         const message = getErrorMessage(err);
-        setError(message);
-        logError('Erro ao buscar relatórios:', err, { dateRange, data_inicio, data_fim });
-      } finally {
-        setIsLoading(false);
-      }
-    };
+        setError(err); // Armazena o erro original
+        logError('Erro ao buscar relatórios:', err); // Loga o erro detalhado
+        setData(null); // Limpa dados antigos em caso de erro
+    } finally {
+      setIsLoading(false); // Sempre desativa o loading no final
+    }
+  }, [data]); // Adiciona 'data' como dependência para controlar o loading inicial
 
+  // Efeito para buscar na montagem
+  useEffect(() => {
     fetchData();
-  }, [dateRange]); // Recarrega os dados quando o filtro de data mudar
+  }, [fetchData]); // Executa quando fetchData é definido (uma vez)
 
   return {
+    data,
     isLoading,
     error,
-    dateRange,
-    setDateRange,
-    // Dados processados para a UI
-    periodoData,
-    produtoData, // Usado no gráfico de barras verticais (unidades)
-    categoriaData, // Usado nos gráficos de barras horizontais e linha (R$)
-    topProduct,
+    // Função para permitir re-buscar os dados manualmente (ex: botão de atualizar)
+    refetch: fetchData,
   };
 };
+
+// Exporta DateRangeOption se for usado externamente (ex: filtro na UI)
+export type { DateRangeOption };

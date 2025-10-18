@@ -1,63 +1,66 @@
-import React, { memo, forwardRef } from 'react'; // Importado memo e forwardRef
+import React, { forwardRef, ButtonHTMLAttributes, ReactNode } from 'react';
+import { cva, VariantProps } from 'class-variance-authority';
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  // Extende atributos HTML
-  children: React.ReactNode;
-  variant?: 'filled' | 'outlined';
-  color?: 'primary' | 'accent' | 'success' | 'error';
-  fullWidth?: boolean;
-  className?: string;
-  // onClick, type, disabled já vêm de React.ButtonHTMLAttributes
+// Define as variantes do botão usando CVA (class-variance-authority)
+// Isso nos permite aplicar os novos tokens do tailwind.config.js
+const buttonVariants = cva(
+  'inline-flex items-center justify-center font-semibold rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue',
+  {
+    variants: {
+      // Variantes de Estilo (Cores)
+      variant: {
+        primary:
+          'bg-primary-blue text-white hover:bg-primary-blue-hover',
+        secondary:
+          'bg-gray-100 text-text-primary hover:bg-gray-200 border border-gray-300',
+        danger:
+          'bg-status-error text-white hover:bg-status-error/90 focus:ring-status-error',
+        link: 'text-primary-blue underline-offset-4 hover:underline focus:ring-primary-blue',
+      },
+      // Variantes de Tamanho (Padding e Fonte) - 8px grid
+      size: {
+        sm: 'px-3 py-1.5 text-sm',         // 6px + 12px = 18px (h-small)
+        md: 'px-4 py-2 text-base',        // 8px + 16px = 24px (h-medium)
+        lg: 'px-6 py-3 text-lg font-bold', // 12px + 18px = 30px (h-large)
+      },
+    },
+    // Estado Desabilitado: Aplica globalmente a todas as variantes
+    // Usa os novos tokens 'status-disabled-bg' e 'status-disabled-text'
+    // Removemos 'opacity-50' em favor de cores específicas.
+    // A exceção é a variante 'link', que só fica com cor de texto desabilitada.
+    compoundVariants: [
+      {
+        variant: ['primary', 'secondary', 'danger'],
+        className: 'disabled:bg-status-disabled-bg disabled:text-status-disabled-text disabled:cursor-not-allowed disabled:border-transparent',
+      },
+      {
+        variant: 'link',
+        className: 'disabled:text-status-disabled-text disabled:cursor-not-allowed',
+      },
+    ],
+    defaultVariants: {
+      variant: 'primary',
+      size: 'md',
+    },
+  }
+);
+
+// Define as Props do componente, estendendo ButtonHTMLAttributes
+export interface ButtonProps
+  extends ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  children: ReactNode;
 }
 
-// Envolvido com memo e forwardRef para permitir passar ref se necessário
-export const Button = memo(
+// Cria o componente Button usando React.memo e forwardRef
+const Button = React.memo(
   forwardRef<HTMLButtonElement, ButtonProps>(
-    (
-      {
-        children,
-        variant = 'filled',
-        color = 'primary',
-        fullWidth = false,
-        className = '',
-        type = 'button', // Default type
-        disabled = false,
-        ...props // Restante dos atributos HTML (onClick, aria-label, etc.)
-      },
-      ref
-    ) => {
-      const baseClasses =
-        'flex items-center justify-center px-6 py-3 font-medium transition-all duration-200 rounded-4xl text-base focus:outline-none focus:ring-2 focus:ring-offset-1'; // Adicionado focus state
-
-      const variantColorClasses = {
-        filled: {
-          primary: 'bg-primary text-white hover:bg-primary/90 focus:ring-primary',
-          accent: 'bg-accent text-white hover:bg-accent/90 focus:ring-accent',
-          success: 'bg-success text-white hover:bg-success/90 focus:ring-success',
-          error: 'bg-error text-white hover:bg-error/90 focus:ring-error',
-        },
-        outlined: {
-          primary:
-            'bg-transparent border-2 border-primary text-primary hover:bg-primary/10 focus:ring-primary',
-          accent:
-            'bg-transparent border-2 border-accent text-accent hover:bg-accent/10 focus:ring-accent',
-          success:
-            'bg-transparent border-2 border-success text-success hover:bg-success/10 focus:ring-success',
-          error:
-            'bg-transparent border-2 border-error text-error hover:bg-error/10 focus:ring-error',
-        },
-      };
-
-      const widthClass = fullWidth ? 'w-full' : '';
-      const disabledClass = disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer';
-
+    ({ className, variant, size, children, ...props }, ref) => {
       return (
         <button
-          ref={ref} // Passa a ref
-          type={type}
-          disabled={disabled}
-          className={`${baseClasses} ${variantColorClasses[variant][color]} ${widthClass} ${disabledClass} ${className}`}
-          {...props} // Aplica outros atributos HTML
+          className={buttonVariants({ variant, size, className })}
+          ref={ref}
+          {...props} // Passa 'disabled', 'onClick', etc.
         >
           {children}
         </button>
@@ -66,4 +69,6 @@ export const Button = memo(
   )
 );
 
-Button.displayName = 'Button'; // DisplayName adicionado
+Button.displayName = 'Button';
+
+export { Button, buttonVariants };

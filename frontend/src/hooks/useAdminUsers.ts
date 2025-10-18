@@ -1,124 +1,142 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { getErrorMessage } from '../utils/errors';
-import { User, PaginatedResponse } from '../types'; // Barrel file
-import { logError } from '../utils/logger'; // Log
+import { Usuario, PaginatedResponse, UsuarioFormData, PerfilUsuario } from '../types';
+import { logError } from '../utils/logger';
+import { useAuth } from '../contexts/AuthContext';
 
-type ModalState = {
-  isOpen: boolean;
-  user: User | null;
-};
-
-export type UserFormData = Partial<User> & { senha?: string };
-
-const ITEMS_PER_PAGE = 10;
-
-export const useAdminUsers = () => {
-  const [users, setUsers] = useState<User[]>([]);
+/**
+ * @hook useAdminUsers
+ * @description Hook para buscar e gerenciar dados paginados de Usuários.
+ * @param pagina A página atual a ser buscada.
+ * @param termoBusca O termo de busca (debounced).
+ * @returns Um objeto contendo dados, estado de loading, erro e função mutate.
+ */
+export const useAdminUsers = (pagina: number, termoBusca: string) => {
+  const [data, setData] = useState<PaginatedResponse<Usuario> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [modalState, setModalState] = useState<ModalState>({ isOpen: false, user: null });
+  const [error, setError] = useState<unknown>(null);
+  const { usuario: usuarioLogado } = useAuth(); // Pega o usuário logado
 
-  // Paginação
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-
-  // Carrega usuários paginados
-  const loadUsers = async (page = currentPage) => {
+  /**
+   * @function mutate
+   * @description Função para forçar a re-busca dos dados da página atual.
+   */
+  const mutate = useCallback(async () => {
+    setIsLoading(true);
     try {
-      if (users.length === 0) setIsLoading(true);
+      const params = {
+        pagina: pagina,
+        limite: 10,
+        nome: termoBusca || undefined,
+      };
+      const response = await api.get<PaginatedResponse<Usuario>>('/usuarios', {
+        params,
+      });
+      setData(response.data);
       setError(null);
-      const params = { page, limit: ITEMS_PER_PAGE };
-      // Assumindo que o backend suporta paginação para usuários
-      const response = await api.get<PaginatedResponse<User>>('/usuarios', { params });
-
-      setUsers(response.data.data);
-      setTotalPages(Math.ceil(response.data.total / ITEMS_PER_PAGE));
-      setCurrentPage(page);
     } catch (err) {
       const message = getErrorMessage(err);
       setError(message);
-      logError('Erro ao carregar usuários:', err, { page });
+      logError('Erro ao re-buscar usuários:', err, { pagina, termoBusca });
     } finally {
       setIsLoading(false);
     }
+  }, [pagina, termoBusca]);
+
+  // Efeito para buscar dados quando a página ou a busca (debounced) mudam
+  useEffect(() => {
+    mutate();
+  }, [mutate]);
+
+  // --- Funções de Mutação ---
+
+  /**
+   * @function handleCreate
+   * @description Cria um novo usuário.
+   * @throws {Error} Lança um erro se a API falhar.
+   */
+  const handleCreate = async (data: UsuarioFormData): Promise<Usuario> => {
+    if (!data.senha) {
+      const errorMsg = 'A senha é obrigatória para criar um novo usuário.';
+      logError(errorMsg, new Error(errorMsg), { data });
+      throw new Error(errorMsg);
+    }
+    try {
+      const response = await api.post<Usuario>('/usuarios', data);
+      return response.data;
+    } catch (err) {
+      const message = getErrorMessage(err);
+      logError('Erro ao CRIAR usuário:', err, { data });
+      throw new Error(message);
+    }
   };
 
-  useEffect(() => {
-    loadUsers(currentPage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage]); // Recarrega ao mudar de página
+  /**
+   * @function handleUpdate
+   * @description Atualiza um usuário existente.
+   * @throws {Error} Lança um erro se a API falhar.
+   */
+  const handleUpdate = async (
+    id: string,
+    data: UsuarioFormData
+  ): Promise<Usuario> => {
+    const dataToSend = { ...data };
+    // Remove a senha se estiver vazia (não atualiza)
+    if (!dataToSend.senha) {
+      delete dataToSend.senha;
+    }
+    
+    try {
+      const response = await api.put<Usuario>(`/usuarios/${id}`, dataToSend);
+      return response.data;
+    } catch (err) {
+      const message = getErrorMessage(err);
+      logError('Erro ao ATUALIZAR usuário:', err, { id, data: dataToSend });
+      throw new Error(message);
+    }
+  };
 
-  const handleOpenModal = useCallback((user: User | null) => {
-    setModalState({ isOpen: true, user });
-  }, []);
-
-  const handleCloseModal = useCallback(() => {
-    setModalState({ isOpen: false, user: null });
-  }, []);
-
-  // Retorna boolean
-  const handleSaveUser = useCallback(
-    async (formData: UserFormData): Promise<boolean> => {
-      try {
-        setError(null);
-        const dataToSend = { ...formData }; // Copia para não modificar o original
-
-        if (modalState.user) {
-          // Atualizar: Remove senha se vazia
-          if (!dataToSend.senha) {
-            delete dataToSend.senha;
-          }
-          await api.put(`/usuarios/${modalState.user.id}`, dataToSend);
-        } else {
-          // Criar: Senha é obrigatória
-          if (!dataToSend.senha) {
-            throw new Error('A senha é obrigatória para criar um novo usuário.');
-          }
-          await api.post('/usuarios', dataToSend);
-        }
-        handleCloseModal();
-        await loadUsers(modalState.user ? currentPage : 1);
-        return true; // Sucesso
-      } catch (err) {
-        const message = getErrorMessage(err);
-        logError('Erro ao salvar usuário:', err, { userId: modalState.user?.id });
-        throw new Error(message); // Lança para o modal
-      }
-    },
-    [modalState.user, handleCloseModal, currentPage]
-  ); // Removido loadUsers
-
-  const handleDeleteUser = useCallback(
-    async (userId: string) => {
-      if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
-        try {
-          setError(null);
-          await api.delete(`/usuarios/${userId}`);
-          const newPage = users.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
-          await loadUsers(newPage);
-        } catch (err) {
-          const message = getErrorMessage(err);
-          setError(message);
-          logError('Erro ao excluir usuário:', err, { userId });
-        }
-      }
-    },
-    [users, currentPage]
-  ); // Removido loadUsers
+  /**
+   * @function handleDelete
+   * @description Deleta um usuário.
+   * @throws {Error} Lança um erro se a API falhar.
+   */
+  const handleDelete = async (id: string): Promise<void> => {
+    if (id === usuarioLogado?.id) {
+      const errorMsg = 'Você não pode excluir seu próprio usuário.';
+      logError(errorMsg, new Error(errorMsg), { id });
+      throw new Error(errorMsg);
+    }
+    try {
+      await api.delete(`/usuarios/${id}`);
+    } catch (err) {
+      const message = getErrorMessage(err);
+      logError('Erro ao DELETAR usuário:', err, { id });
+      throw new Error(message);
+    }
+  };
+  
+  // Estado e handlers para controlar o estado de 'isMutating' (ex: no botão salvar)
+  const [isMutating, setIsMutating] = useState(false);
+  const [mutationError, setMutationError] = useState<unknown>(null);
 
   return {
+    // Dados SWR
+    data,
     isLoading,
     error,
-    users, // Lista paginada
-    modalState,
-    handleOpenModal,
-    handleCloseModal,
-    handleSaveUser,
-    handleDeleteUser,
-    // Paginação
-    currentPage,
-    totalPages,
-    setCurrentPage,
+    mutate,
+    // Funções de Mutação
+    handleCreate,
+    handleUpdate,
+    handleDelete,
+    // Estado da Mutação (para a UI)
+    isMutating,
+    setIsMutating,
+    mutationError,
+    setMutationError,
+    // Extra: ID do usuário logado para a UI
+    idUsuarioLogado: usuarioLogado?.id,
   };
 };

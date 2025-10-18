@@ -1,58 +1,68 @@
 import { useState, useEffect } from 'react';
+import { Pedido, StatusPedido } from '../types';
 import { api } from '../services/api';
-import { Order } from '../types'; // Barrel file
-import { logError } from '../utils/logger'; // Log
+import { getErrorMessage } from '../utils/errors';
 
-const POLLING_INTERVAL = 5000; // 5 segundos
+// Define a interface da resposta da API de display
+interface DisplayData {
+  pedidosProntos: Pedido[];
+  pedidosAguardando: Pedido[];
+}
 
+/**
+ * REFATORAÇÃO (Commit 3.3):
+ * - Nenhuma mudança lógica neste hook.
+ * - Conforme análise, a migração para WebSocket foi adiada.
+ * - O hook permanece funcional com polling (setInterval).
+ */
 export const useCustomerDisplay = () => {
-  const [orders, setOrders] = useState<number[]>([]);
-  const [highlightOrder, setHighlightOrder] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [pedidosProntos, setPedidosProntos] = useState<Pedido[]>([]);
+  const [pedidosAguardando, setPedidosAguardando] = useState<Pedido[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null);
+
+  // Função para buscar os dados
+  const fetchDisplayData = async () => {
+    try {
+      const response = await api.get<DisplayData>('/pedidos/display');
+      
+      // Ordena os prontos (mais recente primeiro)
+      const prontos = response.data.pedidosProntos.sort(
+        (a, b) =>
+          new Date(b.dataAtualizacao).getTime() -
+          new Date(a.dataAtualizacao).getTime()
+      );
+      
+      // Ordena os aguardando (mais antigo primeiro, FIFO)
+      const aguardando = response.data.pedidosAguardando.sort(
+        (a, b) =>
+          new Date(a.dataCriacao).getTime() -
+          new Date(b.dataCriacao).getTime()
+      );
+
+      setPedidosProntos(prontos);
+      setPedidosAguardando(aguardando.slice(0, 10)); // Limita a 10 na lista de espera
+      setError(null);
+    } catch (err) {
+      console.error('Erro ao buscar dados do display:', err);
+      setError(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    let isMounted = true; // Flag para evitar updates após desmontar
+    // Busca inicial
+    fetchDisplayData();
 
-    const fetchOrders = async () => {
-      try {
-        const response = await api.get<Order[]>('/pedidos/prontos');
-        if (!isMounted) return; // Não atualiza se desmontado
+    // Inicia o polling
+    const intervalId = setInterval(() => {
+      fetchDisplayData();
+    }, 5000); // Busca a cada 5 segundos
 
-        const newOrderNumbers = response.data.map((order) => order.numero_sequencial_dia);
+    // Limpa o intervalo ao desmontar o componente
+    return () => clearInterval(intervalId);
+  }, []);
 
-        setError(null); // Limpa erro anterior
-
-        setOrders((prevOrders) => {
-          // Encontra a nova ordem para destacar
-          const newOrder = newOrderNumbers.find((num) => !prevOrders.includes(num));
-
-          if (newOrder) {
-            setHighlightOrder(newOrder);
-            setTimeout(() => {
-              if (isMounted) setHighlightOrder(null);
-            }, 2000); // Duração do destaque
-          }
-
-          return newOrderNumbers; // Atualiza a lista
-        });
-      } catch (err) {
-        if (!isMounted) return;
-        // Não usar getErrorMessage aqui, pois pode ser erro de rede intermitente
-        const message = 'Não foi possível atualizar a lista de pedidos.';
-        setError(message);
-        logError('Erro no polling do Customer Display:', err);
-      }
-    };
-
-    fetchOrders(); // Busca inicial
-    const timer = setInterval(fetchOrders, POLLING_INTERVAL);
-
-    // Limpa o intervalo e a flag ao desmontar
-    return () => {
-      isMounted = false;
-      clearInterval(timer);
-    };
-  }, []); // Executa apenas uma vez
-
-  return { orders, highlightOrder, error };
+  return { pedidosProntos, pedidosAguardando, isLoading, error };
 };

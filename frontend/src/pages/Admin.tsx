@@ -1,38 +1,48 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { Header } from '../components/common/Header';
+import { Outlet } from 'react-router-dom';
 import { Sidebar } from '../components/common/Sidebar';
+import { useNavigation } from '../contexts/NavigationContext';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 
-// Lazy load admin pages
-const AdminProducts = React.lazy(() => import('./admin/AdminProducts'));
-const AdminCategories = React.lazy(() => import('./admin/AdminCategories'));
-const AdminUsers = React.lazy(() => import('./admin/AdminUsers'));
-const AdminReports = React.lazy(() => import('./admin/AdminReports'));
+/**
+ * Esta página agora atua como o layout principal para o CONTEXTO DE GESTÃO.
+ * Ela renderiza o Sidebar (agora fixo) e o conteúdo (Outlet) das sub-rotas de admin.
+ * A lógica de {isSidebarOpen, toggleSidebar} foi removida.
+ */
+const Admin: React.FC = () => {
+  const { activeContext } = useNavigation();
 
-export const Admin: React.FC = () => {
+  // Garante que o layout de Admin (com Sidebar) só seja renderizado
+  // se o contexto de navegação estiver correto (GESTAO).
+  // Isso previne renderização indevida se a rota for acessada diretamente
+  // sem o contexto estar sincronizado.
+  if (activeContext !== 'GESTAO') {
+    // Mostra um loading ou redireciona (o NavigationContext deve lidar com o redirecionamento)
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-neutral flex flex-col">
-      <Header />
-      <div className="flex-grow flex">
-        <Sidebar className="w-64 flex-shrink-0" />
-        <main className="flex-grow p-6 overflow-auto">
-          <React.Suspense fallback={<div>Carregando...</div>}>
-            <Routes>
-              <Route path="products" element={<AdminProducts />} />
-              <Route path="categories" element={<AdminCategories />} />
-              <Route path="users" element={<AdminUsers />} />
-              <Route path="reports" element={<AdminReports />} />
-              {/* Rota padrão dentro de /admin */}
-              <Route path="/" element={<Navigate to="/admin/products" replace />} />
-              {/* Rota fallback dentro de /admin */}
-              <Route path="*" element={<Navigate to="/admin/products" replace />} />
-            </Routes>
-          </React.Suspense>
+    // Layout principal para o contexto de Gestão
+    // O Header Global é renderizado acima disso, no AppRouter.
+    <div className="flex h-[calc(100vh-80px)]"> {/* Altura total menos 80px do Header Global */}
+      
+      {/* Sidebar Fixo (w-64) */}
+      <Sidebar />
+
+      {/* Área de Conteúdo Principal */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6 md:p-8"> {/* Fundo mais claro e padding (8px grid) */}
+          <div className="container mx-auto max-w-7xl">
+            <Outlet /> {/* Renderiza as sub-rotas (Relatórios, Produtos, etc.) */}
+          </div>
         </main>
       </div>
     </div>
   );
 };
 
-// Exportar como default para o Lazy Loading
-export default Admin;
+export default Admin; // Exporta como default para React.lazy

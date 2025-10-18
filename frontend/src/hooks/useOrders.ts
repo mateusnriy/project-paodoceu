@@ -1,67 +1,128 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
-import { getErrorMessage } from '../utils/errors';
-import { Order } from '../types'; // Barrel file
-import { logError } from '../utils/logger'; // Log
+import { Pedido, StatusPedido } from '../types';
+import { logError } from '../utils/logger';
+import { useMemo as reactUseMemo } from 'react';
 
-interface OrderWithUI extends Order {
-  completed?: boolean; // Estado de UI para animação
+interface OrderWithUI extends Pedido {
+  completed?: boolean;
 }
 
 export const useOrders = () => {
-  const [orders, setOrders] = useState<OrderWithUI[]>([]);
+  const [pedidos, setPedidos] = useState<OrderWithUI[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
-  // Não precisa de useCallback se só é usado no useEffect
-  const loadOrders = async () => {
+  /**
+   * @function loadOrders
+   * @description Busca os pedidos com status 'PRONTO'.
+   */
+  const loadOrders = useCallback(async () => {
+    // Não seta loading=true aqui para permitir refresh silencioso
+    setError(null);
     try {
-      setIsLoading(true);
-      setError(null);
-      const response = await api.get<Order[]>('/pedidos/prontos');
-      setOrders(response.data.map((order) => ({ ...order, completed: false }))); // Inicializa completed
+      // <<< CORREÇÃO: Endpoint ajustado para o definido no backend >>>
+      const response = await api.get<Pedido[]>('/pedidos/prontos');
+
+      // Ordena por data de atualização (mais recente pronto primeiro)
+      const sortedPedidos = response.data.sort((a, b) =>
+          new Date(b.dataAtualizacao).getTime() - new Date(a.dataAtualizacao).getTime()
+      );
+
+      // Adiciona a flag 'completed: false' e mantém apenas os PRONTOS
+      // (Embora a API já deva retornar apenas prontos)
+      setPedidos(
+        sortedPedidos
+          .filter(p => p.status === StatusPedido.PRONTO) // Filtro extra por segurança
+          .map((p) => ({ ...p, completed: false }))
+      );
+
     } catch (err) {
-      const message = getErrorMessage(err);
-      setError(message);
-      logError('Erro ao buscar pedidos prontos:', err);
+      logError('Erro detalhado ao buscar pedidos prontos:', err);
+      setError(err);
+      setPedidos([]); // Limpa a lista em caso de erro
     } finally {
-      setIsLoading(false);
+      // Só desativa o loading inicial uma vez
+      if (isLoading) {
+        setIsLoading(false);
+      }
     }
-  };
+  }, [isLoading]); // Depende de isLoading para controlar o estado inicial
 
   useEffect(() => {
     loadOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Executa apenas na montagem
+    // Adiciona um intervalo para atualizar a lista periodicamente
+    const intervalId = setInterval(loadOrders, 10000); // Atualiza a cada 10 segundos
+    return () => clearInterval(intervalId); // Limpa o intervalo ao desmontar
+  }, [loadOrders]); // Re-executa se loadOrders mudar (apenas na montagem devido ao useCallback)
 
-  // Não precisa de useCallback se só é passado para a página
-  const handleCompleteOrder = async (orderId: string) => {
-    // UI otimista
-    setOrders((prevOrders) =>
-      prevOrders.map((order) => (order.id === orderId ? { ...order, completed: true } : order))
+  /**
+   * @function handleConcluirPedido
+   * @description Marca um pedido como 'CONCLUIDO' na API (PATCH /pedidos/:id/concluir).
+   */
+  const handleConcluirPedido = useCallback(async (pedidoId: string) => {
+    if (isUpdating) return;
+
+    setIsUpdating(pedidoId);
+    setError(null);
+
+    // --- UI Otimista ---
+    setPedidos((prevPedidos) =>
+      prevPedidos.map((p) =>
+        p.id === pedidoId
+          ? { ...p, completed: true, status: StatusPedido.CONCLUIDO }
+          : p
+      )
     );
 
     try {
-      await api.patch(`/pedidos/${orderId}/entregar`);
-      // Remove após animação
-      setTimeout(() => {
-        setOrders((prevOrders) => prevOrders.filter((order) => order.id !== orderId));
+      // <<< CORREÇÃO: Endpoint ajustado para o definido no backend >>>
+      // O backend usa PATCH /pedidos/:id/concluir
+      await api.patch(`/pedidos/${pedidoId}/concluir`);
+
+      // Sucesso: Remove após delay
+      const timerId = setTimeout(() => {
+        setPedidos((prevPedidos) => prevPedidos.filter((p) => p.id !== pedidoId));
+        setIsUpdating(null);
       }, 1500);
+
+      // Retorna função de cleanup para clearTimeout
+      return () => clearTimeout(timerId);
+
     } catch (err) {
-      const message = getErrorMessage(err);
-      setError(message); // Mostra erro na UI
-      logError('Erro ao marcar pedido como entregue:', err, { orderId });
-      // Reverte UI
-      setOrders((prevOrders) =>
-        prevOrders.map((order) => (order.id === orderId ? { ...order, completed: false } : order))
+      logError('Erro ao marcar pedido como concluído:', err, { pedidoId });
+      setError(err);
+
+      // --- Reverte UI Otimista ---
+      setPedidos((prevPedidos) =>
+        prevPedidos.map((p) =>
+          p.id === pedidoId
+            ? { ...p, completed: false, status: StatusPedido.PRONTO } // Reverte status
+            : p
+        )
       );
+      setIsUpdating(null); // Libera para tentar de novo
+      // Retorna undefined ou lança o erro se precisar sinalizar falha
+      // throw err; // Opcional
     }
-  };
+  }, [isUpdating]); // Dependência isUpdating previne chamadas concorrentes
+
+  // Separa pedidos PRONTOS dos "concluídos" (apenas na UI, antes de sumir)
+  // A lista de aguardando ficará vazia pois não buscamos esse status.
+  const pedidosProntos = useMemo(() => pedidos.filter(p => !p.completed), [pedidos]);
+  const pedidosAguardando: Pedido[] = []; // Vazia - API não fornece AGUARDANDO neste endpoint
 
   return {
-    orders,
+    pedidosProntos,
+    pedidosAguardando, // Vazia
     isLoading,
     error,
-    handleCompleteOrder,
+    handleConcluirPedido,
+    isUpdating, // ID do pedido em atualização
   };
 };
+function useMemo<T>(factory: () => T, deps: React.DependencyList): T {
+  return reactUseMemo(factory, deps);
+}
+
