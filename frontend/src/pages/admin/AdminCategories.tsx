@@ -50,7 +50,7 @@ const CategoriesTable: React.FC<{
   categorias: Categoria[];
   onEdit: (categoria: Categoria) => void;
   onDelete: (id: string) => void;
-  isLoading: boolean; // Estado de carregamento da tabela (busca/paginação)
+  isLoading: boolean;
 }> = React.memo(({ categorias, onEdit, onDelete, isLoading }) => {
   return (
     <div className="bg-primary-white rounded-xl shadow-soft overflow-x-auto border border-gray-200">
@@ -69,7 +69,6 @@ const CategoriesTable: React.FC<{
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {/* Mostra Skeleton apenas no loading inicial E se não houver dados antigos */}
           {isLoading && !categorias.length ? (
             <SkeletonTable cols={3} rows={5} />
           ) : (
@@ -89,7 +88,7 @@ const CategoriesTable: React.FC<{
                     aria-label={`Editar ${categoria.nome}`}
                     className="text-primary-blue hover:underline p-1"
                     title="Editar"
-                    disabled={isLoading} // Desabilita botões se a tabela estiver recarregando
+                    disabled={isLoading}
                   >
                     <Edit size={16} />
                   </Button>
@@ -100,7 +99,7 @@ const CategoriesTable: React.FC<{
                     className="text-status-error hover:underline p-1"
                     aria-label={`Excluir ${categoria.nome}`}
                     title="Excluir"
-                    disabled={isLoading} // Desabilita botões se a tabela estiver recarregando
+                    disabled={isLoading}
                   >
                     <Trash2 size={16} />
                   </Button>
@@ -108,7 +107,6 @@ const CategoriesTable: React.FC<{
               </tr>
             ))
           )}
-          {/* Mensagem de Tabela Vazia */}
           {!isLoading && categorias.length === 0 && (
              <tr>
                 <td colSpan={3} className="px-6 py-10 text-center text-text-secondary">
@@ -129,7 +127,7 @@ const AdminCategories: React.FC = () => {
   const [modalAberto, setModalAberto] = useState(false);
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<Categoria | null>(null);
 
-  // Hook para buscar categorias (data fetching e CUD)
+  // <<< CORREÇÃO: Destructuring completo do hook >>>
   const {
     data,
     isLoading,
@@ -139,98 +137,78 @@ const AdminCategories: React.FC = () => {
     handleUpdate,
     handleDelete,
     isMutating,
-    // <<< CORREÇÃO: Destructuring correto das funções de estado do hook >>>
-    setIsMutating,
+    setIsMutating,     // <<< Faltava esta linha >>>
     mutationError,
-    setMutationError,
-  } = useAdminCategories(pagina, '', 10); // Limite de 10 por página
+    setMutationError,   // <<< Faltava esta linha >>>
+  } = useAdminCategories(pagina, '', 10);
 
   const categorias = data?.data ?? [];
   const totalPaginas = data?.meta?.totalPaginas ?? 1;
 
-  // Handler para abrir o modal (limpa erro anterior)
+  // <<< CORREÇÃO: Agora 'setMutationError' existe >>>
   const handleOpenModal = useCallback((categoria: Categoria | null) => {
     setCategoriaSelecionada(categoria);
-    setMutationError(null); // <<< CORREÇÃO: Chamada correta >>>
+    setMutationError(null);
     setModalAberto(true);
-  }, [setMutationError]); // <<< CORREÇÃO: Dependência correta >>>
+  }, [setMutationError]);
 
-  // Handler para fechar o modal
   const handleCloseModal = useCallback(() => {
     setCategoriaSelecionada(null);
     setModalAberto(false);
   }, []);
 
-  /**
-   * @function handleSave
-   * @description Função intermediária que lida com a lógica de salvar (criar/atualizar),
-   * controla estados de loading/erro e revalida os dados.
-   * É passada para o `CategoryFormModal`.
-   */
   const handleSave = useCallback(async (formData: { nome: string }, id?: string): Promise<Categoria> => {
-    setMutationError(null); // Limpa erro anterior
-    setIsMutating(true);    // Ativa loading
-    let result: Categoria;
+    // A lógica de loading/erro agora é pega do hook
     try {
+      let result: Categoria;
       if (id) {
-        result = await handleUpdate(id, formData); // Chama update do hook
+        result = await handleUpdate(id, formData);
       } else {
-        result = await handleCreate(formData); // Chama create do hook
+        result = await handleCreate(formData);
       }
-      handleCloseModal(); // Fecha modal em caso de sucesso
-      mutate();           // Revalida dados da tabela
-      return result;      // Retorna o resultado (pode ser útil)
+      handleCloseModal();
+      mutate();
+      return result;
     } catch (err) {
-      setMutationError(err); // Define o erro de mutação (será passado para o modal)
-      throw err;             // Relança o erro para o modal saber que falhou
-    } finally {
-      setIsMutating(false);   // Desativa loading
+      // O erro já está em 'mutationError' (definido pelo hook)
+      // Apenas relançamos para o modal (que é controlado por 'mutationError')
+      throw err;
     }
-  }, [handleCreate, handleUpdate, mutate, handleCloseModal, setMutationError, setIsMutating]); // Dependências
+  }, [handleCreate, handleUpdate, mutate, handleCloseModal]); // <<< CORREÇÃO: Removidos setters que vêm do hook >>>
 
-  // Handler para confirmar e deletar
   const handleDeleteConfirm = useCallback(async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir esta categoria? Atenção: Produtos associados podem ser afetados.')) {
-      setIsMutating(true);      // Ativa loading
-      setMutationError(null);   // Limpa erro
+      // O hook 'handleDelete' já controla isMutating e mutationError
       try {
-        await handleDelete(id); // Chama delete do hook
-        mutate();               // Revalida dados
+        await handleDelete(id);
+        mutate();
       } catch (err) {
-        // Exibe um alerta simples para erros de deleção
         alert(`Erro ao excluir categoria: ${getErrorMessage(err)}`);
-        setMutationError(err); // Armazena o erro (embora já mostrado)
-      } finally {
-        setIsMutating(false);     // Desativa loading
+        // O erro já está em 'mutationError'
       }
     }
-  }, [handleDelete, mutate, setIsMutating, setMutationError]); // Dependências
+  }, [handleDelete, mutate]); // <<< CORREÇÃO: Removidos setters que vêm do hook >>>
 
-  // Handler para mudança de página
   const handlePageChange = useCallback((newPage: number) => {
-      // Garante que a página não seja menor que 1
-      if (newPage >= 1) {
+      if (newPage >= 1 && newPage <= totalPaginas) {
           setPagina(newPage);
       }
-  }, []);
+  }, [totalPaginas]);
 
-  // Renderização da Página
   return (
     <div className="space-y-6">
-      {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-text-primary">Gestão de Categorias</h1>
         <Button
            variant="primary"
-           onClick={() => handleOpenModal(null)} // Chama o handler correto
-           disabled={isLoading || isMutating} // Desabilita se carregando dados ou fazendo CUD
+           onClick={() => handleOpenModal(null)}
+           disabled={isLoading || isMutating} // Desabilita se carregando ou fazendo CUD
         >
           <Plus size={20} className="-ml-1 mr-2" />
           Nova Categoria
         </Button>
       </div>
 
-      {/* Mensagem de Erro (Busca/Paginação) */}
       {error && !isLoading && (
         <ErrorMessage
           title="Erro ao carregar categorias"
@@ -238,29 +216,25 @@ const AdminCategories: React.FC = () => {
         />
       )}
 
-      {/* Tabela */}
       <CategoriesTable
         categorias={categorias}
         onEdit={handleOpenModal}
         onDelete={handleDeleteConfirm}
-        // Passa isLoading OU isMutating para a tabela saber se está carregando/ocupada
-        isLoading={isLoading || isMutating}
+        isLoading={isLoading || isMutating} // Passa loading combinado
       />
 
-      {/* Paginação */}
       <Pagination
         paginaAtual={pagina}
         totalPaginas={totalPaginas}
         onPageChange={handlePageChange}
-        isLoading={isLoading || isMutating} // Desabilita se carregando ou fazendo CUD
+        isLoading={isLoading || isMutating}
       />
 
-      {/* Modal (Renderizado condicionalmente) */}
       {modalAberto && (
         <CategoryFormModal
           isOpen={modalAberto}
           onClose={handleCloseModal}
-          onSave={handleSave} // Passa a função handleSave correta
+          onSave={handleSave}
           categoria={categoriaSelecionada}
           isMutating={isMutating}      // Passa estado de loading CUD
           mutationError={mutationError} // Passa erro CUD

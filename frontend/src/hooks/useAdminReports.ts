@@ -16,8 +16,8 @@ interface VendasDiariasResponseItem { // Assumindo que tipo=diario retorna isso
 }
 interface TopProdutosResponseItem { // Assumindo que tipo=produto retorna isso
   nome: string;
-  quantidade: number; // Backend retorna quantidade vendida
-  total: number;      // Backend retorna valor total vendido
+  quantidade: number;
+  total: number;
 }
 
 // Interface unificada para o estado do hook
@@ -44,22 +44,28 @@ export const useAdminReports = () => {
    * @description Busca os dados para os relatórios usando o endpoint /relatorios/vendas.
    */
   const fetchData = useCallback(async () => {
-    // Só seta loading na primeira vez ou se não houver dados ainda
-    if (!data) setIsLoading(true);
+    if (!data) setIsLoading(true); // Só loading total na primeira vez
     setError(null);
     try {
         const todayRange = getDateRangeQuery('today'); // { data_inicio, data_fim } para hoje
         const weekRange = getDateRangeQuery('week');   // { data_inicio, data_fim } para os últimos 7 dias
 
-        // <<< VERIFICAÇÃO/CORREÇÃO: Chamadas usando o endpoint /relatorios/vendas com 'tipo' >>>
-        // Conforme backend/src/routes/relatoriosRoutes.ts
+        // <<< CORREÇÃO: Chamadas usando o endpoint /relatorios/vendas com 'tipo' >>>
+        // Conforme backend/src/controllers/relatoriosController.ts
         const [resHoje, res7Dias, resTopProdutos] = await Promise.all([
-          // tipo=periodo para totais de hoje
-          api.get<VendasPeriodoResponse>('/relatorios/vendas', { params: { ...todayRange, tipo: 'periodo' } }),
-          // tipo=diario para vendas por dia na semana
-          api.get<VendasDiariasResponseItem[]>('/relatorios/vendas', { params: { ...weekRange, tipo: 'diario' } }), // Assumindo que backend suporta tipo='diario'
-          // tipo=produto para top produtos na semana
-          api.get<TopProdutosResponseItem[]>('/relatorios/vendas', { params: { ...weekRange, tipo: 'produto', limite: 5 } }), // Assumindo que backend suporta tipo='produto' e limite
+          // 1. tipo=periodo para totais de hoje
+          api.get<VendasPeriodoResponse>('/relatorios/vendas', {
+             params: { ...todayRange, tipo: 'periodo' }
+          }),
+          // 2. tipo=diario para vendas por dia na semana
+          // (Backend precisa implementar a lógica para 'diario')
+          api.get<VendasDiariasResponseItem[]>('/relatorios/vendas', {
+             params: { ...weekRange, tipo: 'diario' }
+          }),
+          // 3. tipo=produto para top produtos na semana
+          api.get<TopProdutosResponseItem[]>('/relatorios/vendas', {
+             params: { ...weekRange, tipo: 'produto', limite: 5 } // Backend precisa honrar 'limite'
+          }),
         ]);
 
         // Monta o objeto de dados unificado
@@ -73,17 +79,16 @@ export const useAdminReports = () => {
         setData(aggregatedData);
 
     } catch (err) {
-        // Erro 403 aqui indica problema de permissão (usuário não é ADMIN ou rota não protegida corretamente no backend)
-        // ERR_CONNECTION_REFUSED indica que o backend não está rodando/acessível
-        // Outros erros (404, 500) indicam problemas na API (rota não existe, erro interno)
+        // ERR_CONNECTION_REFUSED indica que o backend não está rodando
+        // 403 indica que o usuário logado não é 'ADMINISTRADOR'
         const message = getErrorMessage(err);
         setError(err); // Armazena o erro original
-        logError('Erro ao buscar relatórios:', err); // Loga o erro detalhado
+        logError('Erro ao buscar relatórios:', err);
         setData(null); // Limpa dados antigos em caso de erro
     } finally {
       setIsLoading(false); // Sempre desativa o loading no final
     }
-  }, [data]); // Adiciona 'data' como dependência para controlar o loading inicial
+  }, [data]); // Adiciona 'data' como dependência
 
   // Efeito para buscar na montagem
   useEffect(() => {
@@ -94,10 +99,9 @@ export const useAdminReports = () => {
     data,
     isLoading,
     error,
-    // Função para permitir re-buscar os dados manualmente (ex: botão de atualizar)
-    refetch: fetchData,
+    refetch: fetchData, // Permite re-buscar
   };
 };
 
-// Exporta DateRangeOption se for usado externamente (ex: filtro na UI)
+// Exporta DateRangeOption
 export type { DateRangeOption };

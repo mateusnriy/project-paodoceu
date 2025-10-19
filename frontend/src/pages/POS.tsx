@@ -8,14 +8,6 @@ import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { getErrorMessage } from '../utils/errors';
 import { Categoria, Produto } from '../types';
 
-/**
- * REFATORAÇÃO (Commit 2.3):
- * - Refatorado o Filtro de Categoria para usar o estilo "Pill" (item 4.1.1).
- * - Aplicados novos tokens de design (tipografia, espaçamento, cores).
- * - Ajustado o 'top' do OrderSummary sticky para compensar o Header Global.
- */
-
-// --- Componente CategoriaPill (Novo interno) ---
 interface CategoriaPillProps {
   categoria: Categoria | { id: 'todos'; nome: string };
   categoriaAtiva: string | null;
@@ -27,14 +19,11 @@ const CategoriaPill: React.FC<CategoriaPillProps> = React.memo(
     const id = categoria.id === 'todos' ? null : categoria.id;
     const isActive = categoriaAtiva === id;
 
-    // Define as classes com base no estado ativo (Guia de Estilo item 4.1.1)
     const baseClasses =
       'px-4 py-2 rounded-full font-semibold text-base transition-colors duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue';
 
-    // Ativo: primary-blue com texto branco
     const activeClasses = 'bg-primary-blue text-white';
     
-    // Inativo: Fundo branco com texto secundário, hover com fundo light-blue
     const inactiveClasses =
       'bg-primary-white text-text-secondary border border-gray-300 hover:bg-background-light-blue';
 
@@ -49,24 +38,24 @@ const CategoriaPill: React.FC<CategoriaPillProps> = React.memo(
     );
   }
 );
-// --- Fim CategoriaPill ---
+
 
 const POS: React.FC = () => {
   const {
-    // Estado do Pedido
+
     pedido,
     total,
-    // Estado de Produtos e Categorias
+
     produtosFiltrados,
     categorias,
     categoriaAtiva,
     setCategoriaAtiva,
-    // Estado da UI
+
     isLoadingProdutos,
     isLoadingCategorias,
     errorProdutos,
     errorCategorias,
-    // Ações
+
     handleAddToCart,
     handleRemoveFromCart,
     handleUpdateQuantity,
@@ -74,19 +63,19 @@ const POS: React.FC = () => {
     handleNavigateToPayment,
   } = usePOS();
 
-  // Memoiza as funções de callback para o OrderSummary
+
   const handleRemoveCallback = useCallback(handleRemoveFromCart, [handleRemoveFromCart]);
   const handleUpdateCallback = useCallback(handleUpdateQuantity, [handleUpdateQuantity]);
   const handleLimparCallback = useCallback(handleLimparCarrinho, [handleLimparCarrinho]);
   const handleCheckoutCallback = useCallback(handleNavigateToPayment, [handleNavigateToPayment]);
   
-  // Memoiza a função de callback para o ProductCard
+
   const handleAddCallback = useCallback(handleAddToCart, [handleAddToCart]);
   
-  // Memoiza a função de callback para CategoriaPill
+
   const handleCategoriaClick = useCallback(setCategoriaAtiva, [setCategoriaAtiva]);
 
-  // Renderiza o filtro de categorias
+
   const renderFiltroCategorias = () => {
     if (isLoadingCategorias) {
       return <div className="h-10 animate-pulse bg-gray-200 rounded-full w-full" />;
@@ -113,7 +102,7 @@ const POS: React.FC = () => {
     );
   };
 
-  // Renderiza a lista de produtos
+
   const renderListaProdutos = () => {
     if (isLoadingProdutos) {
       return (
@@ -154,7 +143,7 @@ const POS: React.FC = () => {
   };
 
   return (
-    // Layout principal da página com padding (8px grid)
+
     <main className="container mx-auto p-4 md:p-8">
       <div className="flex flex-col lg:flex-row lg:gap-8">
         

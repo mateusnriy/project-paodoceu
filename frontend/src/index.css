@@ -5,15 +5,8 @@
 @layer base {
   body {
     @apply font-sans antialiased text-text-primary bg-gray-50; 
-    /* Define a fonte 'Inter' (font-sans).
-      Define a cor de texto padrão como 'text-primary' (#333333).
-      Define o fundo padrão do 'body' como 'bg-gray-50', 
-      conforme definido no MainLayout.
-    */
   }
 
-  /* Define o estado de foco padrão para usar o novo anel 'primary-blue' */
-  /* Isso é pego automaticamente pelo plugin @tailwindcss/forms */
   input:focus,
   textarea:focus,
   select:focus,
@@ -21,7 +14,6 @@
     @apply ring-2 ring-primary-blue/70 border-primary-blue;
   }
   
-  /* Garante que os anéis de foco sejam visíveis */
   *:focus-visible {
     @apply outline-none ring-2 ring-offset-2 ring-primary-blue/70;
   }

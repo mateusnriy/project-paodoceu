@@ -34,6 +34,7 @@ const Pagination: React.FC<{
 });
 Pagination.displayName = 'Pagination';
 
+
 // --- Tabela de Usuários (Memoizado) ---
 const UsersTable: React.FC<{
   usuarios: Usuario[];
@@ -106,7 +107,7 @@ const UsersTable: React.FC<{
                     aria-label={`Editar ${usuario.nome}`}
                     className="text-primary-blue hover:underline p-1"
                     title="Editar"
-                     disabled={isLoading} // <<< CORREÇÃO: Desabilitar durante load >>>
+                     disabled={isLoading}
                   >
                     <Edit size={16} />
                   </Button>
@@ -118,7 +119,7 @@ const UsersTable: React.FC<{
                       className="text-status-error hover:underline p-1"
                       aria-label={`Excluir ${usuario.nome}`}
                       title="Excluir"
-                       disabled={isLoading} // <<< CORREÇÃO: Desabilitar durante load >>>
+                       disabled={isLoading}
                     >
                       <Trash2 size={16} />
                     </Button>
@@ -150,6 +151,7 @@ const AdminUsers: React.FC = () => {
 
   const termoDebounced = useDebounce(termoBusca, 300);
 
+  // <<< CORREÇÃO: Destructuring completo do hook >>>
   const {
     data,
     isLoading,
@@ -159,21 +161,21 @@ const AdminUsers: React.FC = () => {
     handleUpdate,
     handleDelete,
     isMutating,
-    // <<< CORREÇÃO: Destructuring correto >>>
-    setIsMutating,
+    setIsMutating,     // <<< Faltava esta linha >>>
     mutationError,
-    setMutationError,
+    setMutationError,   // <<< Faltava esta linha >>>
     idUsuarioLogado,
   } = useAdminUsers(pagina, termoDebounced);
 
   const usuarios = data?.data ?? [];
   const totalPaginas = data?.meta?.totalPaginas ?? 1;
 
+  // <<< CORREÇÃO: 'setMutationError' existe agora >>>
   const handleOpenModal = useCallback((usuario: Usuario | null) => {
     setUsuarioSelecionado(usuario);
-    setMutationError(null); // <<< CORREÇÃO: Chamada correta >>>
+    setMutationError(null);
     setModalAberto(true);
-  }, [setMutationError]); // <<< CORREÇÃO: Dependência correta >>>
+  }, [setMutationError]);
 
   const handleCloseModal = useCallback(() => {
     setUsuarioSelecionado(null);
@@ -181,10 +183,9 @@ const AdminUsers: React.FC = () => {
   }, []);
 
   const handleSave = useCallback(async (formData: UsuarioFormData, id?: string): Promise<Usuario> => {
-    setMutationError(null);
-    setIsMutating(true);
-    let result: Usuario;
+    // Hook controla o 'isMutating' e 'mutationError'
     try {
+      let result: Usuario;
       if (id) {
         result = await handleUpdate(id, formData);
       } else {
@@ -195,34 +196,27 @@ const AdminUsers: React.FC = () => {
       mutate();
       return result;
     } catch (err) {
-      setMutationError(err);
-      throw err;
-    } finally {
-      setIsMutating(false);
+      throw err; // Relança para o modal
     }
-  }, [handleCreate, handleUpdate, mutate, handleCloseModal, setMutationError, setIsMutating]); // <<< CORREÇÃO: Dependências >>>
+  }, [handleCreate, handleUpdate, mutate, handleCloseModal]); // <<< CORREÇÃO: Removidos setters >>>
 
   const handleDeleteConfirm = useCallback(async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
-      setIsMutating(true);
-      setMutationError(null); // <<< CORREÇÃO: Chamada correta >>>
       try {
         await handleDelete(id);
         mutate();
       } catch (err) {
         alert(`Erro ao excluir usuário: ${getErrorMessage(err)}`);
-        setMutationError(err); // <<< CORREÇÃO: Chamada correta >>>
-      } finally {
-        setIsMutating(false); // <<< CORREÇÃO: Chamada correta >>>
+        // Erro já está em mutationError
       }
     }
-  }, [handleDelete, mutate, setIsMutating, setMutationError]); // <<< CORREÇÃO: Dependências >>>
+  }, [handleDelete, mutate]); // <<< CORREÇÃO: Removidos setters >>>
 
   const handlePageChange = useCallback((newPage: number) => {
-    if(newPage >= 1) {
+    if(newPage >= 1 && newPage <= totalPaginas) {
       setPagina(newPage);
     }
-  }, []);
+  }, [totalPaginas]);
 
   return (
     <div className="space-y-6">
@@ -231,7 +225,7 @@ const AdminUsers: React.FC = () => {
         <Button
           variant="primary"
           onClick={() => handleOpenModal(null)}
-          disabled={isLoading || isMutating} // <<< CORREÇÃO: Desabilita se carregando ou CUD >>>
+          disabled={isLoading || isMutating}
         >
           <Plus size={20} className="-ml-1 mr-2" />
           Novo Usuário
@@ -247,6 +241,7 @@ const AdminUsers: React.FC = () => {
           placeholder="Buscar usuários por nome ou email..."
           value={termoBusca}
           onChange={(e) => setTermoBusca(e.target.value)}
+          disabled={isMutating}
           className="
             block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg
             leading-5 bg-primary-white text-text-primary placeholder-gray-500
@@ -267,7 +262,7 @@ const AdminUsers: React.FC = () => {
         usuarios={usuarios}
         onEdit={handleOpenModal}
         onDelete={handleDeleteConfirm}
-        isLoading={isLoading || isMutating} // <<< CORREÇÃO: Passa loading combinado >>>
+        isLoading={isLoading || isMutating} // Passa loading combinado
         idUsuarioLogado={idUsuarioLogado || ''}
       />
 
@@ -285,8 +280,8 @@ const AdminUsers: React.FC = () => {
           onClose={handleCloseModal}
           onSave={handleSave}
           usuario={usuarioSelecionado}
-          isMutating={isMutating}      // <<< Passa estado de loading CUD
-          mutationError={mutationError} // <<< Passa erro CUD
+          isMutating={isMutating}
+          mutationError={mutationError}
         />
       )}
     </div>

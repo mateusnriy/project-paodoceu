@@ -45,11 +45,12 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
         aria-invalid={!!error}
         {...props}
       />
+      {/* Exibe a mensagem de erro */}
       {error && <p className="mt-1 text-sm text-status-error">{error}</p>}
     </div>
   )
 );
-FormInput.displayName = 'FormInput'; // Adiciona displayName
+FormInput.displayName = 'FormInput'; // <<< Adiciona displayName >>>
 
 // --- Textarea (com forwardRef) ---
 interface FormTextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -74,7 +75,7 @@ export const FormTextarea = forwardRef<HTMLTextAreaElement, FormTextareaProps>(
     </div>
   )
 );
-FormTextarea.displayName = 'FormTextarea'; // Adiciona displayName
+FormTextarea.displayName = 'FormTextarea'; // <<< Adiciona displayName >>>
 
 // --- Select (com forwardRef) ---
 interface FormSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
@@ -101,4 +102,4 @@ export const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
     </div>
   )
 );
-FormSelect.displayName = 'FormSelect'; // Adiciona displayName
+FormSelect.displayName = 'FormSelect'; // <<< Adiciona displayName >>>

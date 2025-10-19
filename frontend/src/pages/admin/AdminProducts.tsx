@@ -16,18 +16,18 @@ const ProductsTable: React.FC<{
   produtos: Produto[];
   onEdit: (produto: Produto) => void;
   onDelete: (id: string) => void;
-  isLoading: boolean; // Indica se a tabela está carregando dados (busca/paginação OU CUD)
+  isLoading: boolean;
 }> = React.memo(({ produtos, onEdit, onDelete, isLoading }) => {
 
-  // <<< CORREÇÃO: Subcomponente StatusBadge definido DENTRO do componente da tabela onde é usado >>>
+  // <<< CORREÇÃO: StatusBadge movido para cá, de volta do hook >>>
   const StatusBadge: React.FC<{ disponivel: boolean }> = ({ disponivel }) => (
     <span
       className={`
         inline-block px-3 py-1 text-xs font-semibold rounded-full leading-tight
         ${
           disponivel
-            ? 'bg-status-success-bg text-status-success-text' // Verde para disponível
-            : 'bg-status-disabled-bg text-status-disabled-text' // Cinza para indisponível
+            ? 'bg-status-success-bg text-status-success-text'
+            : 'bg-status-disabled-bg text-status-disabled-text'
         }
       `}
     >
@@ -61,11 +61,9 @@ const ProductsTable: React.FC<{
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
-          {/* Mostra Skeleton se isLoading=true E não houver produtos antigos */}
           {isLoading && !produtos.length ? (
              <SkeletonTable cols={6} rows={5} />
           ) : (
-            // Mapeia os produtos
             produtos.map((produto) => (
               <tr key={produto.id} className="hover:bg-background-light-blue transition-colors duration-150">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">
@@ -91,7 +89,7 @@ const ProductsTable: React.FC<{
                     aria-label={`Editar ${produto.nome}`}
                     className="text-primary-blue hover:underline p-1"
                     title="Editar"
-                    disabled={isLoading} // Desabilita se tabela estiver carregando/mutando
+                    disabled={isLoading}
                   >
                     <Edit size={16} />
                   </Button>
@@ -102,7 +100,7 @@ const ProductsTable: React.FC<{
                     className="text-status-error hover:underline p-1"
                     aria-label={`Excluir ${produto.nome}`}
                     title="Excluir"
-                     disabled={isLoading} // Desabilita se tabela estiver carregando/mutando
+                     disabled={isLoading}
                   >
                     <Trash2 size={16} />
                   </Button>
@@ -110,7 +108,6 @@ const ProductsTable: React.FC<{
               </tr>
             ))
           )}
-          {/* Mensagem de Tabela Vazia */}
           {!isLoading && produtos.length === 0 && (
               <tr>
                   <td colSpan={6} className="px-6 py-10 text-center text-text-secondary">
@@ -130,7 +127,7 @@ const Pagination: React.FC<{
   paginaAtual: number;
   totalPaginas: number;
   onPageChange: (page: number) => void;
-  isLoading: boolean; // Desabilita botões durante qualquer loading
+  isLoading: boolean;
 }> = React.memo(({ paginaAtual, totalPaginas, onPageChange, isLoading }) => {
   if (totalPaginas <= 1) return null;
   return (
@@ -170,35 +167,34 @@ const AdminProducts: React.FC = () => {
 
   const termoDebounced = useDebounce(termoBusca, 300);
 
-  // Hook de Produtos (Data Fetching e CUD)
+  // <<< CORREÇÃO: Destructuring completo do hook >>>
   const {
     data,
-    isLoading,         // Loading da busca/paginação
-    error,             // Erro da busca/paginação
+    isLoading,
+    error,
     mutate,
     handleCreate,
     handleUpdate,
     handleDelete,
-    isMutating,        // Loading das operações CUD
-    setIsMutating,     // Setter isMutating
-    mutationError,     // Erro das operações CUD
-    setMutationError,  // Setter mutationError
+    isMutating,
+    setIsMutating,     // <<< Faltava esta linha >>>
+    mutationError,
+    setMutationError,  // <<< Faltava esta linha >>>
   } = useAdminProducts(pagina, termoDebounced);
 
-  // Hook de Categorias (Apenas para buscar todas para o Select)
   const {
     categorias,
     isLoading: isLoadingCategorias,
     error: errorCategorias,
-  } = useAdminCategories(1, '', 999); // Busca todas de uma vez
+  } = useAdminCategories(1, '', 999);
 
   const produtos = data?.data ?? [];
   const totalPaginas = data?.meta?.totalPaginas ?? 1;
 
-  // Handlers da UI
+  // <<< CORREÇÃO: 'setMutationError' existe agora >>>
   const handleOpenModal = useCallback((produto: Produto | null) => {
     setProdutoSelecionado(produto);
-    setMutationError(null); // Limpa erro CUD anterior
+    setMutationError(null);
     setModalAberto(true);
   }, [setMutationError]);
 
@@ -208,55 +204,48 @@ const AdminProducts: React.FC = () => {
   }, []);
 
   const handleSave = useCallback(async (formData: ProdutoFormData, id?: string): Promise<Produto> => {
-    // A lógica de setMutationError, setIsMutating é feita DENTRO do hook agora
+    // Hook controla o 'isMutating' e 'mutationError'
     try {
       let result: Produto;
       if (id) {
-        result = await handleUpdate(id, formData); // Chama hook
+        result = await handleUpdate(id, formData);
       } else {
-        result = await handleCreate(formData); // Chama hook
+        result = await handleCreate(formData);
       }
-      handleCloseModal(); // Fecha se sucesso
-      mutate();           // Revalida dados
+      handleCloseModal();
+      mutate();
       return result;
     } catch (err) {
-      // O erro já foi setado em `mutationError` pelo hook
-      // Apenas relançamos para o modal saber que falhou e não fechar
+      // Erro é setado pelo hook, apenas relançamos
       throw err;
     }
-    // O finally para setIsMutating(false) está no hook
-  }, [handleCreate, handleUpdate, mutate, handleCloseModal]); // Remove setters daqui
+  }, [handleCreate, handleUpdate, mutate, handleCloseModal]); // <<< CORREÇÃO: Removidos setters >>>
 
   const handleDeleteConfirm = useCallback(async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este produto?')) {
-     // A lógica de setMutationError, setIsMutating é feita DENTRO do hook agora
       try {
-        await handleDelete(id); // Chama hook
-        mutate(); // Revalida
+        await handleDelete(id);
+        mutate();
       } catch (err) {
         alert(`Erro ao excluir produto: ${getErrorMessage(err)}`);
-        // O erro já foi setado em `mutationError` pelo hook
+        // Erro é setado pelo hook
       }
-      // O finally para setIsMutating(false) está no hook
     }
-  }, [handleDelete, mutate]); // Remove setters daqui
+  }, [handleDelete, mutate]); // <<< CORREÇÃO: Removidos setters >>>
 
   const handlePageChange = useCallback((newPage: number) => {
-      if (newPage >= 1 && newPage <= totalPaginas) { // Adiciona verificação de totalPaginas
+      if (newPage >= 1 && newPage <= totalPaginas) {
         setPagina(newPage);
       }
-  }, [totalPaginas]); // Adiciona totalPaginas como dependência
+  }, [totalPaginas]);
 
-   // Renderização
    return (
     <div className="space-y-6">
-      {/* Cabeçalho */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <h1 className="text-2xl font-bold text-text-primary">Gestão de Produtos</h1>
         <Button
           variant="primary"
           onClick={() => handleOpenModal(null)}
-          // Desabilita se buscando dados, fazendo CUD ou carregando categorias
           disabled={isLoading || isMutating || isLoadingCategorias}
         >
           <Plus size={20} className="-ml-1 mr-2" />
@@ -264,7 +253,6 @@ const AdminProducts: React.FC = () => {
         </Button>
       </div>
 
-      {/* Busca */}
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
            <Search size={20} className="text-text-secondary" aria-hidden="true" />
@@ -274,7 +262,7 @@ const AdminProducts: React.FC = () => {
           placeholder="Buscar produtos por nome..."
           value={termoBusca}
           onChange={(e) => setTermoBusca(e.target.value)}
-          disabled={isMutating} // Desabilita busca durante CUD
+          disabled={isMutating}
           className="
             block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg
             leading-5 bg-primary-white text-text-primary placeholder-gray-500
@@ -284,14 +272,12 @@ const AdminProducts: React.FC = () => {
         />
       </div>
 
-      {/* Erro da busca de produtos */}
       {error && !isLoading && (
         <ErrorMessage
           title="Erro ao carregar produtos"
           message={getErrorMessage(error)}
         />
       )}
-      {/* Erro da busca de categorias */}
       {errorCategorias && !isLoadingCategorias && (
           <ErrorMessage
               title="Erro ao carregar categorias para o formulário"
@@ -300,33 +286,30 @@ const AdminProducts: React.FC = () => {
           />
       )}
 
-      {/* Tabela */}
       <ProductsTable
         produtos={produtos}
         onEdit={handleOpenModal}
         onDelete={handleDeleteConfirm}
-        isLoading={isLoading || isMutating} // Passa loading combinado para desabilitar ações na tabela
+        isLoading={isLoading || isMutating} // Passa loading combinado
       />
 
-      {/* Paginação */}
       <Pagination
         paginaAtual={pagina}
         totalPaginas={totalPaginas}
         onPageChange={handlePageChange}
-        isLoading={isLoading || isMutating} // Desabilita botões de paginação
+        isLoading={isLoading || isMutating}
       />
 
-      {/* Modal */}
       {modalAberto && (
         <ProductFormModal
           isOpen={modalAberto}
           onClose={handleCloseModal}
-          onSave={handleSave} // Passa a função intermediária
+          onSave={handleSave}
           produto={produtoSelecionado}
           categorias={categorias ?? []}
-          isMutating={isMutating} // Passa estado CUD loading
-          mutationError={mutationError} // Passa erro CUD
-          isLoadingCategorias={isLoadingCategorias} // Passa loading das categorias
+          isMutating={isMutating}      // <<< CORREÇÃO: Passa prop correta >>>
+          mutationError={mutationError} // <<< CORREÇÃO: Passa prop correta >>>
+          isLoadingCategorias={isLoadingCategorias}
         />
       )}
     </div>

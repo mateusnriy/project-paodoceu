@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { getErrorMessage } from '../utils/errors';
-import { Produto, PaginatedResponse, ProdutoFormData } from '../types'; // Importa tipos necessários
+import { Produto, PaginatedResponse, ProdutoFormData } from '../types';
 import { logError } from '../utils/logger';
 
 /**
@@ -32,12 +32,13 @@ export const useAdminProducts = (pagina: number, termoBusca: string) => {
   const mutate = useCallback(async () => {
     // Só mostra loading na primeira busca ou se não houver dados
     if (!data) setIsLoading(true);
+    else setIsLoading(true); // << Correção: Mostrar loading em revalidações
     setError(null); // Limpa erro anterior
     try {
       // Monta os parâmetros da query para a API
       const params = {
         pagina: pagina,
-        limite: 10, // Limite fixo de 10 itens por página (pode ser configurável)
+        limite: 10, // Limite fixo de 10 itens por página
         nome: termoBusca || undefined, // Envia 'nome' apenas se termoBusca não for vazio
       };
       // Busca os produtos na API
@@ -54,7 +55,7 @@ export const useAdminProducts = (pagina: number, termoBusca: string) => {
     } finally {
       setIsLoading(false); // Finaliza o estado de loading da busca
     }
-  }, [pagina, termoBusca, data]); // Depende da página, busca e se já tem dados (para loading inicial)
+  }, [pagina, termoBusca, data]); // Depende da página, busca e se já tem dados
 
   // Efeito para executar a busca inicial e re-buscar quando página/busca mudam
   useEffect(() => {
@@ -87,7 +88,7 @@ export const useAdminProducts = (pagina: number, termoBusca: string) => {
     } finally {
       setIsMutating(false);     // Desativa loading da mutação
     }
-  }, []); // useCallback sem dependências, pois usa apenas API
+  }, []); // useCallback sem dependências
 
   /**
    * @function handleUpdate
@@ -149,8 +150,8 @@ export const useAdminProducts = (pagina: number, termoBusca: string) => {
     handleDelete,
     // Estados das operações CUD (para feedback na UI)
     isMutating,
-    setIsMutating, // Exporta o setter se a página precisar controlar
+    setIsMutating, // Exporta o setter
     mutationError,
-    setMutationError, // Exporta o setter se a página precisar limpar/definir
+    setMutationError, // Exporta o setter
   };
 };
