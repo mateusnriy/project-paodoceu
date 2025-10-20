@@ -1,117 +1,107 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { getErrorMessage } from '../utils/errors';
-import { Category, PaginatedResponse } from '../types'; // Barrel file
-import { logError } from '../utils/logger'; // Log
+import { Categoria, PaginatedResponse } from '../types';
+import { logError } from '../utils/logger';
 
-type ModalState = {
-  isOpen: boolean;
-  category: Category | null;
-};
+interface CategoriaFormData {
+    nome: string;
+}
 
-const ITEMS_PER_PAGE = 15; // Geralmente mais categorias cabem na tela
+const ITEMS_PER_PAGE = 10;
 
-export const useAdminCategories = () => {
-  const [categories, setCategories] = useState<Category[]>([]);
+export const useAdminCategories = (pagina: number, termoBusca: string, limite: number = ITEMS_PER_PAGE) => {
+  const [data, setData] = useState<PaginatedResponse<Categoria> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [modalState, setModalState] = useState<ModalState>({ isOpen: false, category: null });
+  const [error, setError] = useState<unknown>(null);
 
-  // Paginação
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [isMutating, setIsMutating] = useState(false);
+  const [mutationError, setMutationError] = useState<unknown>(null);
 
-  // Carrega categorias paginadas
-  const loadCategories = async (page = currentPage) => {
-    try {
-      if (categories.length === 0) setIsLoading(true);
-      setError(null);
-      const params = { page, limit: ITEMS_PER_PAGE };
-      // Assumindo que o backend suporta paginação para categorias
-      const response = await api.get<PaginatedResponse<Category>>('/categorias', { params });
-
-      setCategories(response.data.data);
-      setTotalPages(Math.ceil(response.data.total / ITEMS_PER_PAGE));
-      setCurrentPage(page);
-    } catch (err) {
-      const message = getErrorMessage(err);
-      setError(message);
-      logError('Erro ao carregar categorias:', err, { page });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const loadCategories = useCallback(async () => {
+     // <<< CORREÇÃO DE LÓGICA: Loading apenas na primeira carga >>>
+     if (!data) setIsLoading(true);
+     // else setIsLoading(true); // Evita piscar
+     setError(null);
+     try {
+        const params = { pagina, limite, nome: termoBusca || undefined };
+        const response = await api.get<PaginatedResponse<Categoria>>('/categorias', { params });
+        setData(response.data);
+     } catch (err) {
+        setError(err);
+        logError('Erro ao carregar categorias:', err, { pagina, termoBusca });
+        setData(null);
+     } finally {
+        setIsLoading(false);
+     }
+  // <<< CORREÇÃO DE LOOP: Removido 'data' da dependência >>>
+  }, [pagina, limite, termoBusca]);
 
   useEffect(() => {
-    loadCategories(currentPage);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage]); // Recarrega ao mudar de página
+    loadCategories();
+  }, [loadCategories]);
 
-  const handleOpenModal = useCallback((category: Category | null) => {
-    setModalState({ isOpen: true, category });
+  const mutate = useCallback(() => {
+      loadCategories();
+  }, [loadCategories]);
+
+  const handleCreate = useCallback(async (formData: CategoriaFormData): Promise<Categoria> => {
+    setIsMutating(true);
+    setMutationError(null);
+    try {
+      const response = await api.post<Categoria>('/categorias', formData);
+      return response.data;
+    } catch (err) {
+      setMutationError(err);
+      logError('Erro ao CRIAR categoria:', err, { formData });
+      throw err;
+    } finally {
+      setIsMutating(false);
+    }
   }, []);
 
-  const handleCloseModal = useCallback(() => {
-    setModalState({ isOpen: false, category: null });
+  const handleUpdate = useCallback(async (id: string, formData: CategoriaFormData): Promise<Categoria> => {
+    setIsMutating(true);
+    setMutationError(null);
+    try {
+      const response = await api.put<Categoria>(`/categorias/${id}`, formData);
+      return response.data;
+    } catch (err) {
+      setMutationError(err);
+      logError('Erro ao ATUALIZAR categoria:', err, { id, formData });
+      throw err;
+    } finally {
+      setIsMutating(false);
+    }
   }, []);
 
-  // Retorna boolean
-  const handleSaveCategory = useCallback(
-    async (nome: string): Promise<boolean> => {
-      try {
-        setError(null);
-        if (modalState.category) {
-          await api.put(`/categorias/${modalState.category.id}`, { nome });
-        } else {
-          await api.post('/categorias', { nome });
-        }
-        handleCloseModal();
-        await loadCategories(modalState.category ? currentPage : 1); // Recarrega
-        return true; // Sucesso
-      } catch (err) {
-        const message = getErrorMessage(err);
-        logError('Erro ao salvar categoria:', err, { categoryId: modalState.category?.id });
-        throw new Error(message); // Lança para o modal
-      }
-    },
-    [modalState.category, handleCloseModal, currentPage]
-  ); // Removido loadCategories
-
-  const handleDeleteCategory = useCallback(
-    async (categoryId: string) => {
-      if (
-        window.confirm(
-          'Tem certeza? A exclusão falhará se a categoria estiver em uso por produtos.'
-        )
-      ) {
-        try {
-          setError(null);
-          await api.delete(`/categorias/${categoryId}`);
-          const newPage =
-            categories.length === 1 && currentPage > 1 ? currentPage - 1 : currentPage;
-          await loadCategories(newPage);
-        } catch (err) {
-          const message = getErrorMessage(err);
-          setError(message);
-          logError('Erro ao excluir categoria:', err, { categoryId });
-        }
-      }
-    },
-    [categories, currentPage]
-  ); // Removido loadCategories
+  const handleDelete = useCallback(async (id: string): Promise<void> => {
+     setIsMutating(true);
+     setMutationError(null);
+     try {
+        await api.delete(`/categorias/${id}`);
+     } catch (err) {
+        setMutationError(err);
+        logError('Erro ao DELETAR categoria:', err, { id });
+        throw err;
+     } finally {
+        setIsMutating(false);
+     }
+  }, []);
 
   return {
+    data,
     isLoading,
     error,
-    categories, // Lista paginada
-    modalState,
-    handleOpenModal,
-    handleCloseModal,
-    handleSaveCategory,
-    handleDeleteCategory,
-    // Paginação
-    currentPage,
-    totalPages,
-    setCurrentPage,
+    mutate,
+    handleCreate,
+    handleUpdate,
+    handleDelete,
+    isMutating,
+    setIsMutating,
+    mutationError,
+    setMutationError,
+    // Compatibilidade com AdminProducts (simplificado)
+    categorias: data?.data ?? [],
   };
 };

@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react'; // <<< Adicionado useState
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { Usuario, PerfilUsuario } from '../../../types';
+import { Usuario, PerfilUsuario, UsuarioFormData } from '../../../types'; // <<< Adicionado UsuarioFormData
 import { Button } from '../../../components/common/Button';
 import { ErrorMessage } from '../../../components/ui/ErrorMessage';
 import { getErrorMessage } from '../../../utils/errors';
@@ -9,20 +9,18 @@ import { FormInput, FormSelect } from './FormElements';
 import { Loader2 } from 'lucide-react';
 
 // Define os inputs do formulário
-interface UserFormInputs {
-  nome: string;
-  email: string;
-  senha?: string; // Senha é opcional na edição
-  perfil: PerfilUsuario;
-}
+// <<< CORREÇÃO: Usando UsuarioFormData >>>
+interface UserFormInputs extends UsuarioFormData {}
 
 interface UserFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: UserFormInputs, id?: string) => Promise<void>;
+  // <<< CORREÇÃO: onSave agora pode retornar Promise<Usuario> ou Promise<void> >>>
+  onSave: (data: UserFormInputs, id?: string) => Promise<Usuario | void>;
   usuario: Usuario | null;
-  isLoading: boolean;
-  error: unknown;
+  // <<< CORREÇÃO: Renomeado para isMutating e mutationError >>>
+  isLoading: boolean; // Renomeado para isLoading no modal (vem de isMutating)
+  error: unknown;     // Renomeado para error no modal (vem de mutationError)
 }
 
 export const UserFormModal: React.FC<UserFormModalProps> = ({
@@ -30,8 +28,8 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
   onClose,
   onSave,
   usuario,
-  isLoading,
-  error,
+  isLoading, // <<< (isMutating)
+  error,     // <<< (mutationError)
 }) => {
   const {
     register,
@@ -41,35 +39,52 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
   } = useForm<UserFormInputs>();
 
   const isEditing = !!usuario;
+  
+  // <<< CORREÇÃO: Adicionado estado de erro local >>>
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (usuario) {
-      reset({
-        nome: usuario.nome,
-        email: usuario.email,
-        perfil: usuario.perfil,
-        senha: '', // Senha sempre vazia ao abrir
-      });
-    } else {
-      reset({
-        nome: '',
-        email: '',
-        perfil: PerfilUsuario.ATENDENTE,
-        senha: '',
-      });
+    if (isOpen) { // <<< Adicionado cheque isOpen
+      if (usuario) {
+        reset({
+          nome: usuario.nome,
+          email: usuario.email,
+          perfil: usuario.perfil,
+          senha: '', 
+        });
+      } else {
+        reset({
+          nome: '',
+          email: '',
+          perfil: PerfilUsuario.ATENDENTE,
+          senha: '',
+        });
+      }
+      setApiError(null); // Limpa erro ao abrir
     }
-  }, [usuario, reset]);
+  }, [usuario, reset, isOpen]); // <<< Adicionado isOpen
+
+  // <<< CORREÇÃO: Sincroniza erro da prop com o estado local >>>
+  useEffect(() => {
+    setApiError(error ? getErrorMessage(error) : null);
+  }, [error]);
 
   const onSubmit: SubmitHandler<UserFormInputs> = async (data) => {
-    // Remove a senha se estiver vazia (não atualiza)
+    setApiError(null); // Limpa antes de tentar
     const dataToSend = { ...data };
     if (isEditing && !data.senha) {
       delete dataToSend.senha;
     }
     
-    await onSave(dataToSend, usuario?.id);
-    if (!error) {
-      onClose();
+    try {
+      await onSave(dataToSend, usuario?.id);
+      // O fechamento agora é feito no componente pai (AdminUsers)
+      // if (!error) { // 'error' pode não estar atualizado ainda
+      //   onClose();
+      // }
+    } catch (err) {
+      // Erro é pego e setado pelo hook pai, atualizando 'error' (prop)
+      // setApiError(getErrorMessage(err)); // Não precisa mais
     }
   };
 
@@ -79,7 +94,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
       onClose={onClose}
       title={isEditing ? 'Editar Usuário' : 'Novo Usuário'}
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4"> {/* 8px grid */}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4"> 
         
         <FormInput
           id="nome"
@@ -110,11 +125,11 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
           label={isEditing ? 'Nova Senha (deixe em branco para manter)' : 'Senha'}
           type="password"
           {...register('senha', {
-            required: !isEditing && 'A senha é obrigatória',
-            minLength: {
-              value: 6,
-              message: 'A senha deve ter no mínimo 6 caracteres',
-            },
+            // Senha não é obrigatória na edição
+            required: !isEditing ? 'A senha é obrigatória' : false,
+            // Valida minLength apenas se a senha for digitada
+            validate: (value) => 
+              (!value || value.length >= 6) || 'A senha deve ter no mínimo 6 caracteres',
           })}
           error={errors.senha?.message}
           disabled={isLoading}
@@ -131,11 +146,10 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
           <option value={PerfilUsuario.ADMINISTRADOR}>Administrador</option>
         </FormSelect>
 
-        {/* Exibição de Erro da API */}
-        {error && <ErrorMessage message={getErrorMessage(error)} />}
+        {/* <<< CORREÇÃO: Usando apiError local >>> */}
+        {apiError && <ErrorMessage message={apiError} />}
 
-        {/* Ações do Formulário */}
-        <div className="flex justify-end gap-4 pt-4"> {/* 8px grid */}
+        <div className="flex justify-end gap-4 pt-4"> 
           <Button
             type="button"
             variant="secondary"

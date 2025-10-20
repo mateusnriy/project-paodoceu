@@ -10,6 +10,7 @@ import pedidosRoutes from './routes/pedidosRoutes';
 import relatoriosRoutes from './routes/relatoriosRoutes';
 import { errorMiddleware } from './middlewares/errorMiddleware';
 import logger from './lib/logger'; // Importar logger para o handler
+import { env } from './config/env'; // Importar env
 
 const app: Application = express();
 
@@ -18,10 +19,13 @@ app.use(cors()); // Habilita CORS para todas as origens (ajustar em produção s
 app.use(express.json()); // Parser para JSON bodies
 
 // --- Rate Limiter ---
-// Aplicar um limite geral mais flexível a todas as rotas
+// Aumentar o limite geral em desenvolvimento para evitar 429 com hot-reload
+const isDev = env.NODE_ENV === 'development';
+const generalMax = isDev ? 1000 : 200; // 1000 reqs em dev, 200 em prod
+
 const generalLimiter = rateLimit({
 	windowMs: 15 * 60 * 1000, // Janela de 15 minutos
-	max: 200, // Limite de 200 requisições por IP por janela
+	max: generalMax, // <<< CORREÇÃO: Limite aumentado em desenvolvimento
 	message: 'Muitas requisições originadas deste IP, tente novamente após 15 minutos.',
   standardHeaders: true, // Retorna info do limite nos headers `RateLimit-*`
   legacyHeaders: false, // Desabilita headers `X-RateLimit-*`
@@ -35,7 +39,7 @@ app.use(generalLimiter); // Aplicar a todas as rotas
 // Aplicar um limite mais estrito especificamente para rotas de autenticação
 const authLimiter = rateLimit({
 	windowMs: 10 * 60 * 1000, // Janela de 10 minutos
-	max: 10, // Limite de 10 tentativas por IP por janela
+	max: isDev ? 50 : 10, // <<< CORREÇÃO: Limite aumentado em desenvolvimento
 	message: 'Muitas tentativas de login/registro deste IP, tente novamente após 10 minutos.',
   standardHeaders: true,
   legacyHeaders: false,

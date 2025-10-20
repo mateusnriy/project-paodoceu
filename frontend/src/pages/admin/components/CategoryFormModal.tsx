@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
+// <<< CORREÇÃO: Importa Categoria >>>
 import { Categoria } from '../../../types';
 import { Button } from '../../../components/common/Button';
 import { ErrorMessage } from '../../../components/ui/ErrorMessage';
@@ -8,27 +9,20 @@ import { ModalWrapper } from './ModalWrapper';
 import { FormInput } from './FormElements';
 import { Loader2 } from 'lucide-react';
 
-// Interface para os dados do formulário gerenciados pelo react-hook-form
 interface CategoryFormInputs {
   nome: string;
 }
 
-// Props que o modal recebe da página pai (AdminCategories)
 interface CategoryFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // Assinatura da função de salvar (vinda do hook useAdminCategories)
-  onSave: (data: { nome: string }, id?: string) => Promise<Categoria>; // Espera retornar a Categoria criada/atualizada
-  categoria: Categoria | null; // Categoria a ser editada (null para criar)
-  isMutating: boolean; // Estado de loading da mutação (vindo do hook)
-  mutationError: unknown; // Erro da mutação (vindo do hook)
+  // <<< CORREÇÃO: Assinatura de onSave atualizada >>>
+  onSave: (data: { nome: string }, id?: string) => Promise<Categoria>;
+  categoria: Categoria | null;
+  isMutating: boolean;
+  mutationError: unknown;
 }
 
-/**
- * @component CategoryFormModal
- * @description Modal para criar ou editar uma Categoria.
- * Utiliza react-hook-form para gerenciamento e validação do formulário.
- */
 export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
   isOpen,
   onClose,
@@ -37,110 +31,76 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
   isMutating,
   mutationError,
 }) => {
-  // Inicializa o react-hook-form
   const {
     register,
     handleSubmit,
     reset,
-    formState: { errors: formErrors }, // Renomeia 'errors' para evitar conflito com 'mutationError'
+    formState: { errors: formErrors },
   } = useForm<CategoryFormInputs>();
 
-  // Estado local para exibir erros específicos da API no modal
   const [apiError, setApiError] = useState<string | null>(null);
 
-  /**
-   * @effect
-   * Reseta o formulário e limpa erros da API sempre que o modal abre
-   * ou a categoria selecionada muda.
-   */
   useEffect(() => {
     if (isOpen) {
-      // Preenche o campo 'nome' se estiver editando, ou limpa se for criar
       reset({ nome: categoria?.nome || '' });
-      setApiError(null); // Limpa erros da API anteriores
+      setApiError(null);
     }
   }, [isOpen, categoria, reset]);
 
-  /**
-   * @effect
-   * Atualiza o estado de erro local (apiError) se um erro de mutação
-   * for recebido do hook pai (mutationError).
-   */
   useEffect(() => {
     setApiError(mutationError ? getErrorMessage(mutationError) : null);
   }, [mutationError]);
 
 
-  /**
-   * @function onSubmit
-   * @description Função chamada pelo react-hook-form após a validação bem-sucedida.
-   * Chama a função onSave (do hook pai) para realizar a mutação na API.
-   */
   const onSubmit: SubmitHandler<CategoryFormInputs> = async (data) => {
-    setApiError(null); // Limpa erro anterior antes de tentar salvar
+    setApiError(null);
     try {
-      // Chama a função onSave passada pelo hook pai
-      // O hook pai (useAdminCategories) é responsável por:
-      // 1. Chamar a API (handleCreate ou handleUpdate)
-      // 2. Definir isMutating como true/false
-      // 3. Capturar erros e colocá-los em mutationError
-      // 4. Se sucesso, chamar onClose e mutate (revalidar)
       await onSave({ nome: data.nome }, categoria?.id);
-      // O fechamento do modal e a revalidação são feitos na página pai (AdminCategories)
-      // após a confirmação de sucesso da função onSave.
+      // Sucesso: O fechamento e revalidação são feitos na página pai
     } catch (err) {
-      // O erro já é tratado no hook pai e passado via `mutationError`.
-      // Este catch é um fallback, caso a promessa rejeite antes do hook atualizar o estado.
-      console.error("Erro capturado diretamente no onSubmit do modal:", err);
-      setApiError(getErrorMessage(err)); // Define o erro local como fallback
+      // Erro já está em mutationError, setamos apiError como fallback
+      console.error("Erro capturado no onSubmit do modal (Categoria):", err);
+      // setApiError(getErrorMessage(err)); // Não precisa, já vem por props
     }
-    // O estado 'isMutating' (loading do botão) é controlado pelo hook pai.
   };
 
-  // Renderiza o componente ModalWrapper e o formulário dentro dele
   return (
     <ModalWrapper
       isOpen={isOpen}
-      onClose={onClose} // Permite fechar clicando fora ou no botão X
+      onClose={onClose}
       title={categoria ? 'Editar Categoria' : 'Nova Categoria'}
     >
-      {/* O handleSubmit do RHF valida os campos e chama nosso onSubmit */}
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4"> {/* 8px grid (space-y-4 = 16px) */}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-        {/* Campo Nome */}
         <FormInput
           id="nome"
           label="Nome da Categoria"
-          // Registra o input com react-hook-form e define regras de validação
           {...register('nome', {
-             required: 'O nome é obrigatório', // Mensagem de erro para campo vazio
-             minLength: { value: 3, message: 'O nome deve ter no mínimo 3 caracteres' } // Exemplo de outra regra
+             required: 'O nome é obrigatório',
+             minLength: { value: 3, message: 'O nome deve ter no mínimo 3 caracteres' }
           })}
-          // Passa a mensagem de erro de validação do RHF para o FormInput
           error={formErrors.nome?.message}
-          disabled={isMutating} // Desabilita o input durante o envio
-          autoFocus // Foca automaticamente neste campo ao abrir o modal
+          disabled={isMutating}
+          autoFocus
         />
 
-        {/* Exibição de Erro da API */}
-        {/* Mostra o erro vindo do hook pai (mutationError) */}
+        {/* Mostra erro da API (mutationError) */}
         {apiError && <ErrorMessage message={apiError} />}
 
-        {/* Botões de Ação */}
-        <div className="flex justify-end gap-4 pt-4"> {/* 8px grid (gap-4 = 16px) */}
+        <div className="flex justify-end gap-4 pt-4">
           <Button
-            type="button" // Garante que não submete o form
+            type="button"
             variant="secondary"
-            onClick={onClose} // Fecha o modal
-            disabled={isMutating} // Desabilita durante o envio
+            onClick={onClose}
+            disabled={isMutating}
           >
             Cancelar
           </Button>
           <Button type="submit" variant="primary" disabled={isMutating}>
-            {isMutating ? ( // Mostra spinner se estiver enviando
+            {isMutating ? (
               <Loader2 size={20} className="animate-spin" />
             ) : (
-              'Salvar' // Texto padrão
+              'Salvar'
             )}
           </Button>
         </div>

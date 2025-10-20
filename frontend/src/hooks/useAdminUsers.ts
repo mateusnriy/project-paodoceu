@@ -5,25 +5,17 @@ import { Usuario, PaginatedResponse, UsuarioFormData, PerfilUsuario } from '../t
 import { logError } from '../utils/logger';
 import { useAuth } from '../contexts/AuthContext';
 
-/**
- * @hook useAdminUsers
- * @description Hook para buscar e gerenciar dados paginados de Usuários.
- * @param pagina A página atual a ser buscada.
- * @param termoBusca O termo de busca (debounced).
- * @returns Um objeto contendo dados, estado de loading, erro e função mutate.
- */
 export const useAdminUsers = (pagina: number, termoBusca: string) => {
   const [data, setData] = useState<PaginatedResponse<Usuario> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
-  const { usuario: usuarioLogado } = useAuth(); // Pega o usuário logado
+  const { usuario: usuarioLogado } = useAuth(); 
 
-  /**
-   * @function mutate
-   * @description Função para forçar a re-busca dos dados da página atual.
-   */
   const mutate = useCallback(async () => {
-    setIsLoading(true);
+    // <<< CORREÇÃO DE LÓGICA: Mostrar loading apenas na primeira carga >>>
+    if (!data) setIsLoading(true);
+    // else setIsLoading(true); // Remover 'true' aqui evita o piscar
+    setError(null); // Limpar erro
     try {
       const params = {
         pagina: pagina,
@@ -34,32 +26,32 @@ export const useAdminUsers = (pagina: number, termoBusca: string) => {
         params,
       });
       setData(response.data);
-      setError(null);
     } catch (err) {
-      const message = getErrorMessage(err);
-      setError(message);
+      // <<< CORREÇÃO: Armazenar o erro original >>>
+      setError(err);
       logError('Erro ao re-buscar usuários:', err, { pagina, termoBusca });
+      setData(null); // Limpar dados em caso de erro
     } finally {
       setIsLoading(false);
     }
+  // <<< CORREÇÃO DE LOOP: Removido 'data' da dependência >>>
   }, [pagina, termoBusca]);
 
-  // Efeito para buscar dados quando a página ou a busca (debounced) mudam
   useEffect(() => {
     mutate();
   }, [mutate]);
 
   // --- Funções de Mutação ---
+  const [isMutating, setIsMutating] = useState(false);
+  const [mutationError, setMutationError] = useState<unknown>(null);
 
-  /**
-   * @function handleCreate
-   * @description Cria um novo usuário.
-   * @throws {Error} Lança um erro se a API falhar.
-   */
-  const handleCreate = async (data: UsuarioFormData): Promise<Usuario> => {
+  const handleCreate = useCallback(async (data: UsuarioFormData): Promise<Usuario> => {
+    setIsMutating(true);
+    setMutationError(null);
     if (!data.senha) {
       const errorMsg = 'A senha é obrigatória para criar um novo usuário.';
       logError(errorMsg, new Error(errorMsg), { data });
+      setIsMutating(false); // Parar loading
       throw new Error(errorMsg);
     }
     try {
@@ -67,22 +59,21 @@ export const useAdminUsers = (pagina: number, termoBusca: string) => {
       return response.data;
     } catch (err) {
       const message = getErrorMessage(err);
+      setMutationError(err); // Armazenar erro
       logError('Erro ao CRIAR usuário:', err, { data });
       throw new Error(message);
+    } finally {
+      setIsMutating(false);
     }
-  };
+  }, []);
 
-  /**
-   * @function handleUpdate
-   * @description Atualiza um usuário existente.
-   * @throws {Error} Lança um erro se a API falhar.
-   */
-  const handleUpdate = async (
+  const handleUpdate = useCallback(async (
     id: string,
     data: UsuarioFormData
   ): Promise<Usuario> => {
+    setIsMutating(true);
+    setMutationError(null);
     const dataToSend = { ...data };
-    // Remove a senha se estiver vazia (não atualiza)
     if (!dataToSend.senha) {
       delete dataToSend.senha;
     }
@@ -92,51 +83,49 @@ export const useAdminUsers = (pagina: number, termoBusca: string) => {
       return response.data;
     } catch (err) {
       const message = getErrorMessage(err);
+      setMutationError(err); // Armazenar erro
       logError('Erro ao ATUALIZAR usuário:', err, { id, data: dataToSend });
       throw new Error(message);
+    } finally {
+      setIsMutating(false);
     }
-  };
+  }, []);
 
-  /**
-   * @function handleDelete
-   * @description Deleta um usuário.
-   * @throws {Error} Lança um erro se a API falhar.
-   */
-  const handleDelete = async (id: string): Promise<void> => {
+  const handleDelete = useCallback(async (id: string): Promise<void> => {
+    setIsMutating(true);
+    setMutationError(null);
     if (id === usuarioLogado?.id) {
       const errorMsg = 'Você não pode excluir seu próprio usuário.';
       logError(errorMsg, new Error(errorMsg), { id });
+      setMutationError(new Error(errorMsg)); // Armazenar erro
+      setIsMutating(false); // Parar loading
       throw new Error(errorMsg);
     }
     try {
       await api.delete(`/usuarios/${id}`);
     } catch (err) {
       const message = getErrorMessage(err);
+      setMutationError(err); // Armazenar erro
       logError('Erro ao DELETAR usuário:', err, { id });
       throw new Error(message);
+    } finally {
+      setIsMutating(false);
     }
-  };
+  }, [usuarioLogado?.id]);
   
-  // Estado e handlers para controlar o estado de 'isMutating' (ex: no botão salvar)
-  const [isMutating, setIsMutating] = useState(false);
-  const [mutationError, setMutationError] = useState<unknown>(null);
 
   return {
-    // Dados SWR
     data,
     isLoading,
     error,
     mutate,
-    // Funções de Mutação
     handleCreate,
     handleUpdate,
     handleDelete,
-    // Estado da Mutação (para a UI)
     isMutating,
     setIsMutating,
     mutationError,
     setMutationError,
-    // Extra: ID do usuário logado para a UI
     idUsuarioLogado: usuarioLogado?.id,
   };
 };

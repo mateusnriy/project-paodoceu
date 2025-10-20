@@ -1,5 +1,6 @@
-import React, { useState, useCallback } from 'react';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+// <<< CORRECTION: Added 'useEffect', 'useMemo' >>>
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import { Categoria, PaginatedResponse } from '../../types';
 import { useAdminCategories } from '../../hooks/useAdminCategories';
 import { Button } from '../../components/common/Button';
@@ -8,41 +9,47 @@ import { ErrorMessage } from '../../components/ui/ErrorMessage';
 import { CategoryFormModal } from './components/CategoryFormModal';
 import { getErrorMessage } from '../../utils/errors';
 import { formatarData } from '../../utils/formatters';
+import { useDebounce } from '../../hooks/useDebounce';
 
 // --- Componente de Paginação (Reutilizado - Memoizado) ---
-const Pagination: React.FC<{
+interface PaginationProps {
   paginaAtual: number;
   totalPaginas: number;
   onPageChange: (page: number) => void;
   isLoading: boolean;
-}> = React.memo(({ paginaAtual, totalPaginas, onPageChange, isLoading }) => {
-  if (totalPaginas <= 1) return null;
-  return (
-    <div className="flex justify-center items-center gap-2 mt-6">
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={() => onPageChange(paginaAtual - 1)}
-        disabled={paginaAtual === 1 || isLoading}
-        aria-label="Página anterior"
-      >
-        Anterior
-      </Button>
-      <span className="text-sm text-text-secondary font-medium">
-        Página {paginaAtual} de {totalPaginas}
-      </span>
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={() => onPageChange(paginaAtual + 1)}
-        disabled={paginaAtual === totalPaginas || isLoading}
-        aria-label="Próxima página"
-      >
-        Próxima
-      </Button>
-    </div>
-  );
-});
+}
+// <<< CORRECTION: Props corretas usadas >>>
+const Pagination: React.FC<PaginationProps> = React.memo(
+  ({ paginaAtual, totalPaginas, onPageChange, isLoading }) => {
+    // ... (implementation remains the same as previous correction)
+    if (totalPaginas <= 1) return null;
+    return (
+      <div className="flex justify-center items-center gap-2 mt-6">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => onPageChange(paginaAtual - 1)}
+          disabled={paginaAtual === 1 || isLoading}
+          aria-label="Página anterior"
+        >
+          Anterior
+        </Button>
+        <span className="text-sm text-text-secondary font-medium">
+          Página {paginaAtual} de {totalPaginas}
+        </span>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => onPageChange(paginaAtual + 1)}
+          disabled={paginaAtual === totalPaginas || isLoading}
+          aria-label="Próxima página"
+        >
+          Próxima
+        </Button>
+      </div>
+    );
+  }
+);
 Pagination.displayName = 'Pagination';
 
 // --- Tabela de Categorias (Memoizado) ---
@@ -52,6 +59,7 @@ const CategoriesTable: React.FC<{
   onDelete: (id: string) => void;
   isLoading: boolean;
 }> = React.memo(({ categorias, onEdit, onDelete, isLoading }) => {
+  // ... (implementation remains the same as previous correction)
   return (
     <div className="bg-primary-white rounded-xl shadow-soft overflow-x-auto border border-gray-200">
       <table className="min-w-full divide-y divide-gray-200">
@@ -59,6 +67,9 @@ const CategoriesTable: React.FC<{
           <tr>
             <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
               Nome
+            </th>
+            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
+              Produtos Assoc.
             </th>
             <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
               Criada em
@@ -70,12 +81,15 @@ const CategoriesTable: React.FC<{
         </thead>
         <tbody className="divide-y divide-gray-200">
           {isLoading && !categorias.length ? (
-            <SkeletonTable cols={3} rows={5} />
+            <SkeletonTable cols={4} rows={5} />
           ) : (
             categorias.map((categoria) => (
               <tr key={categoria.id} className="hover:bg-background-light-blue transition-colors duration-150">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">
                   {categoria.nome}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
+                   {categoria._count?.produtos ?? 0}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
                   {categoria.dataCriacao ? formatarData(categoria.dataCriacao, { dateStyle: 'short', timeStyle: 'short' }) : '-'}
@@ -99,7 +113,7 @@ const CategoriesTable: React.FC<{
                     className="text-status-error hover:underline p-1"
                     aria-label={`Excluir ${categoria.nome}`}
                     title="Excluir"
-                    disabled={isLoading}
+                    disabled={isLoading || (categoria._count?.produtos ?? 0) > 0}
                   >
                     <Trash2 size={16} />
                   </Button>
@@ -109,7 +123,7 @@ const CategoriesTable: React.FC<{
           )}
           {!isLoading && categorias.length === 0 && (
              <tr>
-                <td colSpan={3} className="px-6 py-10 text-center text-text-secondary">
+                <td colSpan={4} className="px-6 py-10 text-center text-text-secondary">
                     Nenhuma categoria encontrada.
                 </td>
              </tr>
@@ -124,10 +138,12 @@ CategoriesTable.displayName = 'CategoriesTable';
 // --- Página Principal: AdminCategories ---
 const AdminCategories: React.FC = () => {
   const [pagina, setPagina] = useState(1);
+  const [termoBusca, setTermoBusca] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
   const [categoriaSelecionada, setCategoriaSelecionada] = useState<Categoria | null>(null);
 
-  // <<< CORREÇÃO: Destructuring completo do hook >>>
+  const termoDebounced = useDebounce(termoBusca, 300);
+
   const {
     data,
     isLoading,
@@ -137,15 +153,19 @@ const AdminCategories: React.FC = () => {
     handleUpdate,
     handleDelete,
     isMutating,
-    setIsMutating,     // <<< Faltava esta linha >>>
     mutationError,
-    setMutationError,   // <<< Faltava esta linha >>>
-  } = useAdminCategories(pagina, '', 10);
+    setMutationError,
+  } = useAdminCategories(pagina, termoDebounced, 10);
 
   const categorias = data?.data ?? [];
-  const totalPaginas = data?.meta?.totalPaginas ?? 1;
 
-  // <<< CORREÇÃO: Agora 'setMutationError' existe >>>
+  const totalPaginas = useMemo(() => {
+      if (!data) return 1;
+      const totalItems = data.meta?.total ?? data.total ?? 0;
+      const itemsPerPage = data.meta?.limit ?? 10;
+      return Math.ceil(totalItems / itemsPerPage) || 1;
+  }, [data]);
+
   const handleOpenModal = useCallback((categoria: Categoria | null) => {
     setCategoriaSelecionada(categoria);
     setMutationError(null);
@@ -158,7 +178,6 @@ const AdminCategories: React.FC = () => {
   }, []);
 
   const handleSave = useCallback(async (formData: { nome: string }, id?: string): Promise<Categoria> => {
-    // A lógica de loading/erro agora é pega do hook
     try {
       let result: Categoria;
       if (id) {
@@ -170,30 +189,41 @@ const AdminCategories: React.FC = () => {
       mutate();
       return result;
     } catch (err) {
-      // O erro já está em 'mutationError' (definido pelo hook)
-      // Apenas relançamos para o modal (que é controlado por 'mutationError')
+      // Error is already set in mutationError by the hook
       throw err;
     }
-  }, [handleCreate, handleUpdate, mutate, handleCloseModal]); // <<< CORREÇÃO: Removidos setters que vêm do hook >>>
+  }, [handleCreate, handleUpdate, mutate, handleCloseModal]);
 
   const handleDeleteConfirm = useCallback(async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta categoria? Atenção: Produtos associados podem ser afetados.')) {
-      // O hook 'handleDelete' já controla isMutating e mutationError
+    const categoriaParaExcluir = categorias.find(c => c.id === id);
+    if ((categoriaParaExcluir?._count?.produtos ?? 0) > 0) {
+         alert('Não é possível excluir categorias com produtos associados.');
+         return;
+    }
+    if (window.confirm(`Tem certeza que deseja excluir a categoria "${categoriaParaExcluir?.nome}"?`)) {
       try {
         await handleDelete(id);
-        mutate();
+        if (categorias.length === 1 && pagina > 1) {
+            setPagina(pagina - 1);
+        } else {
+            mutate();
+        }
       } catch (err) {
         alert(`Erro ao excluir categoria: ${getErrorMessage(err)}`);
-        // O erro já está em 'mutationError'
       }
     }
-  }, [handleDelete, mutate]); // <<< CORREÇÃO: Removidos setters que vêm do hook >>>
+  }, [handleDelete, mutate, categorias, pagina]);
 
   const handlePageChange = useCallback((newPage: number) => {
       if (newPage >= 1 && newPage <= totalPaginas) {
           setPagina(newPage);
       }
   }, [totalPaginas]);
+
+  // <<< CORREÇÃO: useEffect to reset page >>>
+  useEffect(() => {
+      setPagina(1);
+  }, [termoDebounced]);
 
   return (
     <div className="space-y-6">
@@ -202,25 +232,41 @@ const AdminCategories: React.FC = () => {
         <Button
            variant="primary"
            onClick={() => handleOpenModal(null)}
-           disabled={isLoading || isMutating} // Desabilita se carregando ou fazendo CUD
+           disabled={isLoading || isMutating}
         >
           <Plus size={20} className="-ml-1 mr-2" />
           Nova Categoria
         </Button>
       </div>
 
-      {error && !isLoading && (
-        <ErrorMessage
-          title="Erro ao carregar categorias"
-          message={getErrorMessage(error)}
+      <div className="relative">
+         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+           <Search size={20} className="text-text-secondary" aria-hidden="true" />
+        </div>
+        <input
+          type="search"
+          placeholder="Buscar categorias por nome..."
+          value={termoBusca}
+          onChange={(e) => setTermoBusca(e.target.value)}
+          disabled={isMutating}
+          className="
+            block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg
+            leading-5 bg-primary-white text-text-primary placeholder-gray-500
+            focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-blue focus:border-primary-blue
+            sm:text-sm
+          "
         />
+      </div>
+
+      {error && !isLoading && (
+        <ErrorMessage message={getErrorMessage(error)} />
       )}
 
       <CategoriesTable
         categorias={categorias}
         onEdit={handleOpenModal}
         onDelete={handleDeleteConfirm}
-        isLoading={isLoading || isMutating} // Passa loading combinado
+        isLoading={isLoading || isMutating}
       />
 
       <Pagination
@@ -236,8 +282,8 @@ const AdminCategories: React.FC = () => {
           onClose={handleCloseModal}
           onSave={handleSave}
           categoria={categoriaSelecionada}
-          isMutating={isMutating}      // Passa estado de loading CUD
-          mutationError={mutationError} // Passa erro CUD
+          isMutating={isMutating}
+          mutationError={mutationError}
         />
       )}
     </div>

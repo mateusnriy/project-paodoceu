@@ -2,35 +2,31 @@ import React from 'react';
 import { CreditCard, Banknote, QrCode, Loader2 } from 'lucide-react';
 import { OrderSummary } from '../components/common/OrderSummary';
 import { Button } from '../components/common/Button';
-import { usePayment } from '../hooks/usePayment';
+// <<< CORREÇÃO: Importar o novo hook >>>
+import { usePaymentHandler } from '../hooks/usePaymentHandler';
 import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { getErrorMessage } from '../utils/errors';
 import { TipoPagamento } from '../types';
 import { useNavigate } from 'react-router-dom'; // Importar useNavigate
 
-/**
- * REFATORAÇÃO (Commit 2.3):
- * - Corrigida a seleção de Método de Pagamento (item 4.1.3).
- * - Aplicados novos tokens de design (tipografia, cores).
- * - Botão "Voltar para Vendas" agora usa useNavigate.
- */
-
 const Payment: React.FC = () => {
+  // <<< CORREÇÃO: Usar o novo hook >>>
   const {
-    pedido,
-    total,
-    isLoading,
-    isSubmitting,
+    pedido, // Nome ajustado
+    total,  // Nome ajustado
+    isLoading, // Estado para carregar do localStorage
+    isSubmitting, // Estado para envio à API
     error,
     tipoPagamento,
     setTipoPagamento,
     handleFinalizarPedido,
-    handleLimparCarrinho,
-  } = usePayment();
-  
+    // handleLimparCarrinho, // <- Removido ou renomeado se necessário (use handleLimparCarrinhoLocal se precisar)
+  } = usePaymentHandler();
+
   const navigate = useNavigate(); // Hook para navegação
 
   const pagamentoOpcoes = [
+    // <<< CORREÇÃO: Mapear para os valores do Enum TipoPagamento >>>
     { tipo: TipoPagamento.CREDITO, label: 'Cartão de Crédito', icon: CreditCard },
     { tipo: TipoPagamento.DEBITO, label: 'Cartão de Débito', icon: CreditCard },
     { tipo: TipoPagamento.PIX, label: 'PIX', icon: QrCode },
@@ -39,6 +35,7 @@ const Payment: React.FC = () => {
 
   // Renderização principal
   const renderContent = () => {
+    // Mostra loading enquanto lê do localStorage
     if (isLoading) {
       return (
         <div className="flex justify-center items-center h-[calc(100vh-200px)]">
@@ -47,23 +44,25 @@ const Payment: React.FC = () => {
       );
     }
 
-    if (error) {
+    // Exibe erro geral (localStorage ou API)
+    if (error && !isSubmitting) { // Só mostra erro se não estiver submetendo
       return (
         <ErrorMessage
-          title="Erro ao carregar pedido"
+          title="Erro no Pagamento"
           message={getErrorMessage(error)}
         />
       );
     }
 
+    // Se não carregou pedido ou está vazio (ex: localStorage limpo)
     if (!pedido || pedido.itens.length === 0) {
       return (
         <div className="text-center py-20">
           <h2 className="text-2xl font-semibold mb-4 text-text-primary">
-            Seu carrinho está vazio
+            Seu carrinho está vazio ou expirou
           </h2>
           <p className="text-text-secondary">
-            Adicione produtos na tela de Vendas para continuar.
+            Volte para a tela de Vendas para adicionar produtos.
           </p>
           <Button
             onClick={() => navigate('/vendas')} // Navega de volta para /vendas
@@ -76,32 +75,35 @@ const Payment: React.FC = () => {
       );
     }
 
+    // Layout principal da página de pagamento
     return (
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Lado Esquerdo: Opções de Pagamento */}
         <div className="lg:w-2/3">
-          {/* Título (H1 - 24px Bold) */}
           <h1 className="text-2xl font-bold mb-6 text-text-primary">Pagamento</h1>
 
-          <div className="bg-primary-white p-6 rounded-xl shadow-soft border border-gray-200"> {/* rounded-xl (12px) */}
+          <div className="bg-primary-white p-6 rounded-xl shadow-soft border border-gray-200">
             <h2 className="text-lg font-semibold mb-4 text-text-primary">
               Selecione o método de pagamento
             </h2>
-            
-            {/* Grid de opções de pagamento (CORRIGIDO) */}
+
+            {/* Exibe erro da API durante a submissão, se houver */}
+            {error && isSubmitting && (
+              <div className="mb-4">
+                 <ErrorMessage
+                    title="Erro ao Finalizar Pedido"
+                    message={getErrorMessage(error)}
+                 />
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               {pagamentoOpcoes.map((opcao) => {
                 const isSelected = tipoPagamento === opcao.tipo;
-                
-                // Classes base (Guia de Estilo item 4.1.3)
                 const baseClasses =
                   'flex flex-col items-center justify-center p-6 border rounded-lg cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-primary-blue';
-                
-                // Classes para SELECIONADO (primary-blue, background-light-blue)
                 const selectedClasses =
                   'bg-background-light-blue border-primary-blue ring-2 ring-primary-blue';
-                  
-                // Classes para NÃO SELECIONADO
                 const nonSelectedClasses =
                   'bg-primary-white border-gray-300 hover:bg-background-light-blue';
 
@@ -113,6 +115,7 @@ const Payment: React.FC = () => {
                       isSelected ? selectedClasses : nonSelectedClasses
                     }`}
                     aria-pressed={isSelected}
+                    disabled={isSubmitting} // Desabilita durante o envio
                   >
                     <opcao.icon
                       className={`mb-2 ${
@@ -134,13 +137,13 @@ const Payment: React.FC = () => {
           </div>
         </div>
 
-        {/* Lado Direito: Resumo do Pedido (fixo) */}
-        {/* 'top-[104px]' = 80px (Header) + 24px (padding p-8 da main) */}
-        <div className="lg:w-1/3 lg:sticky top-[112px] h-fit"> {/* Ajustado para p-8 (32px) -> 80+32=112 */}
+        {/* Lado Direito: Resumo do Pedido */}
+        <div className="lg:w-1/3 lg:sticky top-[112px] h-fit">
           <OrderSummary
             pedido={pedido}
             total={total}
-            onLimparCarrinho={handleLimparCarrinho}
+            // <<< CORREÇÃO: Remover onLimparCarrinho daqui >>>
+            // onLimparCarrinho={handleLimparCarrinho} // Removido
           >
             {/* Botão de Finalizar Pedido */}
             <Button
@@ -155,6 +158,17 @@ const Payment: React.FC = () => {
                 'Finalizar Pedido'
               )}
             </Button>
+             {/* Opcional: Botão para limpar localmente e voltar */}
+             {/*
+             <Button
+               onClick={handleLimparCarrinho}
+               variant="secondary"
+               className="w-full mt-2"
+               disabled={isSubmitting}
+             >
+               Cancelar e Limpar Carrinho
+             </Button>
+            */}
           </OrderSummary>
         </div>
       </div>
@@ -162,8 +176,7 @@ const Payment: React.FC = () => {
   };
 
   return (
-    // Container da página (padding 8px grid)
-    <main className="container mx-auto p-4 md:p-8"> {/* p-8 = 32px */}
+    <main className="container mx-auto p-4 md:p-8">
       {renderContent()}
     </main>
   );

@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react';
+// <<< CORREÇÃO: Added 'useEffect', 'useMemo' >>>
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
 import { Usuario, PerfilUsuario, UsuarioFormData, PaginatedResponse } from '../../types';
 import { useAdminUsers } from '../../hooks/useAdminUsers';
@@ -11,27 +12,32 @@ import { useDebounce } from '../../hooks/useDebounce';
 import { formatarData } from '../../utils/formatters';
 
 // --- Componente de Paginação (Reutilizado - Memoizado) ---
-const Pagination: React.FC<{
+interface PaginationProps {
   paginaAtual: number;
   totalPaginas: number;
   onPageChange: (page: number) => void;
   isLoading: boolean;
-}> = React.memo(({ paginaAtual, totalPaginas, onPageChange, isLoading }) => {
-  if (totalPaginas <= 1) return null;
-  return (
-    <div className="flex justify-center items-center gap-2 mt-6">
-      <Button variant="secondary" size="sm" onClick={() => onPageChange(paginaAtual - 1)} disabled={paginaAtual === 1 || isLoading} aria-label="Página anterior">
-        Anterior
-      </Button>
-      <span className="text-sm text-text-secondary font-medium">
-        Página {paginaAtual} de {totalPaginas}
-      </span>
-      <Button variant="secondary" size="sm" onClick={() => onPageChange(paginaAtual + 1)} disabled={paginaAtual === totalPaginas || isLoading} aria-label="Próxima página">
-        Próxima
-      </Button>
-    </div>
-  );
-});
+}
+// <<< CORREÇÃO: Props corretas usadas >>>
+const Pagination: React.FC<PaginationProps> = React.memo(
+  ({ paginaAtual, totalPaginas, onPageChange, isLoading }) => {
+    // ... (implementation remains the same as previous correction)
+    if (totalPaginas <= 1) return null;
+    return (
+      <div className="flex justify-center items-center gap-2 mt-6">
+        <Button variant="secondary" size="sm" onClick={() => onPageChange(paginaAtual - 1)} disabled={paginaAtual === 1 || isLoading} aria-label="Página anterior">
+          Anterior
+        </Button>
+        <span className="text-sm text-text-secondary font-medium">
+          Página {paginaAtual} de {totalPaginas}
+        </span>
+        <Button variant="secondary" size="sm" onClick={() => onPageChange(paginaAtual + 1)} disabled={paginaAtual === totalPaginas || isLoading} aria-label="Próxima página">
+          Próxima
+        </Button>
+      </div>
+    );
+  }
+);
 Pagination.displayName = 'Pagination';
 
 
@@ -41,10 +47,10 @@ const UsersTable: React.FC<{
   onEdit: (usuario: Usuario) => void;
   onDelete: (id: string) => void;
   isLoading: boolean;
-  idUsuarioLogado: string;
+  idUsuarioLogado?: string;
 }> = React.memo(({ usuarios, onEdit, onDelete, isLoading, idUsuarioLogado }) => {
-
-  const PerfilBadge: React.FC<{ perfil: PerfilUsuario }> = ({ perfil }) => (
+  // ... (implementation remains the same as previous correction)
+   const PerfilBadge: React.FC<{ perfil: PerfilUsuario }> = ({ perfil }) => (
     <span
       className={`
         inline-block px-3 py-1 text-xs font-semibold rounded-full leading-tight
@@ -55,9 +61,11 @@ const UsersTable: React.FC<{
         }
       `}
     >
-      {perfil.charAt(0) + perfil.slice(1).toLowerCase()}
+      {perfil ? perfil.charAt(0) + perfil.slice(1).toLowerCase() : 'N/A'}
     </span>
   );
+  PerfilBadge.displayName = 'PerfilBadge';
+
 
   return (
     <div className="bg-primary-white rounded-xl shadow-soft overflow-x-auto border border-gray-200">
@@ -83,7 +91,7 @@ const UsersTable: React.FC<{
         </thead>
         <tbody className="divide-y divide-gray-200">
           {isLoading && !usuarios.length ? (
-            <SkeletonTable colunas={5} rows={5} />
+            <SkeletonTable cols={5} rows={5} />
           ) : (
             usuarios.map((usuario) => (
               <tr key={usuario.id} className="hover:bg-background-light-blue transition-colors duration-150">
@@ -111,7 +119,7 @@ const UsersTable: React.FC<{
                   >
                     <Edit size={16} />
                   </Button>
-                  {usuario.id !== idUsuarioLogado && (
+                  {idUsuarioLogado && usuario.id !== idUsuarioLogado && (
                     <Button
                       variant="link"
                       size="sm"
@@ -151,7 +159,6 @@ const AdminUsers: React.FC = () => {
 
   const termoDebounced = useDebounce(termoBusca, 300);
 
-  // <<< CORREÇÃO: Destructuring completo do hook >>>
   const {
     data,
     isLoading,
@@ -161,16 +168,20 @@ const AdminUsers: React.FC = () => {
     handleUpdate,
     handleDelete,
     isMutating,
-    setIsMutating,     // <<< Faltava esta linha >>>
     mutationError,
-    setMutationError,   // <<< Faltava esta linha >>>
+    setMutationError,
     idUsuarioLogado,
   } = useAdminUsers(pagina, termoDebounced);
 
   const usuarios = data?.data ?? [];
-  const totalPaginas = data?.meta?.totalPaginas ?? 1;
 
-  // <<< CORREÇÃO: 'setMutationError' existe agora >>>
+  const totalPaginas = useMemo(() => {
+    if (!data) return 1;
+    const totalItems = data.meta?.total ?? data.total ?? 0;
+    const itemsPerPage = data.meta?.limit ?? 10;
+    return Math.ceil(totalItems / itemsPerPage) || 1;
+  }, [data]);
+
   const handleOpenModal = useCallback((usuario: Usuario | null) => {
     setUsuarioSelecionado(usuario);
     setMutationError(null);
@@ -182,41 +193,51 @@ const AdminUsers: React.FC = () => {
     setModalAberto(false);
   }, []);
 
-  const handleSave = useCallback(async (formData: UsuarioFormData, id?: string): Promise<Usuario> => {
-    // Hook controla o 'isMutating' e 'mutationError'
+  const handleSave = useCallback(async (formData: UsuarioFormData, id?: string): Promise<Usuario | void> => {
     try {
       let result: Usuario;
       if (id) {
         result = await handleUpdate(id, formData);
       } else {
-        if (!formData.senha) throw new Error("Senha é obrigatória para criar usuário.");
         result = await handleCreate(formData);
       }
       handleCloseModal();
       mutate();
       return result;
     } catch (err) {
-      throw err; // Relança para o modal
+      throw err;
     }
-  }, [handleCreate, handleUpdate, mutate, handleCloseModal]); // <<< CORREÇÃO: Removidos setters >>>
+  }, [handleCreate, handleUpdate, mutate, handleCloseModal]);
 
   const handleDeleteConfirm = useCallback(async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este usuário?')) {
+    const usuarioParaExcluir = usuarios.find(u => u.id === id);
+     if (id === idUsuarioLogado) {
+         alert('Você não pode excluir seu próprio usuário.');
+         return;
+     }
+     if (window.confirm(`Tem certeza que deseja excluir o usuário "${usuarioParaExcluir?.nome}"?`)) {
       try {
         await handleDelete(id);
-        mutate();
+         if (usuarios.length === 1 && pagina > 1) {
+            setPagina(pagina - 1);
+         } else {
+            mutate();
+         }
       } catch (err) {
         alert(`Erro ao excluir usuário: ${getErrorMessage(err)}`);
-        // Erro já está em mutationError
       }
     }
-  }, [handleDelete, mutate]); // <<< CORREÇÃO: Removidos setters >>>
+  }, [handleDelete, mutate, usuarios, pagina, idUsuarioLogado]);
 
   const handlePageChange = useCallback((newPage: number) => {
     if(newPage >= 1 && newPage <= totalPaginas) {
       setPagina(newPage);
     }
   }, [totalPaginas]);
+
+  useEffect(() => {
+      setPagina(1);
+  }, [termoDebounced]);
 
   return (
     <div className="space-y-6">
@@ -252,18 +273,15 @@ const AdminUsers: React.FC = () => {
       </div>
 
       {error && !isLoading && (
-        <ErrorMessage
-          title="Erro ao carregar usuários"
-          message={getErrorMessage(error)}
-        />
+        <ErrorMessage message={getErrorMessage(error)} />
       )}
 
       <UsersTable
         usuarios={usuarios}
         onEdit={handleOpenModal}
         onDelete={handleDeleteConfirm}
-        isLoading={isLoading || isMutating} // Passa loading combinado
-        idUsuarioLogado={idUsuarioLogado || ''}
+        isLoading={isLoading || isMutating}
+        idUsuarioLogado={idUsuarioLogado}
       />
 
       <Pagination
@@ -273,15 +291,14 @@ const AdminUsers: React.FC = () => {
         isLoading={isLoading || isMutating}
       />
 
-      {/* <<< CORREÇÃO: Passar props corretas para o modal >>> */}
       {modalAberto && (
         <UserFormModal
           isOpen={modalAberto}
           onClose={handleCloseModal}
           onSave={handleSave}
           usuario={usuarioSelecionado}
-          isMutating={isMutating}
-          mutationError={mutationError}
+          isLoading={isMutating}
+          error={mutationError}
         />
       )}
     </div>
