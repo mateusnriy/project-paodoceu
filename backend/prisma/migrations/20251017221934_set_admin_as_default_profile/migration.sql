@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE "usuarios" ALTER COLUMN "perfil" SET DEFAULT 'ADMINISTRADOR';

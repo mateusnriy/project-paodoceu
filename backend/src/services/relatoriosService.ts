@@ -24,7 +24,7 @@ export class RelatoriosService {
         DATE(p."criado_em") as data,
         SUM(p."valor_total") as total
       FROM "pedidos" p
-      INNER JOIN "pagamentos" pag ON p."id" = pag."pedido_id" -- <<< Junção correta
+      INNER JOIN "pagamentos" pag ON p."id" = pag."pedido_id" -- <<< Garante que existe pagamento
       WHERE p."criado_em" >= ${dataInicioSql}::timestamp
       AND p."criado_em" <= ${dataFimSql}::timestamp
       GROUP BY DATE(p."criado_em")
@@ -32,7 +32,6 @@ export class RelatoriosService {
     `;
 
     try {
-        // <<< CORREÇÃO: Usar $queryRaw em vez de $queryRawUnsafe para segurança com datas >>>
         const vendasAgrupadas: { data: Date; total: Prisma.Decimal }[] = await prisma.$queryRaw(query);
 
         return vendasAgrupadas.map(item => ({
@@ -43,8 +42,8 @@ export class RelatoriosService {
     } catch (error: any) {
         logger.error('Erro na query $queryRaw de vendasPorDia:', {
             errorMessage: error.message,
-            query: query.sql, // Log a query SQL gerada
-            values: query.values // Log os valores interpolados
+            query: query.sql,
+            values: query.values
         });
         throw new AppError('Erro ao processar relatório diário.', 500);
     }
@@ -61,8 +60,7 @@ export class RelatoriosService {
           isNot: null
         },
         criado_em: range,
-      }
-      // include não é necessário se apenas somamos/contamos
+      },
     });
 
     const totalVendido = pedidosPagos.reduce((acc: number, pedido: Pedido) => acc + pedido.valor_total, 0);
