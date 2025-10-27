@@ -127,13 +127,17 @@ export class ProdutosService {
     }
     
     try {
-        // <<< CORREÇÃO: Mapear DTO (frontend) para Schema (db) >>>
+        // Mapear DTO (frontend/controller) para Schema (db)
         const { estoque, categoria_id, imagem_url, ...restData } = data;
+        
+        // CORREÇÃO: Usar o tipo gerado pelo Prisma para ProdutoUpdateInput
         const dataToUpdate: Prisma.ProdutoUpdateInput = { ...restData };
         
         if (estoque !== undefined) dataToUpdate.estoque = estoque;
         if (categoria_id !== undefined) dataToUpdate.categoria_id = categoria_id;
-        if (imagem_url !== undefined) dataToUpdate.imagem_url = imagem_url;
+        
+        // Garante que o campo é atualizado para null se for explicitamente fornecido como null (ou string vazia no controller)
+        if (imagem_url !== undefined) dataToUpdate.imagem_url = imagem_url; 
 
         return prisma.produto.update({ 
             where: { id }, 
