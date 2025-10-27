@@ -1,3 +1,4 @@
+// src/pages/admin/AdminReports.tsx
 import React from 'react';
 import {
   BarChart,
@@ -17,12 +18,6 @@ import { getErrorMessage } from '../../utils/errors';
 import { formatarMoeda, formatarData } from '../../utils/formatters';
 import { Loader2 } from 'lucide-react';
 
-/**
- * REFATORAÇÃO (Commit 2.5):
- * - Aplicados novos tokens de design (tipografia, cores, bordas, sombras).
- * - Títulos (H1) e textos de KPIs atualizados.
- */
-
 // --- Componente KPI Card (Refatorado) ---
 interface KpiCardProps {
   titulo: string;
@@ -32,14 +27,14 @@ interface KpiCardProps {
 }
 
 const KpiCard: React.FC<KpiCardProps> = ({ titulo, valor, descricao, isLoading }) => (
-  <div className="bg-primary-white p-6 rounded-xl shadow-soft border border-gray-200 h-full"> {/* h-full para alinhar altura */}
-    <h3 className="text-base font-medium text-text-secondary mb-1 truncate"> {/* text-base e text-secondary */}
+  <div className="bg-primary-white p-6 rounded-xl shadow-soft border border-gray-200 h-full">
+    <h3 className="text-base font-medium text-text-secondary mb-1 truncate">
       {titulo}
     </h3>
     {isLoading ? (
       <div className="h-10 w-3/4 bg-gray-200 animate-pulse rounded-lg" />
     ) : (
-      <p className="text-3xl font-bold text-text-primary"> {/* 3xl (30px) Bold e text-primary */}
+      <p className="text-3xl font-bold text-text-primary">
         {valor}
       </p>
     )}
@@ -71,13 +66,13 @@ const ChartContainer: React.FC<ChartContainerProps> = ({ title, isLoading, child
   </div>
 );
 
-
 // --- Página Principal ---
 const AdminReports: React.FC = () => {
   const { data, isLoading, error } = useAdminReports();
 
-  if (error) {
-    return <ErrorMessage title="Erro ao carregar relatórios" message={getErrorMessage(error)} />;
+  if (error && !isLoading) { // Mostra o erro apenas se não estiver carregando
+    // CORREÇÃO: Removido 'title' prop
+    return <ErrorMessage message={`Erro ao carregar relatórios: ${getErrorMessage(error)}`} />;
   }
 
   // Formata os dados para os gráficos
@@ -86,17 +81,17 @@ const AdminReports: React.FC = () => {
     data: formatarData(d.data, { day: '2-digit', month: '2-digit' }),
     total: parseFloat(d.total.toFixed(2)),
   })) || [];
-  
+
   const produtosMaisVendidosData = data?.produtosMaisVendidos.map(p => ({
     ...p,
+    nome: p.nome,
     total: parseFloat(p.total.toFixed(2)),
   })) || [];
 
   return (
-    <div className="space-y-6"> {/* 8px grid (space-y-6 = 24px) */}
+    <div className="space-y-6">
       <h1 className="text-2xl font-bold text-text-primary">Relatórios</h1>
 
-      {/* Grid de KPIs (item 4.1.6 - alinhamento de altura) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <KpiCard
           titulo="Receita Total (Hoje)"
@@ -114,10 +109,8 @@ const AdminReports: React.FC = () => {
           isLoading={isLoading}
         />
       </div>
-      
-      {/* Gráficos */}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Vendas dos Últimos 7 Dias (Gráfico de Linha) */}
         <ChartContainer title="Vendas nos Últimos 7 Dias" isLoading={isLoading}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={vendasPorDiaData}>
@@ -129,7 +122,7 @@ const AdminReports: React.FC = () => {
               <Line
                 type="monotone"
                 dataKey="total"
-                stroke="#4A90E2" // primary-blue
+                stroke="#4A90E2"
                 strokeWidth={2}
                 dot={{ r: 4 }}
                 activeDot={{ r: 6 }}
@@ -137,8 +130,7 @@ const AdminReports: React.FC = () => {
             </LineChart>
           </ResponsiveContainer>
         </ChartContainer>
-        
-        {/* Top 5 Produtos Mais Vendidos (Gráfico de Barra) */}
+
         <ChartContainer title="Top 5 Produtos Mais Vendidos" isLoading={isLoading}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={produtosMaisVendidosData} layout="vertical">
@@ -147,12 +139,12 @@ const AdminReports: React.FC = () => {
               <YAxis
                 type="category"
                 dataKey="nome"
-                width={120} // Aumenta espaço para o label do produto
+                width={120}
                 stroke="#666666"
                 tick={{ fontSize: 12 }}
               />
               <Tooltip formatter={(val: number) => [formatarMoeda(val), 'Total']} />
-              <Bar dataKey="total" fill="#4A90E2" /> {/* primary-blue */}
+              <Bar dataKey="total" fill="#4A90E2" />
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>

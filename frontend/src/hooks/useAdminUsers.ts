@@ -1,7 +1,8 @@
+// src/hooks/useAdminUsers.ts
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { getErrorMessage } from '../utils/errors';
-import { Usuario, PaginatedResponse, UsuarioFormData, PerfilUsuario } from '../types';
+import { Usuario, PaginatedResponse, UsuarioFormData } from '../types'; // PerfilUsuario removido
 import { logError } from '../utils/logger';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -9,13 +10,11 @@ export const useAdminUsers = (pagina: number, termoBusca: string) => {
   const [data, setData] = useState<PaginatedResponse<Usuario> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
-  const { usuario: usuarioLogado } = useAuth(); 
+  const { usuario: usuarioLogado } = useAuth();
 
   const mutate = useCallback(async () => {
-    // <<< CORREÇÃO DE LÓGICA: Mostrar loading apenas na primeira carga >>>
     if (!data) setIsLoading(true);
-    // else setIsLoading(true); // Remover 'true' aqui evita o piscar
-    setError(null); // Limpar erro
+    setError(null);
     try {
       const params = {
         pagina: pagina,
@@ -27,21 +26,18 @@ export const useAdminUsers = (pagina: number, termoBusca: string) => {
       });
       setData(response.data);
     } catch (err) {
-      // <<< CORREÇÃO: Armazenar o erro original >>>
       setError(err);
       logError('Erro ao re-buscar usuários:', err, { pagina, termoBusca });
-      setData(null); // Limpar dados em caso de erro
+      setData(null);
     } finally {
       setIsLoading(false);
     }
-  // <<< CORREÇÃO DE LOOP: Removido 'data' da dependência >>>
-  }, [pagina, termoBusca]);
+  }, [pagina, termoBusca, data]); // 'data' adicionado de volta
 
   useEffect(() => {
     mutate();
   }, [mutate]);
 
-  // --- Funções de Mutação ---
   const [isMutating, setIsMutating] = useState(false);
   const [mutationError, setMutationError] = useState<unknown>(null);
 
@@ -51,7 +47,7 @@ export const useAdminUsers = (pagina: number, termoBusca: string) => {
     if (!data.senha) {
       const errorMsg = 'A senha é obrigatória para criar um novo usuário.';
       logError(errorMsg, new Error(errorMsg), { data });
-      setIsMutating(false); // Parar loading
+      setIsMutating(false);
       throw new Error(errorMsg);
     }
     try {
@@ -59,7 +55,7 @@ export const useAdminUsers = (pagina: number, termoBusca: string) => {
       return response.data;
     } catch (err) {
       const message = getErrorMessage(err);
-      setMutationError(err); // Armazenar erro
+      setMutationError(err);
       logError('Erro ao CRIAR usuário:', err, { data });
       throw new Error(message);
     } finally {
@@ -77,13 +73,13 @@ export const useAdminUsers = (pagina: number, termoBusca: string) => {
     if (!dataToSend.senha) {
       delete dataToSend.senha;
     }
-    
+
     try {
       const response = await api.put<Usuario>(`/usuarios/${id}`, dataToSend);
       return response.data;
     } catch (err) {
       const message = getErrorMessage(err);
-      setMutationError(err); // Armazenar erro
+      setMutationError(err);
       logError('Erro ao ATUALIZAR usuário:', err, { id, data: dataToSend });
       throw new Error(message);
     } finally {
@@ -97,22 +93,21 @@ export const useAdminUsers = (pagina: number, termoBusca: string) => {
     if (id === usuarioLogado?.id) {
       const errorMsg = 'Você não pode excluir seu próprio usuário.';
       logError(errorMsg, new Error(errorMsg), { id });
-      setMutationError(new Error(errorMsg)); // Armazenar erro
-      setIsMutating(false); // Parar loading
+      setMutationError(new Error(errorMsg));
+      setIsMutating(false);
       throw new Error(errorMsg);
     }
     try {
       await api.delete(`/usuarios/${id}`);
     } catch (err) {
       const message = getErrorMessage(err);
-      setMutationError(err); // Armazenar erro
+      setMutationError(err);
       logError('Erro ao DELETAR usuário:', err, { id });
       throw new Error(message);
     } finally {
       setIsMutating(false);
     }
   }, [usuarioLogado?.id]);
-  
 
   return {
     data,

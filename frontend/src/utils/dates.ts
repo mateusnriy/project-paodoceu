@@ -1,3 +1,4 @@
+// src/utils/dates.ts
 import {
   startOfWeek,
   endOfWeek,
@@ -7,7 +8,7 @@ import {
   endOfYear,
   startOfDay,
   endOfDay,
-  formatISO,
+  // formatISO, // REMOVIDO
 } from 'date-fns';
 
 export type DateRangeOption = 'today' | 'week' | 'month' | 'year';
@@ -36,15 +37,16 @@ export const getDateRangeQuery = (
       startDate = startOfYear(now);
       endDate = endOfYear(now);
       break;
-    default:
+    default: // Default to 'week' if type is invalid
       startDate = startOfWeek(now, { weekStartsOn: 1 });
       endDate = endOfWeek(now, { weekStartsOn: 1 });
       break;
   }
-  const formatOptions = { representation: 'date' } as const;
+  // const formatOptions = { representation: 'date' } as const; // REMOVIDO
 
+  // Formato ISO string completo para compatibilidade com o backend
   return {
-    data_inicio: startDate.toISOString().split('T')[0] + 'T00:00:00.000Z',
-    data_fim: endDate.toISOString().split('T')[0] + 'T23:59:59.999Z',
+    data_inicio: startDate.toISOString(),
+    data_fim: endDate.toISOString(),
   };
 };

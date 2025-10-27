@@ -1,6 +1,7 @@
+// src/hooks/useAdminCategories.ts
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
-import { getErrorMessage } from '../utils/errors';
+// import { getErrorMessage } from '../utils/errors'; // REMOVIDO
 import { Categoria, PaginatedResponse } from '../types';
 import { logError } from '../utils/logger';
 
@@ -19,9 +20,7 @@ export const useAdminCategories = (pagina: number, termoBusca: string, limite: n
   const [mutationError, setMutationError] = useState<unknown>(null);
 
   const loadCategories = useCallback(async () => {
-     // <<< CORREÇÃO DE LÓGICA: Loading apenas na primeira carga >>>
-     if (!data) setIsLoading(true);
-     // else setIsLoading(true); // Evita piscar
+     if (!data) setIsLoading(true); // Só mostra loading na primeira vez
      setError(null);
      try {
         const params = { pagina, limite, nome: termoBusca || undefined };
@@ -34,8 +33,7 @@ export const useAdminCategories = (pagina: number, termoBusca: string, limite: n
      } finally {
         setIsLoading(false);
      }
-  // <<< CORREÇÃO DE LOOP: Removido 'data' da dependência >>>
-  }, [pagina, limite, termoBusca]);
+  }, [pagina, limite, termoBusca, data]); // Adicionada dependência 'data' para resetar loading
 
   useEffect(() => {
     loadCategories();
@@ -54,7 +52,7 @@ export const useAdminCategories = (pagina: number, termoBusca: string, limite: n
     } catch (err) {
       setMutationError(err);
       logError('Erro ao CRIAR categoria:', err, { formData });
-      throw err;
+      throw err; // Re-lança para o modal saber que houve erro
     } finally {
       setIsMutating(false);
     }
@@ -69,7 +67,7 @@ export const useAdminCategories = (pagina: number, termoBusca: string, limite: n
     } catch (err) {
       setMutationError(err);
       logError('Erro ao ATUALIZAR categoria:', err, { id, formData });
-      throw err;
+      throw err; // Re-lança para o modal saber que houve erro
     } finally {
       setIsMutating(false);
     }
@@ -83,7 +81,7 @@ export const useAdminCategories = (pagina: number, termoBusca: string, limite: n
      } catch (err) {
         setMutationError(err);
         logError('Erro ao DELETAR categoria:', err, { id });
-        throw err;
+        throw err; // Re-lança para a página saber que houve erro
      } finally {
         setIsMutating(false);
      }
@@ -101,7 +99,6 @@ export const useAdminCategories = (pagina: number, termoBusca: string, limite: n
     setIsMutating,
     mutationError,
     setMutationError,
-    // Compatibilidade com AdminProducts (simplificado)
-    categorias: data?.data ?? [],
+    categorias: data?.data ?? [], // Mantém para compatibilidade, se necessário
   };
 };

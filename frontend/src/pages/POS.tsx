@@ -1,5 +1,6 @@
+// src/pages/POS.tsx
 import React, { useCallback } from 'react';
-import { Loader2 } from 'lucide-react';
+// import { Loader2 } from 'lucide-react'; // REMOVIDO
 import { OrderSummary } from '../components/common/OrderSummary';
 import { ProductCard } from '../components/common/ProductCard';
 import { Button } from '../components/common/Button';
@@ -23,7 +24,7 @@ const CategoriaPill: React.FC<CategoriaPillProps> = React.memo(
       'px-4 py-2 rounded-full font-semibold text-base transition-colors duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue';
 
     const activeClasses = 'bg-primary-blue text-white';
-    
+
     const inactiveClasses =
       'bg-primary-white text-text-secondary border border-gray-300 hover:bg-background-light-blue';
 
@@ -38,13 +39,14 @@ const CategoriaPill: React.FC<CategoriaPillProps> = React.memo(
     );
   }
 );
+CategoriaPill.displayName = 'CategoriaPill';
 
 
 const POS: React.FC = () => {
   const {
 
     pedido,
-    total,
+    total, // O hook usePOS já calcula o total
 
     produtosFiltrados,
     categorias,
@@ -54,37 +56,32 @@ const POS: React.FC = () => {
     isLoadingProdutos,
     isLoadingCategorias,
     errorProdutos,
-    errorCategorias,
+    errorCategorias, // Corrigido para errorCategories
 
     handleAddToCart,
     handleRemoveFromCart,
     handleUpdateQuantity,
-    handleLimparCarrinho,
+    handleLimparCarrinho, // Mantido, mas não será passado para OrderSummary
     handleNavigateToPayment,
   } = usePOS();
 
-
+  // Callbacks memoizados
   const handleRemoveCallback = useCallback(handleRemoveFromCart, [handleRemoveFromCart]);
   const handleUpdateCallback = useCallback(handleUpdateQuantity, [handleUpdateQuantity]);
-  const handleLimparCallback = useCallback(handleLimparCarrinho, [handleLimparCarrinho]);
+  // const handleLimparCallback = useCallback(handleLimparCarrinho, [handleLimparCarrinho]); // Removido ou usado em outro lugar
   const handleCheckoutCallback = useCallback(handleNavigateToPayment, [handleNavigateToPayment]);
-  
-
   const handleAddCallback = useCallback(handleAddToCart, [handleAddToCart]);
-  
-
   const handleCategoriaClick = useCallback(setCategoriaAtiva, [setCategoriaAtiva]);
-
 
   const renderFiltroCategorias = () => {
     if (isLoadingCategorias) {
       return <div className="h-10 animate-pulse bg-gray-200 rounded-full w-full" />;
     }
-    if (errorCategorias) {
+    if (errorCategorias) { // Corrigido para errorCategories
       return <ErrorMessage message="Erro ao carregar categorias." />;
     }
     return (
-      <nav className="flex flex-wrap gap-3"> {/* 8px grid (gap-3 = 12px) */}
+      <nav className="flex flex-wrap gap-3">
         <CategoriaPill
           categoria={{ id: 'todos', nome: 'Todos' }}
           categoriaAtiva={categoriaAtiva}
@@ -102,12 +99,10 @@ const POS: React.FC = () => {
     );
   };
 
-
   const renderListaProdutos = () => {
     if (isLoadingProdutos) {
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-          {/* Skeleton Loaders */}
           {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="bg-white rounded-xl shadow-soft h-64 animate-pulse" />
           ))}
@@ -115,7 +110,8 @@ const POS: React.FC = () => {
       );
     }
     if (errorProdutos) {
-      return <ErrorMessage title="Erro ao carregar produtos" message={getErrorMessage(errorProdutos)} />;
+      // CORREÇÃO: Removido 'title' prop
+      return <ErrorMessage message={`Erro ao carregar produtos: ${getErrorMessage(errorProdutos)}`} />;
     }
     if (produtosFiltrados.length === 0) {
       return (
@@ -130,7 +126,7 @@ const POS: React.FC = () => {
       );
     }
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6"> {/* 8px grid (gap-4/6) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
         {produtosFiltrados.map((produto: Produto) => (
           <ProductCard
             key={produto.id}
@@ -146,39 +142,47 @@ const POS: React.FC = () => {
 
     <main className="container mx-auto p-4 md:p-8">
       <div className="flex flex-col lg:flex-row lg:gap-8">
-        
+
         {/* Lado Esquerdo: Produtos e Categorias */}
         <div className="lg:w-2/3">
-          {/* Filtro de Categoria */}
           <div className="mb-6">
             {renderFiltroCategorias()}
           </div>
-          
-          {/* Grid de Produtos */}
           <div>
             {renderListaProdutos()}
           </div>
         </div>
 
-        {/* Lado Direito: Resumo do Pedido (fixo) */}
-        {/* 'top-[104px]' = 80px (Header) + 24px (padding p-6 da main) */}
+        {/* Lado Direito: Resumo do Pedido */}
         <div className="lg:w-1/3 lg:sticky top-[104px] h-fit mt-8 lg:mt-0">
           <OrderSummary
             pedido={pedido}
-            total={total}
+            total={total} // Passando o total calculado pelo hook
             onItemRemove={handleRemoveCallback}
             onItemUpdateQuantity={handleUpdateCallback}
-            onLimparCarrinho={handleLimparCallback}
+            // onLimparCarrinho={handleLimparCallback} // REMOVIDO
           >
             {/* Botão de Pagamento */}
             <Button
               onClick={handleCheckoutCallback}
-              disabled={pedido.itens.length === 0}
+              disabled={pedido.itens.length === 0 || isLoadingProdutos || isLoadingCategorias} // Desabilita se carregando também
               className="w-full mt-4"
-              size="lg" // Botão grande e primário
+              size="lg"
             >
               Ir para Pagamento
             </Button>
+            {/* Botão Limpar Carrinho (pode ser adicionado aqui se desejado) */}
+            {pedido.itens.length > 0 && (
+              <Button
+                onClick={handleLimparCarrinho} // Usa a função do hook usePOS
+                variant="link"
+                size="sm"
+                className="text-status-error mt-2 w-full" // Estilizado como link de erro
+                disabled={isLoadingProdutos || isLoadingCategorias}
+              >
+                Limpar Carrinho
+              </Button>
+            )}
           </OrderSummary>
         </div>
       </div>

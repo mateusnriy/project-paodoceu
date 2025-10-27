@@ -1,107 +1,86 @@
+// src/hooks/useAdminReports.ts
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
 import { getErrorMessage } from '../utils/errors';
 import { getDateRangeQuery, DateRangeOption } from '../utils/dates';
 import { logError } from '../utils/logger';
 
-// Tipos adaptados para o que o backend /relatorios/vendas retorna
 interface VendasPeriodoResponse {
   totalVendido: number;
   totalPedidos: number;
   ticketMedio: number;
 }
-interface VendasDiariasResponseItem { // Assumindo que tipo=diario retorna isso
+interface VendasDiariasResponseItem {
   data: string;
   total: number;
 }
-interface TopProdutosResponseItem { // Assumindo que tipo=produto retorna isso
+interface TopProdutosResponseItem {
   nome: string;
   quantidade: number;
   total: number;
 }
 
-// Interface unificada para o estado do hook
 export interface AdminReportsData {
   receitaHoje: number;
   totalPedidosHoje: number;
   ticketMedioHoje: number;
   vendasUltimos7Dias: VendasDiariasResponseItem[];
-  produtosMaisVendidos: TopProdutosResponseItem[];
+  produtosMaisVendidos: TopProdutosResponseItem[]; // Corrigido nome da propriedade
 }
 
-/**
- * @hook useAdminReports
- * @description Hook para buscar dados consolidados para a tela de Relatórios.
- * Utiliza o endpoint GET /relatorios/vendas com diferentes query params ('tipo').
- */
 export const useAdminReports = () => {
   const [data, setData] = useState<AdminReportsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
 
-  /**
-   * @function fetchData
-   * @description Busca os dados para os relatórios usando o endpoint /relatorios/vendas.
-   */
   const fetchData = useCallback(async () => {
-    if (!data) setIsLoading(true); // Só loading total na primeira vez
+    if (!data) setIsLoading(true);
     setError(null);
     try {
-        const todayRange = getDateRangeQuery('today'); // { data_inicio, data_fim } para hoje
-        const weekRange = getDateRangeQuery('week');   // { data_inicio, data_fim } para os últimos 7 dias
+        const todayRange = getDateRangeQuery('today');
+        const weekRange = getDateRangeQuery('week');
 
-        // <<< CORREÇÃO: Chamadas usando o endpoint /relatorios/vendas com 'tipo' >>>
-        // Conforme backend/src/controllers/relatoriosController.ts
         const [resHoje, res7Dias, resTopProdutos] = await Promise.all([
-          // 1. tipo=periodo para totais de hoje
           api.get<VendasPeriodoResponse>('/relatorios/vendas', {
              params: { ...todayRange, tipo: 'periodo' }
           }),
-          // 2. tipo=diario para vendas por dia na semana
-          // (Backend precisa implementar a lógica para 'diario')
           api.get<VendasDiariasResponseItem[]>('/relatorios/vendas', {
              params: { ...weekRange, tipo: 'diario' }
           }),
-          // 3. tipo=produto para top produtos na semana
           api.get<TopProdutosResponseItem[]>('/relatorios/vendas', {
-             params: { ...weekRange, tipo: 'produto', limite: 5 } // Backend precisa honrar 'limite'
+             params: { ...weekRange, tipo: 'produto', limite: 5 }
           }),
         ]);
 
-        // Monta o objeto de dados unificado
         const aggregatedData: AdminReportsData = {
           receitaHoje: resHoje.data.totalVendido,
           totalPedidosHoje: resHoje.data.totalPedidos,
           ticketMedioHoje: resHoje.data.ticketMedio,
           vendasUltimos7Dias: res7Dias.data,
-          produtosMaisVendidos: resTopProdutos.data,
+          produtosMaisVendidos: resTopProdutos.data, // Corrigido nome da propriedade
         };
         setData(aggregatedData);
 
     } catch (err) {
-        // ERR_CONNECTION_REFUSED indica que o backend não está rodando
-        // 403 indica que o usuário logado não é 'ADMINISTRADOR'
-        const message = getErrorMessage(err);
-        setError(err); // Armazena o erro original
+        // const message = getErrorMessage(err); // REMOVIDO - não utilizado
+        setError(err);
         logError('Erro ao buscar relatórios:', err);
-        setData(null); // Limpa dados antigos em caso de erro
+        setData(null);
     } finally {
-      setIsLoading(false); // Sempre desativa o loading no final
+      setIsLoading(false);
     }
-  }, [data]); // Adiciona 'data' como dependência
+  }, [data]);
 
-  // Efeito para buscar na montagem
   useEffect(() => {
     fetchData();
-  }, [fetchData]); // Executa quando fetchData é definido (uma vez)
+  }, [fetchData]);
 
   return {
     data,
     isLoading,
     error,
-    refetch: fetchData, // Permite re-buscar
+    refetch: fetchData,
   };
 };
 
-// Exporta DateRangeOption
 export type { DateRangeOption };

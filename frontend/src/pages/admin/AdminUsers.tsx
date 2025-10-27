@@ -1,7 +1,7 @@
-// <<< CORREÇÃO: Added 'useEffect', 'useMemo' >>>
+// src/pages/admin/AdminUsers.tsx
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { Usuario, PerfilUsuario, UsuarioFormData, PaginatedResponse } from '../../types';
+import { Usuario, PerfilUsuario, UsuarioFormData } from '../../types'; // PaginatedResponse removido
 import { useAdminUsers } from '../../hooks/useAdminUsers';
 import { Button } from '../../components/common/Button';
 import { SkeletonTable } from '../../components/ui/SkeletonTable';
@@ -18,10 +18,8 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   isLoading: boolean;
 }
-// <<< CORREÇÃO: Props corretas usadas >>>
 const Pagination: React.FC<PaginationProps> = React.memo(
   ({ paginaAtual, totalPaginas, onPageChange, isLoading }) => {
-    // ... (implementation remains the same as previous correction)
     if (totalPaginas <= 1) return null;
     return (
       <div className="flex justify-center items-center gap-2 mt-6">
@@ -40,7 +38,6 @@ const Pagination: React.FC<PaginationProps> = React.memo(
 );
 Pagination.displayName = 'Pagination';
 
-
 // --- Tabela de Usuários (Memoizado) ---
 const UsersTable: React.FC<{
   usuarios: Usuario[];
@@ -49,7 +46,6 @@ const UsersTable: React.FC<{
   isLoading: boolean;
   idUsuarioLogado?: string;
 }> = React.memo(({ usuarios, onEdit, onDelete, isLoading, idUsuarioLogado }) => {
-  // ... (implementation remains the same as previous correction)
    const PerfilBadge: React.FC<{ perfil: PerfilUsuario }> = ({ perfil }) => (
     <span
       className={`
@@ -65,7 +61,6 @@ const UsersTable: React.FC<{
     </span>
   );
   PerfilBadge.displayName = 'PerfilBadge';
-
 
   return (
     <div className="bg-primary-white rounded-xl shadow-soft overflow-x-auto border border-gray-200">
@@ -105,7 +100,8 @@ const UsersTable: React.FC<{
                   <PerfilBadge perfil={usuario.perfil} />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
-                  {usuario.dataCriacao ? formatarData(usuario.dataCriacao, { dateStyle: 'short', timeStyle: 'short' }) : '-'}
+                   {/* CORREÇÃO: Usar criado_em */}
+                  {usuario.criado_em ? formatarData(usuario.criado_em, { dateStyle: 'short', timeStyle: 'short' }) : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                   <Button
@@ -177,7 +173,8 @@ const AdminUsers: React.FC = () => {
 
   const totalPaginas = useMemo(() => {
     if (!data) return 1;
-    const totalItems = data.meta?.total ?? data.total ?? 0;
+    // CORREÇÃO: Acessando data.meta
+    const totalItems = data.meta?.total ?? 0;
     const itemsPerPage = data.meta?.limit ?? 10;
     return Math.ceil(totalItems / itemsPerPage) || 1;
   }, [data]);
@@ -205,9 +202,10 @@ const AdminUsers: React.FC = () => {
       mutate();
       return result;
     } catch (err) {
-      throw err;
+      throw err; // O erro será pego e tratado pelo modal
     }
   }, [handleCreate, handleUpdate, mutate, handleCloseModal]);
+
 
   const handleDeleteConfirm = useCallback(async (id: string) => {
     const usuarioParaExcluir = usuarios.find(u => u.id === id);
@@ -298,7 +296,7 @@ const AdminUsers: React.FC = () => {
           onSave={handleSave}
           usuario={usuarioSelecionado}
           isLoading={isMutating}
-          error={mutationError}
+          error={mutationError} // Passa o erro original
         />
       )}
     </div>

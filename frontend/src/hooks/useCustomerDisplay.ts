@@ -1,48 +1,39 @@
+// src/hooks/useCustomerDisplay.ts
 import { useState, useEffect } from 'react';
-import { Pedido, StatusPedido } from '../types';
+import { Pedido } from '../types'; // StatusPedido removido
 import { api } from '../services/api';
-import { getErrorMessage } from '../utils/errors';
+// import { getErrorMessage } from '../utils/errors'; // REMOVIDO
 
-// Define a interface da resposta da API de display
 interface DisplayData {
   pedidosProntos: Pedido[];
   pedidosAguardando: Pedido[];
 }
 
-/**
- * REFATORAÇÃO (Commit 3.3):
- * - Nenhuma mudança lógica neste hook.
- * - Conforme análise, a migração para WebSocket foi adiada.
- * - O hook permanece funcional com polling (setInterval).
- */
 export const useCustomerDisplay = () => {
   const [pedidosProntos, setPedidosProntos] = useState<Pedido[]>([]);
   const [pedidosAguardando, setPedidosAguardando] = useState<Pedido[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
 
-  // Função para buscar os dados
   const fetchDisplayData = async () => {
     try {
+      setError(null); // Limpa erro antes de tentar
       const response = await api.get<DisplayData>('/pedidos/display');
-      
-      // Ordena os prontos (mais recente primeiro)
+
       const prontos = response.data.pedidosProntos.sort(
         (a, b) =>
-          new Date(b.dataAtualizacao).getTime() -
-          new Date(a.dataAtualizacao).getTime()
+          new Date(a.atualizado_em).getTime() - // Corrigido para atualizado_em
+          new Date(b.atualizado_em).getTime()
       );
-      
-      // Ordena os aguardando (mais antigo primeiro, FIFO)
+
       const aguardando = response.data.pedidosAguardando.sort(
         (a, b) =>
-          new Date(a.dataCriacao).getTime() -
-          new Date(b.dataCriacao).getTime()
+          new Date(a.criado_em).getTime() - // Corrigido para criado_em
+          new Date(b.criado_em).getTime()
       );
 
       setPedidosProntos(prontos);
-      setPedidosAguardando(aguardando.slice(0, 10)); // Limita a 10 na lista de espera
-      setError(null);
+      setPedidosAguardando(aguardando.slice(0, 10));
     } catch (err) {
       console.error('Erro ao buscar dados do display:', err);
       setError(err);
@@ -52,17 +43,10 @@ export const useCustomerDisplay = () => {
   };
 
   useEffect(() => {
-    // Busca inicial
     fetchDisplayData();
-
-    // Inicia o polling
-    const intervalId = setInterval(() => {
-      fetchDisplayData();
-    }, 5000); // Busca a cada 5 segundos
-
-    // Limpa o intervalo ao desmontar o componente
+    const intervalId = setInterval(fetchDisplayData, 5000);
     return () => clearInterval(intervalId);
-  }, []);
+  }, []); // Dependência vazia garante que roda só uma vez na montagem + cleanup
 
   return { pedidosProntos, pedidosAguardando, isLoading, error };
 };

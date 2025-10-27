@@ -1,6 +1,7 @@
+// src/pages/admin/AdminProducts.tsx
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { Categoria, Produto, ProdutoFormData, PaginatedResponse } from '../../types';
+import { Categoria, Produto, ProdutoFormData } from '../../types'; // PaginatedResponse removido
 import { useAdminProducts } from '../../hooks/useAdminProducts';
 import { useAdminCategories } from '../../hooks/useAdminCategories';
 import { Button } from '../../components/common/Button';
@@ -9,7 +10,7 @@ import { ErrorMessage } from '../../components/ui/ErrorMessage';
 import { ProductFormModal } from './components/ProductFormModal';
 import { getErrorMessage } from '../../utils/errors';
 import { useDebounce } from '../../hooks/useDebounce';
-import { formatarMoeda, formatarData } from '../../utils/formatters';
+import { formatarMoeda } from '../../utils/formatters'; // formatarData removido
 
 // --- Componente de Tabela de Produtos (Memoizado) ---
 const ProductsTable: React.FC<{
@@ -39,57 +40,37 @@ const ProductsTable: React.FC<{
       <table className="min-w-full divide-y divide-gray-200">
         <thead className="bg-gray-50">
           <tr>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider"
-            >
+            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
               Nome
             </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider"
-            >
+            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
               Status
             </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider"
-            >
+            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
               Preço
             </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider"
-            >
+            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
               Estoque
             </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider"
-            >
+            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
               Categoria
             </th>
-            <th
-              scope="col"
-              className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider"
-            >
+            <th scope="col" className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wider">
               Ações
             </th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
           {isLoading && !produtos.length ? (
-            <SkeletonTable cols={6} rows={5} />
+             <SkeletonTable cols={6} rows={5} />
           ) : (
             produtos.map((produto) => (
-              <tr
-                key={produto.id}
-                className="hover:bg-background-light-blue transition-colors duration-150"
-              >
+              <tr key={produto.id} className="hover:bg-background-light-blue transition-colors duration-150">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-text-primary">
                   {produto.nome}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">
+                  {/* CORREÇÃO: Acessando a propriedade correta 'quantidadeEstoque' */}
                   <StatusBadge disponivel={produto.quantidadeEstoque > 0} />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">
@@ -120,7 +101,7 @@ const ProductsTable: React.FC<{
                     className="text-status-error hover:underline p-1"
                     aria-label={`Excluir ${produto.nome}`}
                     title="Excluir"
-                    disabled={isLoading}
+                     disabled={isLoading}
                   >
                     <Trash2 size={16} />
                   </Button>
@@ -129,14 +110,11 @@ const ProductsTable: React.FC<{
             ))
           )}
           {!isLoading && produtos.length === 0 && (
-            <tr>
-              <td
-                colSpan={6}
-                className="px-6 py-10 text-center text-text-secondary"
-              >
-                Nenhum produto encontrado.
-              </td>
-            </tr>
+              <tr>
+                  <td colSpan={6} className="px-6 py-10 text-center text-text-secondary">
+                      Nenhum produto encontrado.
+                  </td>
+              </tr>
           )}
         </tbody>
       </table>
@@ -152,38 +130,38 @@ const Pagination: React.FC<{
   onPageChange: (page: number) => void;
   isLoading: boolean;
 }> = React.memo(({ paginaAtual, totalPaginas, onPageChange, isLoading }) => {
-  if (totalPaginas <= 1) return null;
-  return (
-    <div className="flex justify-center items-center gap-2 mt-6">
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={() => onPageChange(paginaAtual - 1)}
-        disabled={paginaAtual === 1 || isLoading}
-        aria-label="Página anterior"
-      >
-        Anterior
-      </Button>
-      <span className="text-sm text-text-secondary font-medium">
-        Página {paginaAtual} de {totalPaginas}
-      </span>
-      <Button
-        variant="secondary"
-        size="sm"
-        onClick={() => onPageChange(paginaAtual + 1)}
-        disabled={paginaAtual === totalPaginas || isLoading}
-        aria-label="Próxima página"
-      >
-        Próxima
-      </Button>
-    </div>
-  );
+    if (totalPaginas <= 1) return null;
+    return (
+      <div className="flex justify-center items-center gap-2 mt-6">
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => onPageChange(paginaAtual - 1)}
+          disabled={paginaAtual === 1 || isLoading}
+          aria-label="Página anterior"
+        >
+          Anterior
+        </Button>
+        <span className="text-sm text-text-secondary font-medium">
+          Página {paginaAtual} de {totalPaginas}
+        </span>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => onPageChange(paginaAtual + 1)}
+          disabled={paginaAtual === totalPaginas || isLoading}
+          aria-label="Próxima página"
+        >
+          Próxima
+        </Button>
+      </div>
+    );
 });
 Pagination.displayName = 'Pagination';
 
 // --- Página Principal: AdminProducts ---
 const AdminProducts: React.FC = () => {
-  const [pagina, setPagina] = useState(1);
+  const [pagina, setPagina] = useState(1); // Esta era a linha 162, agora completa
   const [termoBusca, setTermoBusca] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
   const [produtoSelecionado, setProdutoSelecionado] =
@@ -213,10 +191,11 @@ const AdminProducts: React.FC = () => {
   } = useAdminCategories(1, '', 1000); // Pega todas as categorias para o dropdown
 
   const produtos = productData?.data ?? [];
-  
+
   const totalPaginas = useMemo(() => {
     if (!productData) return 1;
-    const totalItems = productData.meta?.total ?? productData.total ?? 0;
+    // CORREÇÃO: Acessando data.meta
+    const totalItems = productData.meta?.total ?? 0;
     const itemsPerPage = productData.meta?.limit ?? 10;
     return Math.ceil(totalItems / itemsPerPage) || 1;
   }, [productData]);
@@ -352,7 +331,7 @@ const AdminProducts: React.FC = () => {
           produto={produtoSelecionado}
           categorias={categoryData?.data ?? []}
           isMutating={isMutating}
-          mutationError={mutationError}
+          mutationError={mutationError} // Passa o erro original
           isLoadingCategorias={isLoadingCategories}
         />
       )}
