@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react'; // <<< Adicionado useState
+// src/pages/admin/components/UserFormModal.tsx
+import React, { useEffect, useState } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { Usuario, PerfilUsuario, UsuarioFormData } from '../../../types'; // <<< Adicionado UsuarioFormData
+import { Usuario, PerfilUsuario, UsuarioFormData } from '../../../types';
 import { Button } from '../../../components/common/Button';
 import { ErrorMessage } from '../../../components/ui/ErrorMessage';
 import { getErrorMessage } from '../../../utils/errors';
@@ -8,19 +9,15 @@ import { ModalWrapper } from './ModalWrapper';
 import { FormInput, FormSelect } from './FormElements';
 import { Loader2 } from 'lucide-react';
 
-// Define os inputs do formulário
-// <<< CORREÇÃO: Usando UsuarioFormData >>>
 interface UserFormInputs extends UsuarioFormData {}
 
 interface UserFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // <<< CORREÇÃO: onSave agora pode retornar Promise<Usuario> ou Promise<void> >>>
   onSave: (data: UserFormInputs, id?: string) => Promise<Usuario | void>;
   usuario: Usuario | null;
-  // <<< CORREÇÃO: Renomeado para isMutating e mutationError >>>
-  isLoading: boolean; // Renomeado para isLoading no modal (vem de isMutating)
-  error: unknown;     // Renomeado para error no modal (vem de mutationError)
+  isLoading: boolean;
+  error: unknown; // <<< CORRIGIDO: Aceita unknown
 }
 
 export const UserFormModal: React.FC<UserFormModalProps> = ({
@@ -28,8 +25,8 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
   onClose,
   onSave,
   usuario,
-  isLoading, // <<< (isMutating)
-  error,     // <<< (mutationError)
+  isLoading,
+  error, // <<< (mutationError)
 }) => {
   const {
     register,
@@ -40,11 +37,10 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
 
   const isEditing = !!usuario;
   
-  // <<< CORREÇÃO: Adicionado estado de erro local >>>
   const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen) { // <<< Adicionado cheque isOpen
+    if (isOpen) { 
       if (usuario) {
         reset({
           nome: usuario.nome,
@@ -60,17 +56,17 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
           senha: '',
         });
       }
-      setApiError(null); // Limpa erro ao abrir
+      setApiError(null); 
     }
-  }, [usuario, reset, isOpen]); // <<< Adicionado isOpen
+  }, [usuario, reset, isOpen]);
 
-  // <<< CORREÇÃO: Sincroniza erro da prop com o estado local >>>
   useEffect(() => {
+    // CORREÇÃO: Converte 'unknown' para string de erro
     setApiError(error ? getErrorMessage(error) : null);
   }, [error]);
 
   const onSubmit: SubmitHandler<UserFormInputs> = async (data) => {
-    setApiError(null); // Limpa antes de tentar
+    setApiError(null); 
     const dataToSend = { ...data };
     if (isEditing && !data.senha) {
       delete dataToSend.senha;
@@ -78,13 +74,8 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
     
     try {
       await onSave(dataToSend, usuario?.id);
-      // O fechamento agora é feito no componente pai (AdminUsers)
-      // if (!error) { // 'error' pode não estar atualizado ainda
-      //   onClose();
-      // }
     } catch (err) {
-      // Erro é pego e setado pelo hook pai, atualizando 'error' (prop)
-      // setApiError(getErrorMessage(err)); // Não precisa mais
+      // Erro já está sendo tratado pela prop 'error'
     }
   };
 
@@ -125,9 +116,7 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
           label={isEditing ? 'Nova Senha (deixe em branco para manter)' : 'Senha'}
           type="password"
           {...register('senha', {
-            // Senha não é obrigatória na edição
             required: !isEditing ? 'A senha é obrigatória' : false,
-            // Valida minLength apenas se a senha for digitada
             validate: (value) => 
               (!value || value.length >= 6) || 'A senha deve ter no mínimo 6 caracteres',
           })}
@@ -146,7 +135,6 @@ export const UserFormModal: React.FC<UserFormModalProps> = ({
           <option value={PerfilUsuario.ADMINISTRADOR}>Administrador</option>
         </FormSelect>
 
-        {/* <<< CORREÇÃO: Usando apiError local >>> */}
         {apiError && <ErrorMessage message={apiError} />}
 
         <div className="flex justify-end gap-4 pt-4"> 

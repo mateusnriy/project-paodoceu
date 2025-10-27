@@ -1,16 +1,14 @@
-import React from 'react';
+// src/App.tsx
 import { AppRouter } from './AppRouter';
 import { AuthProvider } from './contexts/AuthContext';
-import { NavigationProvider } from './contexts/NavigationContext'; // <<< Importar NavigationProvider
+import { NavigationProvider } from './contexts/NavigationContext';
 
 export function App() {
-  // AuthProvider fica aqui, dentro do BrowserRouter definido em index.tsx
-  // NavigationProvider deve vir DENTRO do AuthProvider para acessar dados do usuário
   return (
     <AuthProvider>
-      <NavigationProvider> {/* <<< Adicionar NavigationProvider */}
+      <NavigationProvider>
         <AppRouter />
-      </NavigationProvider> {/* <<< Fechar NavigationProvider */}
+      </NavigationProvider>
     </AuthProvider>
   );
 }

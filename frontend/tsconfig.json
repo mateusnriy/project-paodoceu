@@ -1,3 +1,4 @@
+// frontend/tsconfig.json
 {
   "compilerOptions": {
     "target": "ES2020",
@@ -16,8 +17,8 @@
 
     /* Linting */
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": true, // Manter true - força a correção de código não utilizado
+    "noUnusedParameters": true, // Manter true - força a correção de código não utilizado
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],

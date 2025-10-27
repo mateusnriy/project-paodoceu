@@ -1,7 +1,6 @@
-// mateusnriy/project-paodoceu/project-paodoceu-main/frontend/src/pages/admin/components/ProductFormModal.tsx
-import React, { useEffect, useState } from 'react'; // <<< CORREÇÃO: Adicionar useState
-import { useForm, SubmitHandler, Controller } from 'react-hook-form';
-// <<< CORREÇÃO: Importar tipos corretos >>>
+// src/pages/admin/components/ProductFormModal.tsx
+import React, { useEffect, useState } from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { Produto, Categoria, ProdutoFormData } from '../../../types';
 import { Button } from '../../../components/common/Button';
 import { ErrorMessage } from '../../../components/ui/ErrorMessage';
@@ -10,20 +9,17 @@ import { ModalWrapper } from './ModalWrapper';
 import { FormInput, FormTextarea, FormSelect } from './FormElements';
 import { Loader2 } from 'lucide-react';
 
-// <<< CORREÇÃO: Usar ProdutoFormData >>>
 interface ProductFormInputs extends ProdutoFormData {}
 
 interface ProductFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // <<< CORREÇÃO: Assinatura de onSave >>>
-  onSave: (data: ProductFormInputs, id?: string) => Promise<Produto>;
+  onSave: (data: ProductFormInputs, id?: string) => Promise<Produto | void>; // Corrigido retorno
   produto: Produto | null;
   categorias: Categoria[];
-  // <<< CORREÇÃO: Renomeado para isMutating/mutationError >>>
   isMutating: boolean;
-  mutationError: unknown;
-  isLoadingCategorias: boolean; // Novo
+  mutationError: unknown; // <<< CORRIGIDO: Aceita unknown
+  isLoadingCategorias: boolean;
 }
 
 export const ProductFormModal: React.FC<ProductFormModalProps> = ({
@@ -34,17 +30,16 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   categorias,
   isMutating,
   mutationError,
-  isLoadingCategorias, // Novo
+  isLoadingCategorias,
 }) => {
   const {
     register,
     handleSubmit,
     reset,
-    control,
     formState: { errors },
   } = useForm<ProductFormInputs>();
 
-  const [apiError, setApiError] = useState<string | null>(null); // <<< Estado de erro local
+  const [apiError, setApiError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -53,9 +48,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             nome: produto.nome,
             descricao: produto.descricao || '',
             preco: produto.preco,
-            quantidadeEstoque: produto.quantidadeEstoque, // <<< CORREÇÃO: Usar 'quantidadeEstoque'
-            categoriaId: produto.categoriaId, // <<< CORREÇÃO: Usar 'categoriaId'
-            imagemUrl: produto.imagemUrl || '', // <<< CORREÇÃO: Usar 'imagemUrl'
+            quantidadeEstoque: produto.quantidadeEstoque,
+            categoriaId: produto.categoriaId,
+            imagemUrl: produto.imagemUrl || '',
           });
         } else {
           reset({
@@ -67,32 +62,30 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             imagemUrl: '',
           });
         }
-        setApiError(null); // Limpa erro ao abrir
+        setApiError(null);
     }
-  }, [isOpen, produto, categorias, reset]); // <<< CORREÇÃO: Dependência 'isOpen'
+  }, [isOpen, produto, categorias, reset]);
 
-  // <<< CORREÇÃO: Sincronizar erro do hook >>>
   useEffect(() => {
+    // CORREÇÃO: Converte 'unknown' para string de erro
     setApiError(mutationError ? getErrorMessage(mutationError) : null);
   }, [mutationError]);
 
   const onSubmit: SubmitHandler<ProductFormInputs> = async (data) => {
-    setApiError(null); // <<< Limpar erro local
+    setApiError(null);
     const dataToSend = {
       ...data,
       preco: Number(data.preco),
       quantidadeEstoque: Number(data.quantidadeEstoque),
-      // Garante que campos opcionais vazios sejam undefined
       descricao: data.descricao || undefined,
       imagemUrl: data.imagemUrl || undefined,
     };
-    
+
     try {
         await onSave(dataToSend, produto?.id);
-        // Sucesso: O fechamento é tratado pelo componente pai (AdminProducts)
     } catch (err) {
-        // Erro é pego e exibido pelo useEffect de mutationError
         console.error("Erro capturado no onSubmit do modal (Produto):", err);
+        // O erro já está sendo tratado pela prop 'mutationError'
     }
   };
 
@@ -103,7 +96,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
       title={produto ? 'Editar Produto' : 'Novo Produto'}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        
+
         <FormInput
           id="nome"
           label="Nome do Produto"
@@ -115,7 +108,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
         <FormTextarea
           id="descricao"
-          label="Descrição (Opcional)" // <<< Opcional
+          label="Descrição (Opcional)"
           {...register('descricao')}
           disabled={isMutating}
         />
@@ -134,7 +127,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             error={errors.preco?.message}
             disabled={isMutating}
           />
-          {/* <<< CORREÇÃO: Usar 'quantidadeEstoque' >>> */}
           <FormInput
             id="quantidadeEstoque"
             label="Estoque"
@@ -153,10 +145,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         <FormSelect
           id="categoriaId"
           label="Categoria"
-          // <<< CORREÇÃO: Renomeado para 'categoriaId' >>>
           {...register('categoriaId', { required: 'A categoria é obrigatória' })}
           error={errors.categoriaId?.message}
-          disabled={isMutating || isLoadingCategorias} // <<< Desabilita se carregando categorias
+          disabled={isMutating || isLoadingCategorias}
         >
           <option value="" disabled>
             {isLoadingCategorias ? 'Carregando...' : 'Selecione...'}
@@ -171,14 +162,12 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
         <FormInput
           id="imagemUrl"
           label="URL da Imagem (Opcional)"
-           // <<< CORREÇÃO: Renomeado para 'imagemUrl' >>>
           {...register('imagemUrl')}
           disabled={isMutating}
         />
 
-        {/* <<< CORREÇÃO: Usando 'apiError' local >>> */}
         {apiError && <ErrorMessage message={apiError} />}
-        
+
         <div className="flex justify-end gap-4 pt-4">
           <Button
             type="button"

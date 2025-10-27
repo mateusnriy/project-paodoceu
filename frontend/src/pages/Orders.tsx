@@ -1,3 +1,4 @@
+// src/pages/Orders.tsx
 import React, { useCallback } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useOrders } from '../hooks/useOrders';
@@ -6,7 +7,6 @@ import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { getErrorMessage } from '../utils/errors';
 import { Pedido, StatusPedido } from '../types';
 import { formatarMoeda, formatarData } from '../utils/formatters';
-
 
 interface OrderCardProps {
   pedido: Pedido;
@@ -17,7 +17,7 @@ interface OrderCardProps {
 const OrderCard: React.FC<OrderCardProps> = React.memo(
   ({ pedido, onConcluir, isUpdating }) => {
 
-    const getStatusClasses = (status: StatusPedido | string) => { // Aceita string para 'LOCAL' etc.
+    const getStatusClasses = (status: StatusPedido | string) => {
       switch (status) {
         case StatusPedido.PRONTO:
           return {
@@ -25,14 +25,12 @@ const OrderCard: React.FC<OrderCardProps> = React.memo(
             text: 'text-status-success-text',
             border: 'border-status-success',
           };
-        // <<< CORREÇÃO: Usa ENTREGUE para status concluído >>>
         case StatusPedido.ENTREGUE:
           return {
             bg: 'bg-gray-100',
             text: 'text-gray-600',
             border: 'border-gray-300',
           };
-        // <<< CORREÇÃO: Usa PENDENTE para status aguardando >>>
         case StatusPedido.PENDENTE:
         default:
           return {
@@ -56,7 +54,7 @@ const OrderCard: React.FC<OrderCardProps> = React.memo(
         >
           <div className="flex justify-between items-center">
             <span className={`font-bold text-lg ${statusClasses.text}`}>
-              Senha: {pedido.senha ?? 'N/A'}
+              Senha: {pedido.numero_sequencial_dia ?? 'N/A'}
             </span>
             <span
               className={`font-semibold px-3 py-1 rounded-full text-sm ${statusClasses.bg} ${statusClasses.text}`}
@@ -68,7 +66,7 @@ const OrderCard: React.FC<OrderCardProps> = React.memo(
 
         <div className="p-4 flex-1">
           <p className="text-sm text-text-secondary mb-2">
-            {formatarData(pedido.dataCriacao, {
+            {formatarData(pedido.criado_em, {
               timeStyle: 'short',
               dateStyle: 'short',
             })}
@@ -89,11 +87,10 @@ const OrderCard: React.FC<OrderCardProps> = React.memo(
           <div className="flex justify-between items-center mb-3">
             <span className="text-base font-semibold text-text-primary">Total:</span>
             <span className="text-lg font-bold text-text-primary">
-              {formatarMoeda(pedido.total)}
+              {formatarMoeda(pedido.valor_total)}
             </span>
           </div>
 
-          {/* <<< CORREÇÃO: Mostra botão apenas se PRONTO >>> */}
           {pedido.status === StatusPedido.PRONTO && (
             <Button
               onClick={() => onConcluir(pedido.id)}
@@ -105,7 +102,7 @@ const OrderCard: React.FC<OrderCardProps> = React.memo(
               {isUpdating ? (
                 <Loader2 size={20} className="animate-spin" />
               ) : (
-                'Marcar como Concluído'
+                'Marcar como Entregue'
               )}
             </Button>
           )}
@@ -118,13 +115,13 @@ OrderCard.displayName = 'OrderCard';
 
 // Página Principal da Fila
 const Orders: React.FC = () => {
-  // <<< CORREÇÃO: Pega 'pedidos' diretamente, não mais 'pedidosProntos' e 'pedidosAguardando' >>>
   const {
-    pedidos, // Contém apenas os pedidos PRONTOS e não completed
+    pedidos,
     isLoading,
     error,
     handleConcluirPedido,
-    isUpdating,
+    updatingId, // Usar updatingId para a lógica
+    // isUpdating: isAnyUpdating, // <<< CORREÇÃO: Removido isAnyUpdating
   } = useOrders();
 
   const handleConcluirCallback = useCallback(
@@ -134,11 +131,8 @@ const Orders: React.FC = () => {
     [handleConcluirPedido]
   );
 
-  // <<< CORREÇÃO: Não precisa mais separar as listas aqui >>>
-  // const { pedidosAguardando, pedidosProntos } = useMemo(() => { ... }, [pedidos]);
-
   const renderContent = () => {
-    if (isLoading && pedidos.length === 0) { // Verifica se está carregando E a lista está vazia
+    if (isLoading && pedidos.length === 0) {
       return (
         <div className="flex justify-center items-center h-[calc(100vh-200px)]">
           <Loader2 className="animate-spin text-gray-500" size={40} />
@@ -150,8 +144,7 @@ const Orders: React.FC = () => {
       return (
          <div className="pt-10">
             <ErrorMessage
-               title="Erro ao carregar pedidos"
-               message={getErrorMessage(error)}
+               message={`Erro ao carregar pedidos: ${getErrorMessage(error)}`}
             />
          </div>
       );
@@ -172,13 +165,12 @@ const Orders: React.FC = () => {
 
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-        {/* <<< CORREÇÃO: Mapeia diretamente a lista 'pedidos' do hook >>> */}
         {pedidos.map((pedido) => (
           <OrderCard
             key={pedido.id}
             pedido={pedido}
             onConcluir={handleConcluirCallback}
-            isUpdating={isUpdating === pedido.id}
+            isUpdating={updatingId === pedido.id} // Comparação correta
           />
         ))}
       </div>

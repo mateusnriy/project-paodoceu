@@ -1,7 +1,7 @@
-// <<< CORRECTION: Added 'useEffect', 'useMemo' >>>
+// src/pages/admin/AdminCategories.tsx
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
-import { Categoria, PaginatedResponse } from '../../types';
+import { Categoria } from '../../types';
 import { useAdminCategories } from '../../hooks/useAdminCategories';
 import { Button } from '../../components/common/Button';
 import { SkeletonTable } from '../../components/ui/SkeletonTable';
@@ -18,10 +18,8 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   isLoading: boolean;
 }
-// <<< CORRECTION: Props corretas usadas >>>
 const Pagination: React.FC<PaginationProps> = React.memo(
   ({ paginaAtual, totalPaginas, onPageChange, isLoading }) => {
-    // ... (implementation remains the same as previous correction)
     if (totalPaginas <= 1) return null;
     return (
       <div className="flex justify-center items-center gap-2 mt-6">
@@ -59,7 +57,6 @@ const CategoriesTable: React.FC<{
   onDelete: (id: string) => void;
   isLoading: boolean;
 }> = React.memo(({ categorias, onEdit, onDelete, isLoading }) => {
-  // ... (implementation remains the same as previous correction)
   return (
     <div className="bg-primary-white rounded-xl shadow-soft overflow-x-auto border border-gray-200">
       <table className="min-w-full divide-y divide-gray-200">
@@ -92,7 +89,7 @@ const CategoriesTable: React.FC<{
                    {categoria._count?.produtos ?? 0}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
-                  {categoria.dataCriacao ? formatarData(categoria.dataCriacao, { dateStyle: 'short', timeStyle: 'short' }) : '-'}
+                  {categoria.criado_em ? formatarData(categoria.criado_em, { dateStyle: 'short', timeStyle: 'short' }) : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                   <Button
@@ -147,13 +144,13 @@ const AdminCategories: React.FC = () => {
   const {
     data,
     isLoading,
-    error,
+    error, // Erro geral de carregamento
     mutate,
     handleCreate,
     handleUpdate,
     handleDelete,
     isMutating,
-    mutationError,
+    mutationError, // Erro específico das operações CUD
     setMutationError,
   } = useAdminCategories(pagina, termoDebounced, 10);
 
@@ -161,8 +158,8 @@ const AdminCategories: React.FC = () => {
 
   const totalPaginas = useMemo(() => {
       if (!data) return 1;
-      const totalItems = data.meta?.total ?? data.total ?? 0;
-      const itemsPerPage = data.meta?.limit ?? 10;
+      const totalItems = data.meta?.total ?? 0;
+      const itemsPerPage = data.meta?.limite ?? 10;
       return Math.ceil(totalItems / itemsPerPage) || 1;
   }, [data]);
 
@@ -177,22 +174,21 @@ const AdminCategories: React.FC = () => {
     setModalAberto(false);
   }, []);
 
-  const handleSave = useCallback(async (formData: { nome: string }, id?: string): Promise<Categoria> => {
+  const handleSave = useCallback(async (formData: { nome: string }, id?: string): Promise<Categoria | void> => {
     try {
-      let result: Categoria;
       if (id) {
-        result = await handleUpdate(id, formData);
+        await handleUpdate(id, formData);
       } else {
-        result = await handleCreate(formData);
+        await handleCreate(formData);
       }
       handleCloseModal();
       mutate();
-      return result;
     } catch (err) {
-      // Error is already set in mutationError by the hook
-      throw err;
+      console.error("Erro no handleSave:", err);
+      throw err; // Re-lança para o modal tratar a exibição
     }
   }, [handleCreate, handleUpdate, mutate, handleCloseModal]);
+
 
   const handleDeleteConfirm = useCallback(async (id: string) => {
     const categoriaParaExcluir = categorias.find(c => c.id === id);
@@ -204,9 +200,9 @@ const AdminCategories: React.FC = () => {
       try {
         await handleDelete(id);
         if (categorias.length === 1 && pagina > 1) {
-            setPagina(pagina - 1);
+            setPagina(pagina - 1); // Volta para a página anterior se a última foi esvaziada
         } else {
-            mutate();
+            mutate(); // Revalida a página atual
         }
       } catch (err) {
         alert(`Erro ao excluir categoria: ${getErrorMessage(err)}`);
@@ -220,10 +216,12 @@ const AdminCategories: React.FC = () => {
       }
   }, [totalPaginas]);
 
-  // <<< CORREÇÃO: useEffect to reset page >>>
   useEffect(() => {
       setPagina(1);
   }, [termoDebounced]);
+
+  // <<< CORREÇÃO: Usa getErrorMessage para exibir o erro geral >>>
+  const displayError = error ? getErrorMessage(error) : null;
 
   return (
     <div className="space-y-6">
@@ -258,8 +256,9 @@ const AdminCategories: React.FC = () => {
         />
       </div>
 
-      {error && !isLoading && (
-        <ErrorMessage message={getErrorMessage(error)} />
+      {/* <<< CORREÇÃO: Exibe displayError (string | null) >>> */}
+      {displayError && !isLoading && (
+        <ErrorMessage message={displayError} />
       )}
 
       <CategoriesTable
@@ -283,7 +282,7 @@ const AdminCategories: React.FC = () => {
           onSave={handleSave}
           categoria={categoriaSelecionada}
           isMutating={isMutating}
-          mutationError={mutationError}
+          mutationError={mutationError} // Passa o erro original (unknown) para o modal
         />
       )}
     </div>

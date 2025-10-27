@@ -1,47 +1,45 @@
-import { Produto } from './product'; // <<< Importa Produto
+// src/types/order.ts
+import { Produto } from './product';
 
-// Define o Enum para Status do Pedido (exportado)
 export enum StatusPedido {
-  PENDENTE = 'PENDENTE', // <<< CORREÇÃO: AGUARDANDO -> PENDENTE
+  PENDENTE = 'PENDENTE',
   PRONTO = 'PRONTO',
-  ENTREGUE = 'ENTREGUE', // <<< CORREÇÃO: CONCLUIDO -> ENTREGUE
+  ENTREGUE = 'ENTREGUE',
   CANCELADO = 'CANCELADO',
-  LOCAL = 'LOCAL', // Status para o carrinho local antes de ser pago
+  LOCAL = 'LOCAL',
 }
 
-// Define o Enum para Tipo de Pagamento (exportado)
-// <<< CORREÇÃO: Alinhado com Prisma >>>
 export enum TipoPagamento {
   DINHEIRO = 'DINHEIRO',
-  CREDITO = 'CARTAO_CREDITO', // <- MUDOU
-  DEBITO = 'CARTAO_DEBITO',   // <- MUDOU
+  CREDITO = 'CARTAO_CREDITO',
+  DEBITO = 'CARTAO_DEBITO',
   PIX = 'PIX',
 }
 
-// Interface para o Item *dentro* de um Pedido
 export interface PedidoItem {
   id: string;
-  produto: Produto; // <<< CORREÇÃO: Usa o tipo Produto
+  produto: Produto;
   quantidade: number;
-  preco: number; // Preço no momento da adição
+  preco: number; // No frontend, usamos 'preco', mas o backend usa 'preco_unitario'
+  subtotal?: number; // Adicionado para dados do backend
   pedidoId: string;
 }
 
-// Interface principal do Pedido
 export interface Pedido {
   id: string;
-  senha?: string; // Senha pode não existir no carrinho local
-  total: number;
+  numero_sequencial_dia?: number;
+  senha?: string; // Disponível no backend, pode ser útil
+  valor_total: number; // Corrigido de 'total' para corresponder ao backend
   status: StatusPedido | string; // Permite o 'LOCAL'
   itens: PedidoItem[];
-  dataCriacao: string;
-  dataAtualizacao: string;
-  cliente_nome?: string; // Adicionado
-  numero_sequencial_dia?: number; // Adicionado
-  atendente_id?: string; // Adicionado
+  criado_em: string; // Corrigido de 'dataCriacao'
+  atualizado_em: string; // Corrigido de 'dataAtualizacao'
+  cliente_nome?: string;
+  atendente_id?: string;
+  atendente?: { nome: string }; // Exemplo se precisar do nome
+  pagamento?: { metodo: TipoPagamento; valor_pago: number; troco: number }; // Exemplo se precisar dos dados de pagamento
 }
 
-// Interface usada no Payload de Pagamento (separada para clareza)
 export interface PaymentPayload {
   metodo: TipoPagamento;
   valor_pago: number;

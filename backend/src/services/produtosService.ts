@@ -1,4 +1,3 @@
-// mateusnriy/project-paodoceu/project-paodoceu-main/backend/src/services/produtosService.ts
 import { PrismaClient, Produto, Prisma } from '@prisma/client';
 import { CreateProdutoDto } from '../dtos/ICreateProdutoDTO';
 import { UpdateProdutoDto } from '../dtos/IUpdateProdutoDTO';
@@ -18,14 +17,14 @@ interface PaginatedResponse<T> {
 }
 
 export class ProdutosService {
-  
+
   // <<< CORREÇÃO: Renomeado para listarPaginado >>>
   async listarPaginado(
     pagina: number,
     limite: number,
     nome?: string
   ): Promise<PaginatedResponse<any>> {
-    
+
     const where: Prisma.ProdutoWhereInput = {};
     if (nome) {
       where.nome = {
@@ -53,7 +52,7 @@ export class ProdutosService {
     });
 
     return {
-      // <<< CORREÇÃO: Mapear 'quantidadeEstoque' e 'categoriaId' para o frontend >>>
+      // Mapear campos para o frontend
       data: data.map(p => ({
           ...p,
           quantidadeEstoque: p.estoque, // Mapeia 'estoque' (db) para 'quantidadeEstoque' (frontend)
@@ -80,8 +79,8 @@ export class ProdutosService {
     });
 
     if (!produto) return null;
-    
-    // <<< CORREÇÃO: Mapear campos para o frontend >>>
+
+    // Mapear campos para o frontend
     return {
         ...produto,
         quantidadeEstoque: produto.estoque,
@@ -97,15 +96,15 @@ export class ProdutosService {
     }
     
     try {
-        // <<< CORREÇÃO: Mapear DTO (frontend) para Schema (db) >>>
+        // Mapear DTO (frontend/controller) para Schema (db)
         const { estoque, categoria_id, imagem_url, ...restData } = data;
-        return prisma.produto.create({ 
+        return prisma.produto.create({
             data: {
                 ...restData,
                 estoque: estoque ?? 0,
-                categoria_id: categoria_id,
+                categoria_id: categoria_id, // Correto para criação
                 imagem_url: imagem_url
-            } 
+            }
         });
     } catch (error: any) {
         logger.error('Error creating product in Prisma:', { error: error.message, code: error.code });
@@ -119,31 +118,57 @@ export class ProdutosService {
       throw new AppError('Produto não encontrado.', 404);
     }
 
+    // Valida se a categoria existe, se for fornecida
     if (data.categoria_id) {
         const categoria = await prisma.categoria.findUnique({ where: { id: data.categoria_id } });
         if (!categoria) {
             throw new AppError('Nova categoria não encontrada.', 404);
         }
     }
-    
+
     try {
-        // <<< CORREÇÃO: Mapear DTO (frontend) para Schema (db) >>>
+        // Desestrutura a DTO.
         const { estoque, categoria_id, imagem_url, ...restData } = data;
+
+        // Monta o objeto de dados para atualização usando Prisma.ProdutoUpdateInput
         const dataToUpdate: Prisma.ProdutoUpdateInput = { ...restData };
-        
+
         if (estoque !== undefined) dataToUpdate.estoque = estoque;
-        if (categoria_id !== undefined) dataToUpdate.categoria_id = categoria_id;
+
+        // *** CORREÇÃO APLICADA AQUI ***
+        // Usa a sintaxe de relação 'connect' para atualizar a FK.
+        if (categoria_id !== undefined) {
+             dataToUpdate.categoria = { connect: { id: categoria_id } };
+        }
+
+        // Garante que o campo é atualizado para null se for explicitamente fornecido como null
+        // ou se a string vazia foi convertida para null no controller.
         if (imagem_url !== undefined) dataToUpdate.imagem_url = imagem_url;
 
-        return prisma.produto.update({ 
-            where: { id }, 
+        // Executa a atualização no banco de dados
+        const updatedProduto = await prisma.produto.update({
+            where: { id },
             data: dataToUpdate
         });
+        
+        // Mapeia o resultado de volta para o formato esperado pelo frontend, se necessário
+        // (O Prisma retorna com snake_case por padrão)
+        return {
+            ...updatedProduto,
+            quantidadeEstoque: updatedProduto.estoque,
+            categoriaId: updatedProduto.categoria_id,
+            imagemUrl: updatedProduto.imagem_url,
+        } as any; // Usar 'as any' aqui pode ser necessário se houver conflito de tipo temporário
+
     } catch (error: any) {
-         logger.error('Error updating product in Prisma:', { error: error.message, code: error.code });
+         logger.error('Error updating product in Prisma:', { error: error.message, code: error.code, data });
+         if (error.code === 'P2025') { // Recurso não encontrado para atualização
+             throw new AppError('Produto não encontrado para atualização.', 404);
+         }
          throw new AppError('Erro interno ao atualizar produto.', 500);
     }
   }
+
 
   async ajustarEstoque(id: string, quantidade: number): Promise<Produto> {
     const produto = await prisma.produto.findUnique({ where: { id } });
@@ -153,14 +178,24 @@ export class ProdutosService {
     if (quantidade < 0) {
       throw new AppError('A quantidade em estoque não pode ser negativa.', 400);
     }
-    
+
     try {
-        return prisma.produto.update({
+        const updatedProduto = await prisma.produto.update({
           where: { id },
           data: { estoque: quantidade },
         });
+        // Mapeia o resultado
+        return {
+            ...updatedProduto,
+            quantidadeEstoque: updatedProduto.estoque,
+            categoriaId: updatedProduto.categoria_id,
+            imagemUrl: updatedProduto.imagem_url,
+        } as any;
     } catch (error: any) {
          logger.error('Error adjusting stock in Prisma:', { error: error.message, code: error.code });
+         if (error.code === 'P2025') {
+              throw new AppError('Produto não encontrado para ajuste de estoque.', 404);
+         }
          throw new AppError('Erro interno ao ajustar estoque.', 500);
     }
   }
@@ -170,13 +205,16 @@ export class ProdutosService {
     if (!produto) {
       throw new AppError('Produto não encontrado.', 404);
     }
-    
+
     try {
         await prisma.produto.delete({ where: { id } });
     } catch (error: any) {
          logger.error('Error deleting product in Prisma:', { error: error.message, code: error.code });
-         if (error.code === 'P2003') { // Erro de Foreign Key
+         if (error.code === 'P2003' || (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2014')) { // Erro de Foreign Key ou relação
              throw new AppError('Não é possível deletar o produto pois ele está associado a pedidos.', 400);
+         }
+         if (error.code === 'P2025') { // "Record to delete does not exist"
+              throw new AppError('Produto não encontrado para deleção.', 404);
          }
          throw new AppError('Erro interno ao deletar produto.', 500);
     }

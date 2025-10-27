@@ -1,41 +1,37 @@
+// src/pages/Payment.tsx
 import React from 'react';
 import { CreditCard, Banknote, QrCode, Loader2 } from 'lucide-react';
 import { OrderSummary } from '../components/common/OrderSummary';
 import { Button } from '../components/common/Button';
-// <<< CORREÇÃO: Importar o novo hook >>>
 import { usePaymentHandler } from '../hooks/usePaymentHandler';
 import { ErrorMessage } from '../components/ui/ErrorMessage';
 import { getErrorMessage } from '../utils/errors';
 import { TipoPagamento } from '../types';
-import { useNavigate } from 'react-router-dom'; // Importar useNavigate
+import { useNavigate } from 'react-router-dom';
 
 const Payment: React.FC = () => {
-  // <<< CORREÇÃO: Usar o novo hook >>>
   const {
-    pedido, // Nome ajustado
-    total,  // Nome ajustado
-    isLoading, // Estado para carregar do localStorage
-    isSubmitting, // Estado para envio à API
+    pedido,
+    total,
+    isLoading,
+    isSubmitting,
     error,
     tipoPagamento,
     setTipoPagamento,
     handleFinalizarPedido,
-    // handleLimparCarrinho, // <- Removido ou renomeado se necessário (use handleLimparCarrinhoLocal se precisar)
+    handleLimparCarrinho,
   } = usePaymentHandler();
 
-  const navigate = useNavigate(); // Hook para navegação
+  const navigate = useNavigate();
 
   const pagamentoOpcoes = [
-    // <<< CORREÇÃO: Mapear para os valores do Enum TipoPagamento >>>
     { tipo: TipoPagamento.CREDITO, label: 'Cartão de Crédito', icon: CreditCard },
     { tipo: TipoPagamento.DEBITO, label: 'Cartão de Débito', icon: CreditCard },
     { tipo: TipoPagamento.PIX, label: 'PIX', icon: QrCode },
     { tipo: TipoPagamento.DINHEIRO, label: 'Dinheiro', icon: Banknote },
   ];
 
-  // Renderização principal
   const renderContent = () => {
-    // Mostra loading enquanto lê do localStorage
     if (isLoading) {
       return (
         <div className="flex justify-center items-center h-[calc(100vh-200px)]">
@@ -44,17 +40,14 @@ const Payment: React.FC = () => {
       );
     }
 
-    // Exibe erro geral (localStorage ou API)
-    if (error && !isSubmitting) { // Só mostra erro se não estiver submetendo
+    // Error handling for loading state
+    if (error && !isSubmitting && !isLoading) {
+      const loadingErrorMessage = `Erro ao carregar informações de pagamento: ${getErrorMessage(error)}`;
       return (
-        <ErrorMessage
-          title="Erro no Pagamento"
-          message={getErrorMessage(error)}
-        />
+        <ErrorMessage message={loadingErrorMessage} />
       );
     }
 
-    // Se não carregou pedido ou está vazio (ex: localStorage limpo)
     if (!pedido || pedido.itens.length === 0) {
       return (
         <div className="text-center py-20">
@@ -65,7 +58,7 @@ const Payment: React.FC = () => {
             Volte para a tela de Vendas para adicionar produtos.
           </p>
           <Button
-            onClick={() => navigate('/vendas')} // Navega de volta para /vendas
+            onClick={() => navigate('/vendas')}
             variant="link"
             className="mt-4"
           >
@@ -75,10 +68,8 @@ const Payment: React.FC = () => {
       );
     }
 
-    // Layout principal da página de pagamento
     return (
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Lado Esquerdo: Opções de Pagamento */}
         <div className="lg:w-2/3">
           <h1 className="text-2xl font-bold mb-6 text-text-primary">Pagamento</h1>
 
@@ -87,15 +78,11 @@ const Payment: React.FC = () => {
               Selecione o método de pagamento
             </h2>
 
-            {/* Exibe erro da API durante a submissão, se houver */}
-            {error && isSubmitting && (
-              <div className="mb-4">
-                 <ErrorMessage
-                    title="Erro ao Finalizar Pedido"
-                    message={getErrorMessage(error)}
-                 />
-              </div>
-            )}
+            {error && isSubmitting ? (
+               <div className="mb-4">
+                  <ErrorMessage message={`Erro ao Finalizar Pedido: ${getErrorMessage(error as any)}`} />
+               </div>
+            ) : null}
 
             <div className="grid grid-cols-2 gap-4">
               {pagamentoOpcoes.map((opcao) => {
@@ -115,7 +102,7 @@ const Payment: React.FC = () => {
                       isSelected ? selectedClasses : nonSelectedClasses
                     }`}
                     aria-pressed={isSelected}
-                    disabled={isSubmitting} // Desabilita durante o envio
+                    disabled={isSubmitting}
                   >
                     <opcao.icon
                       className={`mb-2 ${
@@ -137,39 +124,34 @@ const Payment: React.FC = () => {
           </div>
         </div>
 
-        {/* Lado Direito: Resumo do Pedido */}
         <div className="lg:w-1/3 lg:sticky top-[112px] h-fit">
-          <OrderSummary
-            pedido={pedido}
-            total={total}
-            // <<< CORREÇÃO: Remover onLimparCarrinho daqui >>>
-            // onLimparCarrinho={handleLimparCarrinho} // Removido
-          >
-            {/* Botão de Finalizar Pedido */}
-            <Button
-              onClick={handleFinalizarPedido}
-              disabled={isSubmitting || !tipoPagamento}
-              className="w-full mt-4"
-              size="lg"
+          {pedido && ( // Adiciona verificação para pedido nulo
+            <OrderSummary
+              pedido={pedido}
+              total={total}
             >
-              {isSubmitting ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                'Finalizar Pedido'
-              )}
-            </Button>
-             {/* Opcional: Botão para limpar localmente e voltar */}
-             {/*
-             <Button
-               onClick={handleLimparCarrinho}
-               variant="secondary"
-               className="w-full mt-2"
-               disabled={isSubmitting}
-             >
-               Cancelar e Limpar Carrinho
-             </Button>
-            */}
-          </OrderSummary>
+              <Button
+                onClick={handleFinalizarPedido}
+                disabled={isSubmitting || !tipoPagamento}
+                className="w-full"
+                size="lg"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  'Finalizar Pedido'
+                )}
+              </Button>
+              <Button
+                 onClick={handleLimparCarrinho}
+                 variant="secondary"
+                 className="w-full"
+                 disabled={isSubmitting}
+               >
+                 Cancelar e Voltar
+               </Button>
+            </OrderSummary>
+          )}
         </div>
       </div>
     );

@@ -4,7 +4,9 @@
   "description": "API para o sistema de PDV Pão do Céu.",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
+    "build:client": "npx prisma generate",
+    "build:tsc": "tsc",
+    "build": "npm run build:client && npm run build:tsc",
     "dev": "ts-node-dev --exit-child --transpile-only --ignore-watch node_modules src/server.ts",
     "start": "node dist/server.js",
     "test": "echo \"Error: no backend test specified\" && exit 1"
@@ -28,14 +30,14 @@
     "express-rate-limit": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "winston": "^3.18.3",
-    "zod": "^3.22.4"
-  },
-  "devDependencies": {
+    "zod": "^3.22.4",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.6",
-    "@types/node": "^20.12.12",
+    "@types/node": "^20.12.12"
+  },
+  "devDependencies": {
     "prisma": "^6.17.1",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",

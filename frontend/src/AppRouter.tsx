@@ -1,10 +1,11 @@
+// src/AppRouter.tsx
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
-import { Usuario, PerfilUsuario } from './types';
+import { PerfilUsuario } from './types'; // Removido 'Usuario'
 
 // Layout e Páginas
-import MainLayout from './components/common/MainLayout'; // Importa o novo layout principal
+import MainLayout from './components/common/MainLayout';
 import { LoadingSpinner } from './components/ui/LoadingSpinner';
 import Login from './pages/Login';
 import POS from './pages/POS';
@@ -22,7 +23,7 @@ const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'));
 // Componente de Rota Protegida (Wrapper)
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { usuario, isLoadingAuth } = useAuth();
-  
+
   if (isLoadingAuth) {
     return (
       <div className="flex items-center justify-center h-screen">

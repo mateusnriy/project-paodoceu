@@ -1,6 +1,11 @@
+// src/types/api.ts
+
 export interface PaginatedResponse<T> {
   data: T[];
-  total: number;
-  page: number;
-  limit: number;
+  meta: { // A resposta da API inclui um objeto 'meta'
+    total: number;
+    pagina: number;
+    limite: number;
+    totalPaginas: number;
+  };
 }

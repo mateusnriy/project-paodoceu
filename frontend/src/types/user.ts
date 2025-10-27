@@ -1,3 +1,4 @@
+// src/types/user.ts
 
 export enum PerfilUsuario {
   ADMINISTRADOR = 'ADMINISTRADOR',
@@ -8,14 +9,14 @@ export interface Usuario {
   id: string;
   nome: string;
   email: string;
-  perfil: PerfilUsuario; // Usa o Enum
+  perfil: PerfilUsuario;
   ativo: boolean;
-  dataCriacao: string;
-  dataAtualizacao: string;
+  criado_em: string; // Corrigido de dataCriacao
+  atualizado_em: string; // Corrigido de dataAtualizacao
 }
 
-// Tipo usado no AuthContext (sem dados sensíveis)
-export interface AuthUsuario extends Omit<Usuario, 'ativo'> {}
+// Tipo usado no AuthContext (removido campos que não vêm da API de login)
+export interface AuthUsuario extends Omit<Usuario, 'ativo' | 'criado_em' | 'atualizado_em'> {}
 
 // Tipo usado nos formulários de criação/edição
 export interface UsuarioFormData {

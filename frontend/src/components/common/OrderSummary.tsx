@@ -1,5 +1,5 @@
 import React, { memo, ReactNode } from 'react';
-import { Button } from './Button';
+// import { Button } from './Button'; // REMOVIDO
 import { Trash2, Minus, Plus } from 'lucide-react';
 import { Pedido, PedidoItem } from '../../types'; // Importa o tipo 'Pedido'
 import { formatarMoeda } from '../../utils/formatters';
@@ -73,7 +73,7 @@ const CartItem: React.FC<{
               bg-background-light-blue text-text-secondary
               hover:bg-primary-blue/20 hover:text-primary-blue
             "
-             // <<< CORREÇÃO: Adicionar verificação de estoque aqui seria ideal >>>
+             // Verificação de estoque movida para o hook usePOS
             // disabled={item.quantidade >= item.produto.quantidadeEstoque}
             aria-label={`Aumentar quantidade de ${item.produto.nome}`}
           >
@@ -118,17 +118,7 @@ export const OrderSummary = memo<OrderSummaryProps>(({
         <h2 className="text-2xl font-bold text-primary-blue">
           Carrinho
         </h2>
-        {/* <<< CORREÇÃO: Botão Limpar Removido >>> */}
-        {/* {itens.length > 0 && onLimparCarrinho && (
-          <Button
-            variant="link"
-            size="sm"
-            className="text-status-error"
-            onClick={onLimparCarrinho}
-          >
-            Limpar tudo
-          </Button>
-        )} */}
+        {/* O botão de limpar agora é passado como 'children' pela página 'POS.tsx' */}
       </div>
 
       {/* Lista de Itens */}

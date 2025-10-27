@@ -1,7 +1,7 @@
-// <<< CORREÇÃO: Added 'useEffect', 'useMemo' >>>
+// src/pages/admin/AdminUsers.tsx
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { Usuario, PerfilUsuario, UsuarioFormData, PaginatedResponse } from '../../types';
+import { Usuario, PerfilUsuario, UsuarioFormData } from '../../types';
 import { useAdminUsers } from '../../hooks/useAdminUsers';
 import { Button } from '../../components/common/Button';
 import { SkeletonTable } from '../../components/ui/SkeletonTable';
@@ -11,17 +11,15 @@ import { getErrorMessage } from '../../utils/errors';
 import { useDebounce } from '../../hooks/useDebounce';
 import { formatarData } from '../../utils/formatters';
 
-// --- Componente de Paginação (Reutilizado - Memoizado) ---
+// --- Componente de Paginação ---
 interface PaginationProps {
   paginaAtual: number;
   totalPaginas: number;
   onPageChange: (page: number) => void;
   isLoading: boolean;
 }
-// <<< CORREÇÃO: Props corretas usadas >>>
 const Pagination: React.FC<PaginationProps> = React.memo(
   ({ paginaAtual, totalPaginas, onPageChange, isLoading }) => {
-    // ... (implementation remains the same as previous correction)
     if (totalPaginas <= 1) return null;
     return (
       <div className="flex justify-center items-center gap-2 mt-6">
@@ -40,8 +38,7 @@ const Pagination: React.FC<PaginationProps> = React.memo(
 );
 Pagination.displayName = 'Pagination';
 
-
-// --- Tabela de Usuários (Memoizado) ---
+// --- Tabela de Usuários ---
 const UsersTable: React.FC<{
   usuarios: Usuario[];
   onEdit: (usuario: Usuario) => void;
@@ -49,7 +46,6 @@ const UsersTable: React.FC<{
   isLoading: boolean;
   idUsuarioLogado?: string;
 }> = React.memo(({ usuarios, onEdit, onDelete, isLoading, idUsuarioLogado }) => {
-  // ... (implementation remains the same as previous correction)
    const PerfilBadge: React.FC<{ perfil: PerfilUsuario }> = ({ perfil }) => (
     <span
       className={`
@@ -65,7 +61,6 @@ const UsersTable: React.FC<{
     </span>
   );
   PerfilBadge.displayName = 'PerfilBadge';
-
 
   return (
     <div className="bg-primary-white rounded-xl shadow-soft overflow-x-auto border border-gray-200">
@@ -105,7 +100,7 @@ const UsersTable: React.FC<{
                   <PerfilBadge perfil={usuario.perfil} />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
-                  {usuario.dataCriacao ? formatarData(usuario.dataCriacao, { dateStyle: 'short', timeStyle: 'short' }) : '-'}
+                  {usuario.criado_em ? formatarData(usuario.criado_em, { dateStyle: 'short', timeStyle: 'short' }) : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                   <Button
@@ -162,13 +157,13 @@ const AdminUsers: React.FC = () => {
   const {
     data,
     isLoading,
-    error,
+    error, // Erro geral de carregamento
     mutate,
     handleCreate,
     handleUpdate,
     handleDelete,
     isMutating,
-    mutationError,
+    mutationError, // Erro específico das operações CUD
     setMutationError,
     idUsuarioLogado,
   } = useAdminUsers(pagina, termoDebounced);
@@ -177,8 +172,8 @@ const AdminUsers: React.FC = () => {
 
   const totalPaginas = useMemo(() => {
     if (!data) return 1;
-    const totalItems = data.meta?.total ?? data.total ?? 0;
-    const itemsPerPage = data.meta?.limit ?? 10;
+    const totalItems = data.meta?.total ?? 0;
+    const itemsPerPage = data.meta?.limite ?? 10;
     return Math.ceil(totalItems / itemsPerPage) || 1;
   }, [data]);
 
@@ -193,21 +188,22 @@ const AdminUsers: React.FC = () => {
     setModalAberto(false);
   }, []);
 
-  const handleSave = useCallback(async (formData: UsuarioFormData, id?: string): Promise<Usuario | void> => {
+  const handleSave = useCallback(async (formData: UsuarioFormData, id?: string): Promise<Usuario | void> => { // Corrigido retorno
     try {
-      let result: Usuario;
       if (id) {
-        result = await handleUpdate(id, formData);
+        await handleUpdate(id, formData);
       } else {
-        result = await handleCreate(formData);
+        await handleCreate(formData);
       }
       handleCloseModal();
       mutate();
-      return result;
     } catch (err) {
+      // O erro é capturado e setado no estado `mutationError` pelos hooks handleUpdate/handleCreate
+      // e será exibido pelo modal. Re-lançar aqui garante que a promessa seja rejeitada.
       throw err;
     }
   }, [handleCreate, handleUpdate, mutate, handleCloseModal]);
+
 
   const handleDeleteConfirm = useCallback(async (id: string) => {
     const usuarioParaExcluir = usuarios.find(u => u.id === id);
@@ -238,6 +234,9 @@ const AdminUsers: React.FC = () => {
   useEffect(() => {
       setPagina(1);
   }, [termoDebounced]);
+
+  // <<< CORREÇÃO: Usa getErrorMessage para exibir o erro geral >>>
+  const displayError = error ? getErrorMessage(error) : null;
 
   return (
     <div className="space-y-6">
@@ -272,8 +271,9 @@ const AdminUsers: React.FC = () => {
         />
       </div>
 
-      {error && !isLoading && (
-        <ErrorMessage message={getErrorMessage(error)} />
+      {/* <<< CORREÇÃO: Exibe displayError (string | null) >>> */}
+      {displayError && !isLoading && (
+        <ErrorMessage message={displayError} />
       )}
 
       <UsersTable
@@ -298,7 +298,7 @@ const AdminUsers: React.FC = () => {
           onSave={handleSave}
           usuario={usuarioSelecionado}
           isLoading={isMutating}
-          error={mutationError}
+          error={mutationError} // Passa o erro CUD original (unknown) para o modal
         />
       )}
     </div>

@@ -1,6 +1,6 @@
+// src/pages/admin/components/CategoryFormModal.tsx
 import React, { useEffect, useState } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
-// <<< CORREÇÃO: Importa Categoria >>>
 import { Categoria } from '../../../types';
 import { Button } from '../../../components/common/Button';
 import { ErrorMessage } from '../../../components/ui/ErrorMessage';
@@ -16,11 +16,11 @@ interface CategoryFormInputs {
 interface CategoryFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  // <<< CORREÇÃO: Assinatura de onSave atualizada >>>
-  onSave: (data: { nome: string }, id?: string) => Promise<Categoria>;
+  // CORREÇÃO: onSave pode retornar void se não precisar do objeto criado/atualizado
+  onSave: (data: { nome: string }, id?: string) => Promise<Categoria | void>;
   categoria: Categoria | null;
   isMutating: boolean;
-  mutationError: unknown;
+  mutationError: unknown; // CORREÇÃO: Aceita unknown
 }
 
 export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
@@ -29,7 +29,7 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
   onSave,
   categoria,
   isMutating,
-  mutationError,
+  mutationError, // <<< (mutationError)
 }) => {
   const {
     register,
@@ -48,6 +48,7 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
   }, [isOpen, categoria, reset]);
 
   useEffect(() => {
+    // CORREÇÃO: Converte 'unknown' para string de erro
     setApiError(mutationError ? getErrorMessage(mutationError) : null);
   }, [mutationError]);
 
@@ -56,11 +57,10 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
     setApiError(null);
     try {
       await onSave({ nome: data.nome }, categoria?.id);
-      // Sucesso: O fechamento e revalidação são feitos na página pai
+      // Sucesso: O fechamento é tratado na página pai (AdminCategories)
     } catch (err) {
-      // Erro já está em mutationError, setamos apiError como fallback
+      // O erro já está sendo tratado pela prop 'mutationError'
       console.error("Erro capturado no onSubmit do modal (Categoria):", err);
-      // setApiError(getErrorMessage(err)); // Não precisa, já vem por props
     }
   };
 
@@ -84,7 +84,6 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
           autoFocus
         />
 
-        {/* Mostra erro da API (mutationError) */}
         {apiError && <ErrorMessage message={apiError} />}
 
         <div className="flex justify-end gap-4 pt-4">
