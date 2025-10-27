@@ -150,6 +150,7 @@ export class ProdutosService {
          throw new AppError('Erro interno ao atualizar produto.', 500);
     }
   }
+  
 
   async ajustarEstoque(id: string, quantidade: number): Promise<Produto> {
     const produto = await prisma.produto.findUnique({ where: { id } });
