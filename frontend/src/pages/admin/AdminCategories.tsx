@@ -159,9 +159,9 @@ const AdminCategories: React.FC = () => {
 
   const totalPaginas = useMemo(() => {
       if (!data) return 1;
-      // CORREÇÃO: Acessar data.meta
+      // CORREÇÃO: Acessando data.meta e usando 'limite'
       const totalItems = data.meta?.total ?? 0;
-      const itemsPerPage = data.meta?.limit ?? 10;
+      const itemsPerPage = data.meta?.limite ?? 10;
       return Math.ceil(totalItems / itemsPerPage) || 1;
   }, [data]);
 
@@ -176,7 +176,7 @@ const AdminCategories: React.FC = () => {
     setModalAberto(false);
   }, []);
 
-  const handleSave = useCallback(async (formData: { nome: string }, id?: string): Promise<Categoria> => {
+  const handleSave = useCallback(async (formData: { nome: string }, id?: string): Promise<Categoria | void> => { // Corrigido retorno
     try {
       let result: Categoria;
       if (id) {
@@ -188,8 +188,7 @@ const AdminCategories: React.FC = () => {
       mutate();
       return result;
     } catch (err) {
-      // O erro já está em mutationError, então não precisa tratar aqui explicitamente
-      throw err; // Re-lança para que o FormModal possa lidar com ele (se necessário)
+      throw err;
     }
   }, [handleCreate, handleUpdate, mutate, handleCloseModal]);
 
@@ -204,9 +203,9 @@ const AdminCategories: React.FC = () => {
       try {
         await handleDelete(id);
         if (categorias.length === 1 && pagina > 1) {
-            setPagina(pagina - 1); // Volta para a página anterior se a última foi esvaziada
+            setPagina(pagina - 1);
         } else {
-            mutate(); // Revalida a página atual
+            mutate();
         }
       } catch (err) {
         alert(`Erro ao excluir categoria: ${getErrorMessage(err)}`);
@@ -220,7 +219,6 @@ const AdminCategories: React.FC = () => {
       }
   }, [totalPaginas]);
 
-  // Reseta para a página 1 quando a busca muda
   useEffect(() => {
       setPagina(1);
   }, [termoDebounced]);
@@ -283,7 +281,7 @@ const AdminCategories: React.FC = () => {
           onSave={handleSave}
           categoria={categoriaSelecionada}
           isMutating={isMutating}
-          mutationError={mutationError} // Passa o erro original
+          mutationError={mutationError} // Passa o erro original (unknown)
         />
       )}
     </div>

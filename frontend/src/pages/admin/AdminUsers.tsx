@@ -11,7 +11,7 @@ import { getErrorMessage } from '../../utils/errors';
 import { useDebounce } from '../../hooks/useDebounce';
 import { formatarData } from '../../utils/formatters';
 
-// --- Componente de Paginação (Reutilizado - Memoizado) ---
+// --- Componente de Paginação ---
 interface PaginationProps {
   paginaAtual: number;
   totalPaginas: number;
@@ -38,7 +38,7 @@ const Pagination: React.FC<PaginationProps> = React.memo(
 );
 Pagination.displayName = 'Pagination';
 
-// --- Tabela de Usuários (Memoizado) ---
+// --- Tabela de Usuários ---
 const UsersTable: React.FC<{
   usuarios: Usuario[];
   onEdit: (usuario: Usuario) => void;
@@ -173,9 +173,9 @@ const AdminUsers: React.FC = () => {
 
   const totalPaginas = useMemo(() => {
     if (!data) return 1;
-    // CORREÇÃO: Acessando data.meta
+    // CORREÇÃO: Acessando data.meta e 'limite'
     const totalItems = data.meta?.total ?? 0;
-    const itemsPerPage = data.meta?.limit ?? 10;
+    const itemsPerPage = data.meta?.limite ?? 10;
     return Math.ceil(totalItems / itemsPerPage) || 1;
   }, [data]);
 
@@ -296,7 +296,7 @@ const AdminUsers: React.FC = () => {
           onSave={handleSave}
           usuario={usuarioSelecionado}
           isLoading={isMutating}
-          error={mutationError} // Passa o erro original
+          error={mutationError} // Passa o erro original (unknown)
         />
       )}
     </div>
@@ -304,3 +304,4 @@ const AdminUsers: React.FC = () => {
 };
 
 export default AdminUsers;
+

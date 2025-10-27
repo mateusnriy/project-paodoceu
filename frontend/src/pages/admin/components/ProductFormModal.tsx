@@ -14,11 +14,11 @@ interface ProductFormInputs extends ProdutoFormData {}
 interface ProductFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: ProductFormInputs, id?: string) => Promise<Produto | void>; // Corrigido retorno
+  onSave: (data: ProductFormInputs, id?: string) => Promise<Produto | void>;
   produto: Produto | null;
   categorias: Categoria[];
   isMutating: boolean;
-  mutationError: unknown;
+  mutationError: unknown; // <<< CORRIGIDO: Aceita unknown
   isLoadingCategorias: boolean;
 }
 
@@ -68,6 +68,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
   }, [isOpen, produto, categorias, reset]);
 
   useEffect(() => {
+    // CORREÇÃO: Converte 'unknown' para string de erro
     setApiError(mutationError ? getErrorMessage(mutationError) : null);
   }, [mutationError]);
 
@@ -83,10 +84,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
 
     try {
         await onSave(dataToSend, produto?.id);
-        // O fechamento e revalidação são feitos na página pai
     } catch (err) {
         console.error("Erro capturado no onSubmit do modal (Produto):", err);
-        // O erro é definido pela prop 'mutationError'
+        // O erro já está sendo tratado pela prop 'mutationError'
     }
   };
 
@@ -167,6 +167,7 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           disabled={isMutating}
         />
 
+        {/* Mostra o erro da API (mutationError convertido) */}
         {apiError && <ErrorMessage message={apiError} />}
 
         <div className="flex justify-end gap-4 pt-4">

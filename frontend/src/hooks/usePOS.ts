@@ -1,21 +1,19 @@
-// mateusnriy/project-paodoceu/project-paodoceu-main/frontend/src/hooks/usePOS.ts
+// src/hooks/usePOS.ts
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-// <<< CORREÇÃO: Importar PaginatedResponse >>>
-import { Categoria, Produto, Pedido, PedidoItem, PaginatedResponse } from '../types';
+import { Categoria, Produto, Pedido, PedidoItem, PaginatedResponse, StatusPedido } from '../types';
 import { getErrorMessage } from '../utils/errors';
 import { logError } from '../utils/logger';
 
 // Estado inicial do pedido local
 const estadoInicialPedido: Pedido = {
   id: 'local-cart',
-  status: 'LOCAL',
-  total: 0,
-  senha: '',
+  status: StatusPedido.LOCAL,
+  valor_total: 0, // <<< CORRIGIDO AQUI
   itens: [],
-  dataCriacao: new Date().toISOString(),
-  dataAtualizacao: new Date().toISOString(),
+  criado_em: new Date().toISOString(),
+  atualizado_em: new Date().toISOString(),
 };
 
 export const usePOS = () => {
@@ -40,10 +38,9 @@ export const usePOS = () => {
 
         // Busca categorias
         try {
-          // <<< CORREÇÃO: Chamar /api/categorias SEM paginação (lógica do controller) >>>
           const catRes = await api.get<Categoria[]>('/categorias');
-          setCategorias(catRes.data); // Espera um array simples
-          setCategoriaAtiva(null); 
+          setCategorias(catRes.data);
+          setCategoriaAtiva(null);
         } catch (err) {
           setErrorCategorias(err);
           logError('Erro ao carregar categorias:', err);
@@ -53,11 +50,10 @@ export const usePOS = () => {
 
         // Busca todos os produtos
         try {
-          // <<< CORREÇÃO: Chamar /api/produtos COM limite alto >>>
           const prodRes = await api.get<PaginatedResponse<Produto>>('/produtos', {
-              params: { pagina: 1, limite: 999 } // Limite alto
+              params: { pagina: 1, limite: 999 }
           });
-          setProdutos(prodRes.data.data); // <<< Acessar data.data
+          setProdutos(prodRes.data.data);
         } catch (err) {
           setErrorProdutos(err);
           logError('Erro ao carregar produtos:', err);
@@ -77,15 +73,17 @@ export const usePOS = () => {
 
   const produtosFiltrados = useMemo(() => {
     if (categoriaAtiva === null) {
-      return produtos; // "Todos"
+      return produtos;
     }
-    // <<< CORREÇÃO: Acessar produto.categoria.id >>>
     return produtos.filter((produto) => produto.categoria?.id === categoriaAtiva);
   }, [produtos, categoriaAtiva]);
 
+  // Calcula o total do pedido local
   const total = useMemo(() => {
     return pedido.itens.reduce((acc, item) => {
-      return acc + item.produto.preco * item.quantidade;
+      // Use item.preco (preço no momento da adição) ou item.produto.preco (preço atual)
+      // Usar item.preco é mais seguro para carrinhos que podem durar mais tempo
+      return acc + item.preco * item.quantidade;
     }, 0);
   }, [pedido.itens]);
 
@@ -95,7 +93,6 @@ export const usePOS = () => {
         (i) => i.produto.id === produto.id
       );
 
-      // <<< CORREÇÃO: Usar 'quantidadeEstoque' do tipo Produto >>>
       const novaQuantidade = (itemExistente?.quantidade || 0) + 1;
       if (novaQuantidade > produto.quantidadeEstoque) {
         alert(`Estoque insuficiente. Disponível: ${produto.quantidadeEstoque}`);
@@ -114,42 +111,51 @@ export const usePOS = () => {
           id: `item-${produto.id}`,
           produto: produto,
           quantidade: 1,
-          preco: produto.preco,
+          preco: produto.preco, // Armazena o preço no momento da adição
           pedidoId: 'local-cart',
         };
         novosItens = [...prevPedido.itens, novoItem];
       }
 
-      return { ...prevPedido, itens: novosItens };
+      // Calcula o novo total
+      const novoTotal = novosItens.reduce((acc, item) => acc + item.preco * item.quantidade, 0);
+
+      return { ...prevPedido, itens: novosItens, valor_total: novoTotal }; // Atualiza valor_total
     });
-  }, []);
+  }, []); // Removido 'total' das dependências para evitar loop
 
   const handleUpdateQuantity = useCallback((itemId: string, novaQuantidade: number) => {
     setPedido((prevPedido) => {
+      let novosItens: PedidoItem[];
+
       if (novaQuantidade <= 0) {
-        const novosItens = prevPedido.itens.filter((i) => i.id !== itemId);
-        return { ...prevPedido, itens: novosItens };
+        novosItens = prevPedido.itens.filter((i) => i.id !== itemId);
+      } else {
+        const item = prevPedido.itens.find((i) => i.id === itemId);
+        if (item && novaQuantidade > item.produto.quantidadeEstoque) {
+          alert(`Estoque insuficiente. Disponível: ${item.produto.quantidadeEstoque}`);
+          return prevPedido; // Não altera o estado se não houver estoque
+        }
+        novosItens = prevPedido.itens.map((i) =>
+          i.id === itemId ? { ...i, quantidade: novaQuantidade } : i
+        );
       }
-
-      const item = prevPedido.itens.find((i) => i.id === itemId);
-      // <<< CORREÇÃO: Usar 'quantidadeEstoque' do tipo Produto >>>
-      if (item && novaQuantidade > item.produto.quantidadeEstoque) {
-        alert(`Estoque insuficiente. Disponível: ${item.produto.quantidadeEstoque}`);
-        return prevPedido;
-      }
-
-      const novosItens = prevPedido.itens.map((i) =>
-        i.id === itemId ? { ...i, quantidade: novaQuantidade } : i
-      );
-      return { ...prevPedido, itens: novosItens };
+      // Calcula o novo total
+      const novoTotal = novosItens.reduce((acc, item) => acc + item.preco * item.quantidade, 0);
+      return { ...prevPedido, itens: novosItens, valor_total: novoTotal }; // Atualiza valor_total
     });
   }, []);
 
   const handleRemoveFromCart = useCallback((itemId: string) => {
-    setPedido((prevPedido) => ({
-      ...prevPedido,
-      itens: prevPedido.itens.filter((item) => item.id !== itemId),
-    }));
+    setPedido((prevPedido) => {
+      const novosItens = prevPedido.itens.filter((item) => item.id !== itemId);
+      const novoTotal = novosItens.reduce((acc, item) => acc + item.preco * item.quantidade, 0);
+      return {
+        ...prevPedido,
+        itens: novosItens,
+        valor_total: novoTotal, // Atualiza valor_total
+      };
+    });
   }, []);
 
   const handleLimparCarrinho = useCallback(() => {
@@ -163,13 +169,15 @@ export const usePOS = () => {
       alert('O carrinho está vazio.');
       return;
     }
-    localStorage.setItem('pedidoLocal', JSON.stringify({ ...pedido, total }));
+    // Garante que o total está atualizado antes de salvar
+    const currentTotal = pedido.itens.reduce((acc, item) => acc + item.preco * item.quantidade, 0);
+    localStorage.setItem('pedidoLocal', JSON.stringify({ ...pedido, valor_total: currentTotal }));
     navigate('/vendas/pagamento');
-  }, [pedido, total, navigate]);
+  }, [pedido, navigate]); // Removido 'total' das dependências
 
   return {
     pedido,
-    total,
+    total, // O total calculado ainda é útil para exibir na UI
     produtosFiltrados,
     categorias,
     categoriaAtiva,

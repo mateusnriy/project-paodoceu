@@ -26,7 +26,7 @@ export const getDateRangeQuery = (
       endDate = endOfDay(now);
       break;
     case 'week':
-      startDate = startOfWeek(now, { weekStartsOn: 1 });
+      startDate = startOfWeek(now, { weekStartsOn: 1 }); // Segunda-feira como início da semana
       endDate = endOfWeek(now, { weekStartsOn: 1 });
       break;
     case 'month':
@@ -37,14 +37,14 @@ export const getDateRangeQuery = (
       startDate = startOfYear(now);
       endDate = endOfYear(now);
       break;
-    default: // Default to 'week' if type is invalid
+    default: // Default para 'week' se tipo inválido
       startDate = startOfWeek(now, { weekStartsOn: 1 });
       endDate = endOfWeek(now, { weekStartsOn: 1 });
       break;
   }
   // const formatOptions = { representation: 'date' } as const; // REMOVIDO
 
-  // Formato ISO string completo para compatibilidade com o backend
+  // Retorna datas no formato ISO 8601 completo (UTC)
   return {
     data_inicio: startDate.toISOString(),
     data_fim: endDate.toISOString(),

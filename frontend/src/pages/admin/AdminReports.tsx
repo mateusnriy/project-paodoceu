@@ -66,11 +66,12 @@ const ChartContainer: React.FC<ChartContainerProps> = ({ title, isLoading, child
   </div>
 );
 
+
 // --- Página Principal ---
 const AdminReports: React.FC = () => {
   const { data, isLoading, error } = useAdminReports();
 
-  if (error && !isLoading) { // Mostra o erro apenas se não estiver carregando
+  if (error && !isLoading) { // Mostra erro apenas se não estiver carregando
     // CORREÇÃO: Removido 'title' prop
     return <ErrorMessage message={`Erro ao carregar relatórios: ${getErrorMessage(error)}`} />;
   }

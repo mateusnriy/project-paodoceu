@@ -1,7 +1,7 @@
 // src/hooks/useOrders.ts
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../services/api';
-// import { getErrorMessage } from '../utils/errors'; // REMOVIDO
+// import { getErrorMessage } from '../utils/errors'; // Já removido anteriormente
 import { Pedido, StatusPedido } from '../types';
 import { logError } from '../utils/logger';
 
@@ -17,49 +17,34 @@ export const useOrders = () => {
 
   const loadOrders = useCallback(async () => {
     setError(null);
-    if (isLoading) { // Apenas seta loading como true na primeira chamada
+    if (pedidos.length === 0) { // Só loading na primeira vez
         setIsLoading(true);
     }
+
     try {
       const response = await api.get<Pedido[]>('/pedidos/prontos');
       const sortedPedidos = response.data.sort((a, b) =>
-          new Date(b.atualizado_em).getTime() - new Date(a.atualizado_em).getTime() // Corrigido para atualizado_em
+          new Date(b.atualizado_em).getTime() - new Date(a.atualizado_em).getTime()
       );
-      // Atualiza o estado apenas se os dados forem diferentes para evitar re-renderizações desnecessárias
-      setPedidos(prevPedidos => {
-          const newPedidosMap = new Map(sortedPedidos.map(p => [p.id, { ...p, completed: false }]));
-          const currentIds = new Set(prevPedidos.map(p => p.id));
-          const newIds = new Set(sortedPedidos.map(p => p.id));
-
-          // Verifica se houve adição, remoção ou mudança de ordem
-          if (prevPedidos.length !== sortedPedidos.length || !sortedPedidos.every((p, i) => prevPedidos[i]?.id === p.id)) {
-              return sortedPedidos.map(p => ({ ...p, completed: false }));
-          }
-          // Verifica se algum pedido existente mudou (embora nesse caso o filter já deve tratar)
-          for (const p of prevPedidos) {
-              const newP = newPedidosMap.get(p.id);
-              if (!newP || JSON.stringify(p) !== JSON.stringify(newP)) {
-                  return sortedPedidos.map(p => ({ ...p, completed: false }));
-              }
-          }
-          return prevPedidos; // Sem mudanças, retorna o estado anterior
-      });
+      setPedidos(
+        sortedPedidos
+          .filter(p => p.status === StatusPedido.PRONTO)
+          .map((p) => ({ ...p, completed: false }))
+      );
     } catch (err) {
       logError('Erro detalhado ao buscar pedidos prontos:', err);
       setError(err);
-      // Não limpar pedidos em caso de erro de rede, mantém a última lista válida
-      // setPedidos([]);
+      // Não limpa pedidos em caso de erro de rede, mantém a última lista válida
     } finally {
-      setIsLoading(false); // Sempre definir loading como false no final
+      setIsLoading(false);
     }
-  // Removido isLoading da dependência para evitar loop infinito
-  }, [/* isLoading removido */]);
+  }, [pedidos.length]); // Dependência ajustada
 
   useEffect(() => {
-    loadOrders(); // Carga inicial
-    const intervalId = setInterval(loadOrders, 10000); // Polling
-    return () => clearInterval(intervalId); // Limpa o intervalo ao desmontar
-  }, [loadOrders]); // Depende apenas de loadOrders
+    loadOrders();
+    const intervalId = setInterval(loadOrders, 10000);
+    return () => clearInterval(intervalId);
+  }, [loadOrders]);
 
   const handleConcluirPedido = useCallback(async (pedidoId: string) => {
     if (isUpdating) return;
@@ -79,13 +64,11 @@ export const useOrders = () => {
     try {
       await api.patch(`/pedidos/${pedidoId}/entregar`);
 
-      // Sucesso: Agendar remoção da UI após um tempo
       const timerId = setTimeout(() => {
         setPedidos((prevPedidos) => prevPedidos.filter((p) => p.id !== pedidoId));
         setIsUpdating(null);
-      }, 1500); // Remove após 1.5 segundos
+      }, 1500);
 
-      // Retorna a função de limpeza para o caso de o componente desmontar
       return () => clearTimeout(timerId);
 
     } catch (err) {
@@ -102,7 +85,7 @@ export const useOrders = () => {
       );
       setIsUpdating(null);
     }
-  }, [isUpdating]); // Dependência isUpdating para evitar cliques múltiplos
+  }, [isUpdating]);
 
 
   const pedidosVisiveis = useMemo(() => pedidos.filter(p => !p.completed), [pedidos]);
@@ -112,6 +95,6 @@ export const useOrders = () => {
     isLoading,
     error,
     handleConcluirPedido,
-    isUpdating, // Retornar isUpdating como boolean ou string
+    isUpdating: isUpdating, // Continua retornando a string do ID ou null
   };
 };

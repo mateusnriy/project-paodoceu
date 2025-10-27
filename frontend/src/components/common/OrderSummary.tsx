@@ -1,18 +1,20 @@
-// src/components/common/OrderSummary.tsx
 import React, { memo, ReactNode } from 'react';
 // import { Button } from './Button'; // REMOVIDO
 import { Trash2, Minus, Plus } from 'lucide-react';
-import { Pedido, PedidoItem } from '../../types';
+import { Pedido, PedidoItem } from '../../types'; // Importa o tipo 'Pedido'
 import { formatarMoeda } from '../../utils/formatters';
 
+// --- Props Refatoradas ---
 interface OrderSummaryProps {
   pedido: Pedido;
   total: number;
   onItemUpdateQuantity?: (id: string, quantidade: number) => void;
   onItemRemove?: (id: string) => void;
-  children: ReactNode;
+  // onLimparCarrinho?: () => void; // <<< REMOVIDO >>>
+  children: ReactNode; // Para os botões de ação (ex: "Ir para Pagamento")
 }
 
+// --- Componente ItemdoCarrinho (Interno) ---
 const CartItem: React.FC<{
   item: PedidoItem;
   onUpdateQuantity: OrderSummaryProps['onItemUpdateQuantity'];
@@ -35,6 +37,7 @@ const CartItem: React.FC<{
 
   return (
     <li className="flex justify-between items-center py-3 border-b border-gray-200 last:border-b-0">
+      {/* Informações do Produto */}
       <div className="flex-1 pr-2">
         <p className="font-semibold text-text-primary truncate">{item.produto.nome}</p>
         <p className="text-sm text-text-secondary">
@@ -42,6 +45,7 @@ const CartItem: React.FC<{
         </p>
       </div>
 
+      {/* Controles (Apenas se for interativo) */}
       {isInteractive && (
         <div className="flex items-center gap-1 flex-shrink-0">
           <button
@@ -69,6 +73,8 @@ const CartItem: React.FC<{
               bg-background-light-blue text-text-secondary
               hover:bg-primary-blue/20 hover:text-primary-blue
             "
+             // Verificação de estoque movida para o hook usePOS
+            // disabled={item.quantidade >= item.produto.quantidadeEstoque}
             aria-label={`Aumentar quantidade de ${item.produto.nome}`}
           >
             <Plus size={16} />
@@ -93,11 +99,13 @@ const CartItem: React.FC<{
 });
 CartItem.displayName = 'CartItem';
 
+// --- Componente Principal OrderSummary ---
 export const OrderSummary = memo<OrderSummaryProps>(({
   pedido,
   total,
   onItemUpdateQuantity,
   onItemRemove,
+  // onLimparCarrinho, // <<< REMOVIDO >>>
   children,
 }) => {
   const { itens } = pedido;
@@ -105,12 +113,15 @@ export const OrderSummary = memo<OrderSummaryProps>(({
   return (
     <div className="bg-primary-white rounded-xl shadow-soft p-6 h-full flex flex-col border border-gray-200">
 
+      {/* Cabeçalho do Carrinho */}
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-2xl font-bold text-primary-blue">
           Carrinho
         </h2>
+        {/* O botão de limpar agora é passado como 'children' pela página 'POS.tsx' */}
       </div>
 
+      {/* Lista de Itens */}
       {itens.length === 0 ? (
         <div className="flex-grow flex items-center justify-center py-10">
           <p className="text-text-secondary text-center">
@@ -132,6 +143,7 @@ export const OrderSummary = memo<OrderSummaryProps>(({
         </div>
       )}
 
+      {/* Rodapé (Total e Ações) */}
       <div className="border-t border-gray-200 pt-4 mt-auto">
         <div className="flex justify-between items-center mb-4">
           <span className="font-semibold text-lg text-text-primary">Total:</span>
@@ -142,6 +154,8 @@ export const OrderSummary = memo<OrderSummaryProps>(({
             {formatarMoeda(total)}
           </span>
         </div>
+
+        {/* Botões de Ação (passados como children) */}
         <div className="flex flex-col gap-2">
           {children}
         </div>

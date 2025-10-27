@@ -20,7 +20,7 @@ export const useAdminCategories = (pagina: number, termoBusca: string, limite: n
   const [mutationError, setMutationError] = useState<unknown>(null);
 
   const loadCategories = useCallback(async () => {
-     if (!data) setIsLoading(true); // Só mostra loading na primeira vez
+     if (!data) setIsLoading(true);
      setError(null);
      try {
         const params = { pagina, limite, nome: termoBusca || undefined };
@@ -33,7 +33,7 @@ export const useAdminCategories = (pagina: number, termoBusca: string, limite: n
      } finally {
         setIsLoading(false);
      }
-  }, [pagina, limite, termoBusca, data]); // Adicionada dependência 'data' para resetar loading
+  }, [pagina, limite, termoBusca, data]); 
 
   useEffect(() => {
     loadCategories();
@@ -52,7 +52,7 @@ export const useAdminCategories = (pagina: number, termoBusca: string, limite: n
     } catch (err) {
       setMutationError(err);
       logError('Erro ao CRIAR categoria:', err, { formData });
-      throw err; // Re-lança para o modal saber que houve erro
+      throw err; 
     } finally {
       setIsMutating(false);
     }
@@ -67,7 +67,7 @@ export const useAdminCategories = (pagina: number, termoBusca: string, limite: n
     } catch (err) {
       setMutationError(err);
       logError('Erro ao ATUALIZAR categoria:', err, { id, formData });
-      throw err; // Re-lança para o modal saber que houve erro
+      throw err; 
     } finally {
       setIsMutating(false);
     }
@@ -81,7 +81,7 @@ export const useAdminCategories = (pagina: number, termoBusca: string, limite: n
      } catch (err) {
         setMutationError(err);
         logError('Erro ao DELETAR categoria:', err, { id });
-        throw err; // Re-lança para a página saber que houve erro
+        throw err; 
      } finally {
         setIsMutating(false);
      }
@@ -96,9 +96,10 @@ export const useAdminCategories = (pagina: number, termoBusca: string, limite: n
     handleUpdate,
     handleDelete,
     isMutating,
-    setIsMutating,
+    setIsMutating, 
     mutationError,
     setMutationError,
-    categorias: data?.data ?? [], // Mantém para compatibilidade, se necessário
+    categorias: data?.data ?? [],
   };
 };
+

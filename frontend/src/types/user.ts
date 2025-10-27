@@ -9,16 +9,14 @@ export interface Usuario {
   id: string;
   nome: string;
   email: string;
-  perfil: PerfilUsuario; // Usa o Enum
+  perfil: PerfilUsuario;
   ativo: boolean;
-  criado_em: string; // Adicionado
-  atualizado_em: string; // Adicionado
-  // dataCriacao: string; // Remover se existir
-  // dataAtualizacao: string; // Remover se existir
+  criado_em: string; // Corrigido de dataCriacao
+  atualizado_em: string; // Corrigido de dataAtualizacao
 }
 
-// Tipo usado no AuthContext (sem dados sensíveis)
-export interface AuthUsuario extends Omit<Usuario, 'ativo' | 'senha' | 'criado_em' | 'atualizado_em'> {} // Remover senha se existir
+// Tipo usado no AuthContext (removido campos que não vêm da API de login)
+export interface AuthUsuario extends Omit<Usuario, 'ativo' | 'criado_em' | 'atualizado_em'> {}
 
 // Tipo usado nos formulários de criação/edição
 export interface UsuarioFormData {

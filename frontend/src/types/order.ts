@@ -6,7 +6,7 @@ export enum StatusPedido {
   PRONTO = 'PRONTO',
   ENTREGUE = 'ENTREGUE',
   CANCELADO = 'CANCELADO',
-  LOCAL = 'LOCAL', // Status para o carrinho local antes de ser pago
+  LOCAL = 'LOCAL',
 }
 
 export enum TipoPagamento {
@@ -20,28 +20,26 @@ export interface PedidoItem {
   id: string;
   produto: Produto;
   quantidade: number;
-  preco: number; // Preço no momento da adição (ou preco_unitario do backend)
+  preco: number; // No frontend, usamos 'preco', mas o backend usa 'preco_unitario'
   subtotal?: number; // Adicionado para dados do backend
   pedidoId: string;
 }
 
 export interface Pedido {
   id: string;
-  numero_sequencial_dia?: number; // Adicionado
-  senha?: string; // Senha pode não existir no carrinho local
-  valor_total: number; // Renomeado de 'total' para corresponder ao backend
-  status: StatusPedido | string;
+  numero_sequencial_dia?: number;
+  senha?: string; // Disponível no backend, pode ser útil
+  valor_total: number; // Corrigido de 'total' para corresponder ao backend
+  status: StatusPedido | string; // Permite o 'LOCAL'
   itens: PedidoItem[];
-  criado_em: string; // Renomeado de dataCriacao
-  atualizado_em: string; // Renomeado de dataAtualizacao
+  criado_em: string; // Corrigido de 'dataCriacao'
+  atualizado_em: string; // Corrigido de 'dataAtualizacao'
   cliente_nome?: string;
   atendente_id?: string;
-  // Campos de relacionamento (opcionais no frontend se não sempre carregados)
-  atendente?: { nome: string }; // Exemplo
-  pagamento?: { metodo: TipoPagamento, valor_pago: number, troco: number }; // Exemplo
+  atendente?: { nome: string }; // Exemplo se precisar do nome
+  pagamento?: { metodo: TipoPagamento; valor_pago: number; troco: number }; // Exemplo se precisar dos dados de pagamento
 }
 
-// Interface usada no Payload de Pagamento (separada para clareza)
 export interface PaymentPayload {
   metodo: TipoPagamento;
   valor_pago: number;

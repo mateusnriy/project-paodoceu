@@ -109,6 +109,7 @@ export const useAdminUsers = (pagina: number, termoBusca: string) => {
     }
   }, [usuarioLogado?.id]);
 
+
   return {
     data,
     isLoading,

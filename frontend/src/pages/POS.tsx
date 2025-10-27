@@ -39,45 +39,43 @@ const CategoriaPill: React.FC<CategoriaPillProps> = React.memo(
     );
   }
 );
-CategoriaPill.displayName = 'CategoriaPill';
+CategoriaPill.displayName = 'CategoriaPill'; // Adicionado displayName
 
 
 const POS: React.FC = () => {
   const {
-
     pedido,
-    total, // O hook usePOS já calcula o total
-
+    total,
     produtosFiltrados,
     categorias,
     categoriaAtiva,
     setCategoriaAtiva,
-
     isLoadingProdutos,
     isLoadingCategorias,
     errorProdutos,
-    errorCategorias, // Corrigido para errorCategories
-
+    errorCategorias,
     handleAddToCart,
     handleRemoveFromCart,
     handleUpdateQuantity,
-    handleLimparCarrinho, // Mantido, mas não será passado para OrderSummary
+    handleLimparCarrinho,
     handleNavigateToPayment,
   } = usePOS();
 
   // Callbacks memoizados
   const handleRemoveCallback = useCallback(handleRemoveFromCart, [handleRemoveFromCart]);
   const handleUpdateCallback = useCallback(handleUpdateQuantity, [handleUpdateQuantity]);
-  // const handleLimparCallback = useCallback(handleLimparCarrinho, [handleLimparCarrinho]); // Removido ou usado em outro lugar
+  const handleLimparCallback = useCallback(handleLimparCarrinho, [handleLimparCarrinho]);
   const handleCheckoutCallback = useCallback(handleNavigateToPayment, [handleNavigateToPayment]);
   const handleAddCallback = useCallback(handleAddToCart, [handleAddToCart]);
   const handleCategoriaClick = useCallback(setCategoriaAtiva, [setCategoriaAtiva]);
+
 
   const renderFiltroCategorias = () => {
     if (isLoadingCategorias) {
       return <div className="h-10 animate-pulse bg-gray-200 rounded-full w-full" />;
     }
-    if (errorCategorias) { // Corrigido para errorCategories
+    if (errorCategorias) {
+      // CORREÇÃO: Removido 'title'
       return <ErrorMessage message="Erro ao carregar categorias." />;
     }
     return (
@@ -99,6 +97,7 @@ const POS: React.FC = () => {
     );
   };
 
+
   const renderListaProdutos = () => {
     if (isLoadingProdutos) {
       return (
@@ -110,8 +109,8 @@ const POS: React.FC = () => {
       );
     }
     if (errorProdutos) {
-      // CORREÇÃO: Removido 'title' prop
-      return <ErrorMessage message={`Erro ao carregar produtos: ${getErrorMessage(errorProdutos)}`} />;
+      // CORREÇÃO: Removido 'title' prop e usado getErrorMessage
+      return <ErrorMessage message={getErrorMessage(errorProdutos)} />;
     }
     if (produtosFiltrados.length === 0) {
       return (
@@ -153,31 +152,32 @@ const POS: React.FC = () => {
           </div>
         </div>
 
-        {/* Lado Direito: Resumo do Pedido */}
+        {/* Lado Direito: Resumo do Pedido (fixo) */}
         <div className="lg:w-1/3 lg:sticky top-[104px] h-fit mt-8 lg:mt-0">
           <OrderSummary
             pedido={pedido}
-            total={total} // Passando o total calculado pelo hook
+            total={total}
             onItemRemove={handleRemoveCallback}
             onItemUpdateQuantity={handleUpdateCallback}
-            // onLimparCarrinho={handleLimparCallback} // REMOVIDO
+            // CORREÇÃO: onLimparCarrinho removido daqui
           >
             {/* Botão de Pagamento */}
             <Button
               onClick={handleCheckoutCallback}
-              disabled={pedido.itens.length === 0 || isLoadingProdutos || isLoadingCategorias} // Desabilita se carregando também
-              className="w-full mt-4"
+              disabled={pedido.itens.length === 0 || isLoadingProdutos || isLoadingCategorias}
+              className="w-full"
               size="lg"
             >
               Ir para Pagamento
             </Button>
-            {/* Botão Limpar Carrinho (pode ser adicionado aqui se desejado) */}
+
+            {/* Botão Limpar Carrinho adicionado aqui */}
             {pedido.itens.length > 0 && (
               <Button
-                onClick={handleLimparCarrinho} // Usa a função do hook usePOS
+                onClick={handleLimparCallback}
                 variant="link"
                 size="sm"
-                className="text-status-error mt-2 w-full" // Estilizado como link de erro
+                className="text-status-error w-full mt-2" // Adicionado mt-2 para espaçamento
                 disabled={isLoadingProdutos || isLoadingCategorias}
               >
                 Limpar Carrinho

@@ -19,7 +19,7 @@ const Payment: React.FC = () => {
     tipoPagamento,
     setTipoPagamento,
     handleFinalizarPedido,
-    handleLimparCarrinho, // Pode usar esta função para um botão "Cancelar"
+    handleLimparCarrinho,
   } = usePaymentHandler();
 
   const navigate = useNavigate();
@@ -43,7 +43,7 @@ const Payment: React.FC = () => {
     // CORREÇÃO: Mostra erro apenas se não estiver submetendo
     if (error && !isSubmitting) {
       return (
-        // CORREÇÃO: Removido title prop
+        // CORREÇÃO: Removido title prop e usado getErrorMessage
         <ErrorMessage
           message={`Erro ao carregar informações de pagamento: ${getErrorMessage(error)}`}
         />
@@ -80,7 +80,7 @@ const Payment: React.FC = () => {
               Selecione o método de pagamento
             </h2>
 
-            {/* CORREÇÃO: Exibe o erro de submissão aqui */}
+            {/* CORREÇÃO: Exibe o erro de submissão aqui, usando getErrorMessage */}
             {error && isSubmitting && (
               <div className="mb-4">
                  <ErrorMessage
@@ -130,35 +130,33 @@ const Payment: React.FC = () => {
         </div>
 
         <div className="lg:w-1/3 lg:sticky top-[112px] h-fit">
-          <OrderSummary
-            pedido={pedido}
-            total={total}
-            // Não precisa de interatividade no sumário nesta tela
-            // onItemRemove={...}
-            // onItemUpdateQuantity={...}
-          >
-            <Button
-              onClick={handleFinalizarPedido}
-              disabled={isSubmitting || !tipoPagamento}
-              className="w-full mt-4"
-              size="lg"
+          {pedido && ( // Adiciona verificação para pedido nulo
+            <OrderSummary
+              pedido={pedido}
+              total={total}
             >
-              {isSubmitting ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                'Finalizar Pedido'
-              )}
-            </Button>
-            {/* Adiciona botão para voltar/cancelar */}
-            <Button
-               onClick={handleLimparCarrinho} // Usa a função do hook para limpar e navegar
-               variant="secondary"
-               className="w-full mt-2"
-               disabled={isSubmitting}
-             >
-               Cancelar e Voltar
-             </Button>
-          </OrderSummary>
+              <Button
+                onClick={handleFinalizarPedido}
+                disabled={isSubmitting || !tipoPagamento}
+                className="w-full"
+                size="lg"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  'Finalizar Pedido'
+                )}
+              </Button>
+              <Button
+                 onClick={handleLimparCarrinho}
+                 variant="secondary"
+                 className="w-full"
+                 disabled={isSubmitting}
+               >
+                 Cancelar e Voltar
+               </Button>
+            </OrderSummary>
+          )}
         </div>
       </div>
     );

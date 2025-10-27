@@ -46,6 +46,7 @@ const OrderCard: React.FC<OrderCardProps> = React.memo(
         ? pedido.status.charAt(0) + pedido.status.slice(1).toLowerCase()
         : 'Desconhecido';
 
+
     return (
       <div className="bg-primary-white shadow-soft rounded-xl border border-gray-200 overflow-hidden flex flex-col">
         <div
@@ -53,7 +54,6 @@ const OrderCard: React.FC<OrderCardProps> = React.memo(
         >
           <div className="flex justify-between items-center">
             <span className={`font-bold text-lg ${statusClasses.text}`}>
-              {/* CORRIGIDO: Usar numero_sequencial_dia */}
               Senha: {pedido.numero_sequencial_dia ?? 'N/A'}
             </span>
             <span
@@ -66,7 +66,6 @@ const OrderCard: React.FC<OrderCardProps> = React.memo(
 
         <div className="p-4 flex-1">
           <p className="text-sm text-text-secondary mb-2">
-            {/* CORRIGIDO: usar criado_em */}
             {formatarData(pedido.criado_em, {
               timeStyle: 'short',
               dateStyle: 'short',
@@ -88,7 +87,6 @@ const OrderCard: React.FC<OrderCardProps> = React.memo(
           <div className="flex justify-between items-center mb-3">
             <span className="text-base font-semibold text-text-primary">Total:</span>
             <span className="text-lg font-bold text-text-primary">
-              {/* CORRIGIDO: usar valor_total */}
               {formatarMoeda(pedido.valor_total)}
             </span>
           </div>
@@ -104,7 +102,7 @@ const OrderCard: React.FC<OrderCardProps> = React.memo(
               {isUpdating ? (
                 <Loader2 size={20} className="animate-spin" />
               ) : (
-                'Marcar como Entregue' // Texto ajustado
+                'Marcar como Entregue'
               )}
             </Button>
           )}
@@ -144,7 +142,7 @@ const Orders: React.FC = () => {
     if (error) {
       return (
          <div className="pt-10">
-            {/* CORREÇÃO: Removido title prop */}
+            {/* CORREÇÃO: Removido 'title' prop */}
             <ErrorMessage
                message={`Erro ao carregar pedidos: ${getErrorMessage(error)}`}
             />

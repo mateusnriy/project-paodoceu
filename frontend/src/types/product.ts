@@ -3,7 +3,7 @@
 export interface Categoria {
   id: string;
   nome: string;
-  criado_em: string; // Adicionado
+  criado_em: string; // Corrigido de dataCriacao
   atualizado_em: string; // Adicionado
   _count?: {
     produtos: number;
@@ -14,16 +14,16 @@ export interface Produto {
   id: string;
   nome: string;
   preco: number;
-  quantidadeEstoque: number; // Mapeado de 'estoque'
-  imagemUrl: string | null;  // Mapeado de 'imagem_url'
+  quantidadeEstoque: number; // Mapeado de 'estoque' pelo backend
+  imagemUrl: string | null;  // Mapeado de 'imagem_url' pelo backend
   descricao?: string;
-  categoria: Categoria;
-  categoriaId: string; // Mapeado de 'categoria_id'
+  categoria: Categoria; // Inclui o objeto categoria
+  categoriaId: string; // Mapeado de 'categoria_id' pelo backend
   criado_em: string; // Adicionado
   atualizado_em: string; // Adicionado
 }
 
-// FormData permanece o mesmo, focado nos campos editáveis
+// FormData está correto
 export interface ProdutoFormData {
   nome: string;
   descricao?: string;

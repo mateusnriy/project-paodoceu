@@ -1,7 +1,8 @@
 // src/pages/admin/AdminProducts.tsx
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { Categoria, Produto, ProdutoFormData } from '../../types'; // PaginatedResponse removido
+// import { Categoria, Produto, ProdutoFormData, PaginatedResponse } from '../../types'; // Removido Categoria e PaginatedResponse
+import { Produto, ProdutoFormData } from '../../types';
 import { useAdminProducts } from '../../hooks/useAdminProducts';
 import { useAdminCategories } from '../../hooks/useAdminCategories';
 import { Button } from '../../components/common/Button';
@@ -70,7 +71,6 @@ const ProductsTable: React.FC<{
                   {produto.nome}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">
-                  {/* CORREÇÃO: Acessando a propriedade correta 'quantidadeEstoque' */}
                   <StatusBadge disponivel={produto.quantidadeEstoque > 0} />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">
@@ -161,7 +161,7 @@ Pagination.displayName = 'Pagination';
 
 // --- Página Principal: AdminProducts ---
 const AdminProducts: React.FC = () => {
-  const [pagina, setPagina] = useState(1); // Esta era a linha 162, agora completa
+  const [pagina, setPagina] = useState(1); // CORRIGIDO: useState(1) completo
   const [termoBusca, setTermoBusca] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
   const [produtoSelecionado, setProdutoSelecionado] =
@@ -194,9 +194,9 @@ const AdminProducts: React.FC = () => {
 
   const totalPaginas = useMemo(() => {
     if (!productData) return 1;
-    // CORREÇÃO: Acessando data.meta
+    // CORREÇÃO: Acessando data.meta e 'limite'
     const totalItems = productData.meta?.total ?? 0;
-    const itemsPerPage = productData.meta?.limit ?? 10;
+    const itemsPerPage = productData.meta?.limite ?? 10;
     return Math.ceil(totalItems / itemsPerPage) || 1;
   }, [productData]);
 
@@ -212,7 +212,7 @@ const AdminProducts: React.FC = () => {
   }, []);
 
   const handleSave = useCallback(
-    async (formData: ProdutoFormData, id?: string): Promise<Produto> => {
+    async (formData: ProdutoFormData, id?: string): Promise<Produto | void> => { // Corrigido retorno
       try {
         let result: Produto;
         if (id) {
@@ -224,7 +224,6 @@ const AdminProducts: React.FC = () => {
         mutateProducts(); // Atualiza a lista
         return result;
       } catch (err) {
-        // O erro é definido em mutationError pelo hook
         throw err;
       }
     },
@@ -263,12 +262,10 @@ const AdminProducts: React.FC = () => {
     [totalPaginas]
   );
 
-  // Reseta para a página 1 quando a busca muda
   useEffect(() => {
     setPagina(1);
   }, [termoDebounced]);
 
-  // Define o erro a ser exibido (pode ser da busca de produtos ou de categorias)
   const displayError = errorProducts || errorCategories;
   const isLoading = isLoadingProducts || (modalAberto && isLoadingCategories);
 
@@ -331,7 +328,7 @@ const AdminProducts: React.FC = () => {
           produto={produtoSelecionado}
           categorias={categoryData?.data ?? []}
           isMutating={isMutating}
-          mutationError={mutationError} // Passa o erro original
+          mutationError={mutationError} // Passa o erro original (unknown)
           isLoadingCategorias={isLoadingCategories}
         />
       )}

@@ -2,8 +2,7 @@
 import React, { Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
-// import { Usuario, PerfilUsuario } from './types'; // Remover Usuario não utilizado
-import { PerfilUsuario } from './types'; // Manter PerfilUsuario
+import { PerfilUsuario } from './types'; // Removido 'Usuario'
 
 // Layout e Páginas
 import MainLayout from './components/common/MainLayout';
@@ -34,17 +33,20 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }
 
   if (!usuario) {
+    // Redireciona para o login se não estiver autenticado
     return <Navigate to="/login" replace />;
   }
 
+  // Renderiza o layout principal que contém o Header e o Outlet (children)
   return <>{children}</>;
 };
 
 // Componente de Rota de Admin (Wrapper)
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { usuario } = useAuth();
+  const { usuario } = useAuth(); // AuthContext já lidou com isLoadingAuth no ProtectedRoute
 
   if (usuario?.perfil !== PerfilUsuario.ADMINISTRADOR) {
+    // Se não for admin, redireciona para a tela principal de Vendas
     return <Navigate to="/vendas" replace />;
   }
 
@@ -66,7 +68,7 @@ export function AppRouter() {
         <Route path="/login" element={<Login />} />
         <Route path="/display" element={<CustomerDisplay />} />
 
-        {/* Rotas Protegidas */}
+        {/* Rotas Protegidas (Envolve o MainLayout) */}
         <Route
           path="/"
           element={
@@ -75,26 +77,30 @@ export function AppRouter() {
             </ProtectedRoute>
           }
         >
+          {/* Redirecionamento da raiz para /vendas */}
           <Route index element={<Navigate to="/vendas" replace />} />
 
           {/* Contexto: VENDAS */}
           <Route path="vendas">
-            <Route index element={<POS />} />
-            <Route path="pagamento" element={<Payment />} />
+            <Route index element={<POS />} /> {/* Rota /vendas */}
+            <Route path="pagamento" element={<Payment />} /> {/* Rota /vendas/pagamento */}
           </Route>
 
           {/* Contexto: FILA */}
-          <Route path="fila" element={<Orders />} />
+          <Route path="fila">
+            <Route index element={<Orders />} /> {/* Rota /fila (antiga /orders) */}
+          </Route>
 
-          {/* Contexto: GESTAO */}
+          {/* Contexto: GESTAO (Protegido por AdminRoute) */}
           <Route
             path="gestao"
             element={
               <AdminRoute>
-                <Admin />
+                <Admin /> {/* Admin.tsx agora é o layout DO CONTEÚDO de gestão (com Sidebar) */}
               </AdminRoute>
             }
           >
+            {/* Redireciona /gestao para /gestao/relatorios */}
             <Route index element={<Navigate to="/gestao/relatorios" replace />} />
             <Route path="relatorios" element={<AdminReports />} />
             <Route path="produtos" element={<AdminProducts />} />
@@ -103,7 +109,7 @@ export function AppRouter() {
           </Route>
         </Route>
 
-        {/* Fallback */}
+        {/* Fallback para rotas não encontradas (dentro do contexto logado) */}
         <Route path="*" element={<Navigate to="/vendas" replace />} />
       </Routes>
     </Suspense>
