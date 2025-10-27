@@ -40,10 +40,8 @@ const Payment: React.FC = () => {
       );
     }
 
-    // CORREÇÃO: Mostra erro apenas se não estiver submetendo
     if (error && !isSubmitting) {
       return (
-        // CORREÇÃO: Removido title prop e usado getErrorMessage
         <ErrorMessage
           message={`Erro ao carregar informações de pagamento: ${getErrorMessage(error)}`}
         />
@@ -80,7 +78,7 @@ const Payment: React.FC = () => {
               Selecione o método de pagamento
             </h2>
 
-            {/* CORREÇÃO: Exibe o erro de submissão aqui, usando getErrorMessage */}
+            {/* CORREÇÃO: Exibe o erro de submissão aqui */}
             {error && isSubmitting && (
               <div className="mb-4">
                  <ErrorMessage

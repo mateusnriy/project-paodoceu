@@ -2,9 +2,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-// import { Pedido, PedidoItem, TipoPagamento, StatusPedido } from '../types'; // REMOVIDOS PedidoItem, StatusPedido
-import { Pedido, TipoPagamento } from '../types';
-//import { getErrorMessage } from '../utils/errors'; // Mantido para o catch
+import { Pedido, TipoPagamento } from '../types'; // Removido PedidoItem, StatusPedido
+import { getErrorMessage } from '../utils/errors';
 import { logError } from '../utils/logger';
 
 // Interface para o payload de criação de pedido
@@ -37,11 +36,12 @@ export const usePaymentHandler = () => {
       const pedidoString = localStorage.getItem('pedidoLocal');
       if (pedidoString) {
         const pedidoData = JSON.parse(pedidoString);
-        // Validar minimamente se tem itens
-        if (pedidoData && Array.isArray(pedidoData.itens) && pedidoData.itens.length > 0) {
+        // Validar minimamente se tem itens e a estrutura básica
+        if (pedidoData && Array.isArray(pedidoData.itens) && pedidoData.itens.length > 0 && typeof pedidoData.valor_total === 'number') {
           setPedidoLocal(pedidoData as Pedido);
-          setTotalLocal(pedidoData.valor_total || 0); // CORRIGIDO: Usar valor_total
+          setTotalLocal(pedidoData.valor_total); // Pega o total salvo
         } else {
+          console.warn('Dados do carrinho inválidos no localStorage.', pedidoData);
           throw new Error('Dados do carrinho inválidos no localStorage.');
         }
       } else {
@@ -50,17 +50,17 @@ export const usePaymentHandler = () => {
          setTotalLocal(0);
          // Não é um erro, apenas carrinho vazio
       }
-    } catch (err) { // <<< CORRIGIDO NOME DA VARIÁVEL >>>
+    } catch (err) { // <<< CORRIGIDO NOME DA VARIÁVEL e SINTAXE DO CATCH >>>
       logError('Erro ao carregar pedido do localStorage:', err);
       setError(err); // <<< CORRIGIDO NOME DA VARIÁVEL >>>
-      // Limpa localStorage em caso de erro de parse
+      // Limpa localStorage em caso de erro de parse ou dados inválidos
       localStorage.removeItem('pedidoLocal');
       setPedidoLocal(null);
       setTotalLocal(0);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, []); // Dependência vazia garante que roda só na montagem
 
   // Função para finalizar o pedido (Criação + Pagamento)
   const handleFinalizarPedido = useCallback(async () => {
@@ -75,7 +75,7 @@ export const usePaymentHandler = () => {
     try {
       // 1. Preparar payload para criar pedido
       const criarPedidoPayload: CriarPedidoPayload = {
-        cliente_nome: pedidoLocal.cliente_nome, // Adicionado
+        cliente_nome: pedidoLocal.cliente_nome,
         itens: pedidoLocal.itens.map(item => ({
           produto_id: item.produto.id,
           quantidade: item.quantidade,
@@ -89,7 +89,7 @@ export const usePaymentHandler = () => {
       // 3. Preparar payload para pagar o pedido
       const processarPagamentoPayload: ProcessarPagamentoPayload = {
         metodo: tipoPagamento,
-        valor_pago: totalLocal,
+        valor_pago: totalLocal, // Usa o total calculado localmente
       };
 
       // 4. Processar o pagamento via API
@@ -97,12 +97,12 @@ export const usePaymentHandler = () => {
 
       // 5. Limpar localStorage e navegar para a fila em caso de sucesso
       localStorage.removeItem('pedidoLocal');
-      navigate('/fila');
+      navigate('/fila'); // Redireciona para a tela da fila
 
-    } catch (err) { // <<< CORRIGIDO NOME DA VARIÁVEL >>>
-      // const message = getErrorMessage(err); // REMOVIDO
+    } catch (err) {
+      // const message = getErrorMessage(err); // REMOVIDO - não utilizado diretamente aqui
       logError('Erro ao finalizar pedido e pagamento:', err, { tipoPagamento });
-      setError(err); // <<< CORRIGIDO NOME DA VARIÁVEL >>>
+      setError(err); // Mantém o erro para exibição na UI
     } finally {
       setIsSubmitting(false);
     }

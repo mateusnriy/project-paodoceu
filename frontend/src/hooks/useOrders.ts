@@ -1,7 +1,6 @@
 // src/hooks/useOrders.ts
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../services/api';
-// import { getErrorMessage } from '../utils/errors'; // Já removido anteriormente
 import { Pedido, StatusPedido } from '../types';
 import { logError } from '../utils/logger';
 
@@ -22,23 +21,41 @@ export const useOrders = () => {
     }
 
     try {
-      const response = await api.get<Pedido[]>('/pedidos/prontos');
+      const response = await api.get<Pedido[]>('/pedidos/prontos'); // Assume que retorna apenas os PRONTOS
       const sortedPedidos = response.data.sort((a, b) =>
           new Date(b.atualizado_em).getTime() - new Date(a.atualizado_em).getTime()
       );
-      setPedidos(
-        sortedPedidos
-          .filter(p => p.status === StatusPedido.PRONTO)
-          .map((p) => ({ ...p, completed: false }))
-      );
+
+      // Processa a resposta para manter o estado 'completed' se já existir
+      setPedidos(prevPedidos => {
+         const updatedPedidosMap = new Map<string, OrderWithUI>();
+         prevPedidos.forEach(p => updatedPedidosMap.set(p.id, p));
+
+         const newPedidos = sortedPedidos
+             .filter(p => p.status === StatusPedido.PRONTO) // Garante que só entram prontos
+             .map(p => {
+                 const existing = updatedPedidosMap.get(p.id);
+                 return { ...p, completed: existing?.completed ?? false };
+             });
+
+         // Remove pedidos que não estão mais na lista de prontos (já foram concluídos)
+         const finalPedidos = newPedidos.filter(p => !p.completed || updatedPedidosMap.has(p.id));
+
+         // Verifica se a lista realmente mudou para evitar re-render desnecessário
+         if (JSON.stringify(finalPedidos) !== JSON.stringify(prevPedidos.filter(p => finalPedidos.some(fp => fp.id === p.id)))) {
+            return finalPedidos;
+         }
+         return prevPedidos;
+      });
+
     } catch (err) {
       logError('Erro detalhado ao buscar pedidos prontos:', err);
       setError(err);
-      // Não limpa pedidos em caso de erro de rede, mantém a última lista válida
+      // Mantém a lista antiga em caso de falha de rede temporária
     } finally {
       setIsLoading(false);
     }
-  }, [pedidos.length]); // Dependência ajustada
+  }, [pedidos.length]); // Dependência ajustada para loading inicial
 
   useEffect(() => {
     loadOrders();
@@ -56,7 +73,7 @@ export const useOrders = () => {
     setPedidos((prevPedidos) =>
       prevPedidos.map((p) =>
         p.id === pedidoId
-          ? { ...p, completed: true, status: StatusPedido.ENTREGUE }
+          ? { ...p, completed: true, status: StatusPedido.ENTREGUE } // Marca como completed e muda status visualmente
           : p
       )
     );
@@ -64,12 +81,13 @@ export const useOrders = () => {
     try {
       await api.patch(`/pedidos/${pedidoId}/entregar`);
 
+      // Sucesso: Agendar remoção da UI após um tempo
       const timerId = setTimeout(() => {
         setPedidos((prevPedidos) => prevPedidos.filter((p) => p.id !== pedidoId));
         setIsUpdating(null);
-      }, 1500);
+      }, 1500); // Remove após 1.5 segundos
 
-      return () => clearTimeout(timerId);
+      return () => clearTimeout(timerId); // Função de limpeza
 
     } catch (err) {
       logError('Erro ao marcar pedido como entregue:', err, { pedidoId });
@@ -79,15 +97,16 @@ export const useOrders = () => {
       setPedidos((prevPedidos) =>
         prevPedidos.map((p) =>
           p.id === pedidoId
-            ? { ...p, completed: false, status: StatusPedido.PRONTO }
+            ? { ...p, completed: false, status: StatusPedido.PRONTO } // Volta ao estado anterior
             : p
         )
       );
       setIsUpdating(null);
     }
-  }, [isUpdating]);
+  }, [isUpdating]); // Dependência isUpdating
 
 
+  // Filtra os pedidos que não estão marcados como 'completed' para exibição
   const pedidosVisiveis = useMemo(() => pedidos.filter(p => !p.completed), [pedidos]);
 
   return {
@@ -95,6 +114,7 @@ export const useOrders = () => {
     isLoading,
     error,
     handleConcluirPedido,
-    isUpdating: isUpdating, // Continua retornando a string do ID ou null
+    isUpdating: !!isUpdating, // Retorna boolean
+    updatingId: isUpdating, // Retorna o ID que está sendo atualizado (ou null)
   };
 };

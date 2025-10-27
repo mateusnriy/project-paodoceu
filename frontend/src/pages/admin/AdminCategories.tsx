@@ -1,7 +1,7 @@
 // src/pages/admin/AdminCategories.tsx
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
-import { Categoria } from '../../types'; // PaginatedResponse removido
+import { Categoria } from '../../types';
 import { useAdminCategories } from '../../hooks/useAdminCategories';
 import { Button } from '../../components/common/Button';
 import { SkeletonTable } from '../../components/ui/SkeletonTable';
@@ -176,18 +176,21 @@ const AdminCategories: React.FC = () => {
     setModalAberto(false);
   }, []);
 
-  const handleSave = useCallback(async (formData: { nome: string }, id?: string): Promise<Categoria | void> => { // Corrigido retorno
+  // CORREÇÃO: Ajustado o tipo de retorno para aceitar void
+  const handleSave = useCallback(async (formData: { nome: string }, id?: string): Promise<Categoria | void> => {
     try {
-      let result: Categoria;
       if (id) {
-        result = await handleUpdate(id, formData);
+        await handleUpdate(id, formData);
       } else {
-        result = await handleCreate(formData);
+        await handleCreate(formData);
       }
       handleCloseModal();
       mutate();
-      return result;
+      // Não precisamos retornar a categoria aqui, o importante é fechar e recarregar
     } catch (err) {
+      // O erro já está sendo tratado e exibido pelo modal através da prop mutationError
+      console.error("Erro no handleSave:", err); // Log opcional
+      // Re-lança para garantir que o formulário não feche se houver erro
       throw err;
     }
   }, [handleCreate, handleUpdate, mutate, handleCloseModal]);
@@ -203,9 +206,9 @@ const AdminCategories: React.FC = () => {
       try {
         await handleDelete(id);
         if (categorias.length === 1 && pagina > 1) {
-            setPagina(pagina - 1);
+            setPagina(pagina - 1); // Volta para a página anterior se a última foi esvaziada
         } else {
-            mutate();
+            mutate(); // Revalida a página atual
         }
       } catch (err) {
         alert(`Erro ao excluir categoria: ${getErrorMessage(err)}`);

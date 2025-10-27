@@ -1,7 +1,7 @@
 // src/pages/admin/AdminUsers.tsx
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { Usuario, PerfilUsuario, UsuarioFormData } from '../../types'; // PaginatedResponse removido
+import { Usuario, PerfilUsuario, UsuarioFormData } from '../../types';
 import { useAdminUsers } from '../../hooks/useAdminUsers';
 import { Button } from '../../components/common/Button';
 import { SkeletonTable } from '../../components/ui/SkeletonTable';
@@ -173,7 +173,7 @@ const AdminUsers: React.FC = () => {
 
   const totalPaginas = useMemo(() => {
     if (!data) return 1;
-    // CORREÇÃO: Acessando data.meta e 'limite'
+    // CORREÇÃO: Acessando data.meta e usando 'limite'
     const totalItems = data.meta?.total ?? 0;
     const itemsPerPage = data.meta?.limite ?? 10;
     return Math.ceil(totalItems / itemsPerPage) || 1;
@@ -190,17 +190,15 @@ const AdminUsers: React.FC = () => {
     setModalAberto(false);
   }, []);
 
-  const handleSave = useCallback(async (formData: UsuarioFormData, id?: string): Promise<Usuario | void> => {
+  const handleSave = useCallback(async (formData: UsuarioFormData, id?: string): Promise<Usuario | void> => { // Corrigido retorno
     try {
-      let result: Usuario;
       if (id) {
-        result = await handleUpdate(id, formData);
+        await handleUpdate(id, formData);
       } else {
-        result = await handleCreate(formData);
+        await handleCreate(formData);
       }
       handleCloseModal();
       mutate();
-      return result;
     } catch (err) {
       throw err; // O erro será pego e tratado pelo modal
     }
@@ -304,4 +302,3 @@ const AdminUsers: React.FC = () => {
 };
 
 export default AdminUsers;
-

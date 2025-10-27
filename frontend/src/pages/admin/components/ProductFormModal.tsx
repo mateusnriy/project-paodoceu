@@ -1,6 +1,6 @@
 // src/pages/admin/components/ProductFormModal.tsx
 import React, { useEffect, useState } from 'react';
-import { useForm, SubmitHandler } from 'react-hook-form'; // Controller removido
+import { useForm, SubmitHandler } from 'react-hook-form';
 import { Produto, Categoria, ProdutoFormData } from '../../../types';
 import { Button } from '../../../components/common/Button';
 import { ErrorMessage } from '../../../components/ui/ErrorMessage';
@@ -14,7 +14,7 @@ interface ProductFormInputs extends ProdutoFormData {}
 interface ProductFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: ProductFormInputs, id?: string) => Promise<Produto | void>;
+  onSave: (data: ProductFormInputs, id?: string) => Promise<Produto | void>; // Corrigido retorno
   produto: Produto | null;
   categorias: Categoria[];
   isMutating: boolean;
@@ -36,7 +36,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
     register,
     handleSubmit,
     reset,
-    // control, // REMOVIDO
     formState: { errors },
   } = useForm<ProductFormInputs>();
 
@@ -167,7 +166,6 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
           disabled={isMutating}
         />
 
-        {/* Mostra o erro da API (mutationError convertido) */}
         {apiError && <ErrorMessage message={apiError} />}
 
         <div className="flex justify-end gap-4 pt-4">

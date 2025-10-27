@@ -30,28 +30,29 @@ export const usePOS = () => {
 
   useEffect(() => {
     const loadData = async () => {
+      // Reset states at the beginning
+      setIsLoadingProdutos(true);
+      setIsLoadingCategorias(true);
+      setErrorProdutos(null);
+      setErrorCategorias(null);
+  
       try {
-        setIsLoadingProdutos(true);
-        setIsLoadingCategorias(true);
-        setErrorProdutos(null);
-        setErrorCategorias(null);
-
-        // Busca categorias
+        // Fetch categories first
         try {
           const catRes = await api.get<Categoria[]>('/categorias');
           setCategorias(catRes.data);
-          setCategoriaAtiva(null);
+          setCategoriaAtiva(null); // Set default category after fetching
         } catch (err) {
           setErrorCategorias(err);
           logError('Erro ao carregar categorias:', err);
         } finally {
           setIsLoadingCategorias(false);
         }
-
-        // Busca todos os produtos
+  
+        // Then fetch products
         try {
           const prodRes = await api.get<PaginatedResponse<Produto>>('/produtos', {
-              params: { pagina: 1, limite: 999 }
+              params: { pagina: 1, limite: 999 } // Fetch all products
           });
           setProdutos(prodRes.data.data);
         } catch (err) {
@@ -60,20 +61,23 @@ export const usePOS = () => {
         } finally {
           setIsLoadingProdutos(false);
         }
+  
       } catch (err) {
+        // General error handling (less likely needed if individual try/catches are used)
         const message = getErrorMessage(err);
-        setErrorProdutos(message);
+        setErrorProdutos(message); // Set both errors if there's a general fetch issue
         setErrorCategorias(message);
         setIsLoadingProdutos(false);
         setIsLoadingCategorias(false);
       }
     };
     loadData();
-  }, []);
+  }, []); // Empty dependency array means this runs once on mount
+  
 
   const produtosFiltrados = useMemo(() => {
     if (categoriaAtiva === null) {
-      return produtos;
+      return produtos; // "Todos"
     }
     return produtos.filter((produto) => produto.categoria?.id === categoriaAtiva);
   }, [produtos, categoriaAtiva]);
@@ -81,9 +85,7 @@ export const usePOS = () => {
   // Calcula o total do pedido local
   const total = useMemo(() => {
     return pedido.itens.reduce((acc, item) => {
-      // Use item.preco (preço no momento da adição) ou item.produto.preco (preço atual)
-      // Usar item.preco é mais seguro para carrinhos que podem durar mais tempo
-      return acc + item.preco * item.quantidade;
+      return acc + item.preco * item.quantidade; // Use item.preco for consistency
     }, 0);
   }, [pedido.itens]);
 
@@ -122,7 +124,7 @@ export const usePOS = () => {
 
       return { ...prevPedido, itens: novosItens, valor_total: novoTotal }; // Atualiza valor_total
     });
-  }, []); // Removido 'total' das dependências para evitar loop
+  }, []); // Sem dependência 'total'
 
   const handleUpdateQuantity = useCallback((itemId: string, novaQuantidade: number) => {
     setPedido((prevPedido) => {
@@ -134,7 +136,7 @@ export const usePOS = () => {
         const item = prevPedido.itens.find((i) => i.id === itemId);
         if (item && novaQuantidade > item.produto.quantidadeEstoque) {
           alert(`Estoque insuficiente. Disponível: ${item.produto.quantidadeEstoque}`);
-          return prevPedido; // Não altera o estado se não houver estoque
+          return prevPedido;
         }
         novosItens = prevPedido.itens.map((i) =>
           i.id === itemId ? { ...i, quantidade: novaQuantidade } : i
@@ -173,7 +175,7 @@ export const usePOS = () => {
     const currentTotal = pedido.itens.reduce((acc, item) => acc + item.preco * item.quantidade, 0);
     localStorage.setItem('pedidoLocal', JSON.stringify({ ...pedido, valor_total: currentTotal }));
     navigate('/vendas/pagamento');
-  }, [pedido, navigate]); // Removido 'total' das dependências
+  }, [pedido, navigate]);
 
   return {
     pedido,

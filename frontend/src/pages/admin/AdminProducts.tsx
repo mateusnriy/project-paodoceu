@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
 // import { Categoria, Produto, ProdutoFormData, PaginatedResponse } from '../../types'; // Removido Categoria e PaginatedResponse
-import { Produto, ProdutoFormData } from '../../types';
+import { Produto, ProdutoFormData, Categoria } from '../../types'; // Adicionado Categoria de volta, mas PaginatedResponse fica no useAdminProducts
 import { useAdminProducts } from '../../hooks/useAdminProducts';
 import { useAdminCategories } from '../../hooks/useAdminCategories';
 import { Button } from '../../components/common/Button';
@@ -161,7 +161,7 @@ Pagination.displayName = 'Pagination';
 
 // --- Página Principal: AdminProducts ---
 const AdminProducts: React.FC = () => {
-  const [pagina, setPagina] = useState(1); // CORRIGIDO: useState(1) completo
+  const [pagina, setPagina] = useState(1);
   const [termoBusca, setTermoBusca] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
   const [produtoSelecionado, setProdutoSelecionado] =
@@ -191,7 +191,7 @@ const AdminProducts: React.FC = () => {
   } = useAdminCategories(1, '', 1000); // Pega todas as categorias para o dropdown
 
   const produtos = productData?.data ?? [];
-
+  
   const totalPaginas = useMemo(() => {
     if (!productData) return 1;
     // CORREÇÃO: Acessando data.meta e 'limite'
@@ -212,17 +212,15 @@ const AdminProducts: React.FC = () => {
   }, []);
 
   const handleSave = useCallback(
-    async (formData: ProdutoFormData, id?: string): Promise<Produto | void> => { // Corrigido retorno
+    async (formData: ProdutoFormData, id?: string): Promise<Produto | void> => { // Corrigido tipo de retorno
       try {
-        let result: Produto;
         if (id) {
-          result = await handleUpdate(id, formData);
+          await handleUpdate(id, formData);
         } else {
-          result = await handleCreate(formData);
+          await handleCreate(formData);
         }
         handleCloseModal();
         mutateProducts(); // Atualiza a lista
-        return result;
       } catch (err) {
         throw err;
       }
