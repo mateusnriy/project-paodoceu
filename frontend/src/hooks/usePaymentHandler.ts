@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
 import { Pedido, TipoPagamento } from '../types'; // Removido PedidoItem, StatusPedido
-import { getErrorMessage } from '../utils/errors';
+// import { getErrorMessage } from '../utils/errors'; // <<< CORREÇÃO: Importação removida
 import { logError } from '../utils/logger';
 
 // Interface para o payload de criação de pedido

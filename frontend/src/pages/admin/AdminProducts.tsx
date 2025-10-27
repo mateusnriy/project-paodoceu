@@ -1,17 +1,17 @@
 // src/pages/admin/AdminProducts.tsx
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Plus, Search, Edit, Trash2 } from 'lucide-react';
-// import { Categoria, Produto, ProdutoFormData, PaginatedResponse } from '../../types'; // Removido Categoria e PaginatedResponse
-import { Produto, ProdutoFormData, Categoria } from '../../types'; // Adicionado Categoria de volta, mas PaginatedResponse fica no useAdminProducts
+// <<< CORREÇÃO: Removido Categoria daqui >>>
+import { Produto, ProdutoFormData } from '../../types'; // Mantido Categoria importado implicitamente via types/index
 import { useAdminProducts } from '../../hooks/useAdminProducts';
-import { useAdminCategories } from '../../hooks/useAdminCategories';
+import { useAdminCategories } from '../../hooks/useAdminCategories'; // Hook para buscar categorias
 import { Button } from '../../components/common/Button';
 import { SkeletonTable } from '../../components/ui/SkeletonTable';
 import { ErrorMessage } from '../../components/ui/ErrorMessage';
 import { ProductFormModal } from './components/ProductFormModal';
 import { getErrorMessage } from '../../utils/errors';
 import { useDebounce } from '../../hooks/useDebounce';
-import { formatarMoeda } from '../../utils/formatters'; // formatarData removido
+import { formatarMoeda } from '../../utils/formatters';
 
 // --- Componente de Tabela de Produtos (Memoizado) ---
 const ProductsTable: React.FC<{
@@ -173,13 +173,13 @@ const AdminProducts: React.FC = () => {
   const {
     data: productData,
     isLoading: isLoadingProducts,
-    error: errorProducts,
+    error: errorProducts, // Erro ao carregar produtos
     mutate: mutateProducts,
     handleCreate,
     handleUpdate,
     handleDelete,
     isMutating,
-    mutationError,
+    mutationError, // Erro das operações CUD
     setMutationError,
   } = useAdminProducts(pagina, termoDebounced);
 
@@ -187,14 +187,13 @@ const AdminProducts: React.FC = () => {
   const {
     data: categoryData,
     isLoading: isLoadingCategories,
-    error: errorCategories,
+    error: errorCategories, // Erro ao carregar categorias
   } = useAdminCategories(1, '', 1000); // Pega todas as categorias para o dropdown
 
   const produtos = productData?.data ?? [];
-  
+
   const totalPaginas = useMemo(() => {
     if (!productData) return 1;
-    // CORREÇÃO: Acessando data.meta e 'limite'
     const totalItems = productData.meta?.total ?? 0;
     const itemsPerPage = productData.meta?.limite ?? 10;
     return Math.ceil(totalItems / itemsPerPage) || 1;
@@ -212,7 +211,7 @@ const AdminProducts: React.FC = () => {
   }, []);
 
   const handleSave = useCallback(
-    async (formData: ProdutoFormData, id?: string): Promise<Produto | void> => { // Corrigido tipo de retorno
+    async (formData: ProdutoFormData, id?: string): Promise<Produto | void> => {
       try {
         if (id) {
           await handleUpdate(id, formData);
@@ -222,6 +221,8 @@ const AdminProducts: React.FC = () => {
         handleCloseModal();
         mutateProducts(); // Atualiza a lista
       } catch (err) {
+        // O erro é capturado e setado no estado `mutationError` pelos hooks handleUpdate/handleCreate
+        // e será exibido pelo modal. Re-lançar aqui garante que a promessa seja rejeitada.
         throw err;
       }
     },
@@ -264,8 +265,13 @@ const AdminProducts: React.FC = () => {
     setPagina(1);
   }, [termoDebounced]);
 
-  const displayError = errorProducts || errorCategories;
+  // Combina erros de produtos e categorias para exibição geral
+  const combinedError = errorProducts || errorCategories;
+  // Define o estado de loading geral (carregando produtos ou categorias para o modal aberto)
   const isLoading = isLoadingProducts || (modalAberto && isLoadingCategories);
+
+  // Usa getErrorMessage para exibir o erro geral
+  const displayError = combinedError ? getErrorMessage(combinedError) : null;
 
   return (
     <div className="space-y-6">
@@ -300,22 +306,23 @@ const AdminProducts: React.FC = () => {
         />
       </div>
 
+      {/* Exibe displayError (string | null) */}
       {displayError && !isLoading && (
-        <ErrorMessage message={getErrorMessage(displayError)} />
+        <ErrorMessage message={displayError} />
       )}
 
       <ProductsTable
         produtos={produtos}
         onEdit={handleOpenModal}
         onDelete={handleDeleteConfirm}
-        isLoading={isLoading || isMutating}
+        isLoading={isLoadingProducts || isMutating} // Tabela só mostra loading de produtos ou mutação
       />
 
       <Pagination
         paginaAtual={pagina}
         totalPaginas={totalPaginas}
         onPageChange={handlePageChange}
-        isLoading={isLoading || isMutating}
+        isLoading={isLoadingProducts || isMutating} // Paginação depende do loading de produtos ou mutação
       />
 
       {modalAberto && (
@@ -326,8 +333,8 @@ const AdminProducts: React.FC = () => {
           produto={produtoSelecionado}
           categorias={categoryData?.data ?? []}
           isMutating={isMutating}
-          mutationError={mutationError} // Passa o erro original (unknown)
-          isLoadingCategorias={isLoadingCategories}
+          mutationError={mutationError} // Passa o erro CUD original (unknown) para o modal
+          isLoadingCategorias={isLoadingCategories} // Passa o loading de categorias para o modal
         />
       )}
     </div>

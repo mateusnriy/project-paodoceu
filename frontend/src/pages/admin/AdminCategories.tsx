@@ -89,7 +89,6 @@ const CategoriesTable: React.FC<{
                    {categoria._count?.produtos ?? 0}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
-                  {/* CORREÇÃO: dataCriacao -> criado_em */}
                   {categoria.criado_em ? formatarData(categoria.criado_em, { dateStyle: 'short', timeStyle: 'short' }) : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
@@ -145,13 +144,13 @@ const AdminCategories: React.FC = () => {
   const {
     data,
     isLoading,
-    error,
+    error, // Erro geral de carregamento
     mutate,
     handleCreate,
     handleUpdate,
     handleDelete,
     isMutating,
-    mutationError,
+    mutationError, // Erro específico das operações CUD
     setMutationError,
   } = useAdminCategories(pagina, termoDebounced, 10);
 
@@ -159,7 +158,6 @@ const AdminCategories: React.FC = () => {
 
   const totalPaginas = useMemo(() => {
       if (!data) return 1;
-      // CORREÇÃO: Acessando data.meta e usando 'limite'
       const totalItems = data.meta?.total ?? 0;
       const itemsPerPage = data.meta?.limite ?? 10;
       return Math.ceil(totalItems / itemsPerPage) || 1;
@@ -176,7 +174,6 @@ const AdminCategories: React.FC = () => {
     setModalAberto(false);
   }, []);
 
-  // CORREÇÃO: Ajustado o tipo de retorno para aceitar void
   const handleSave = useCallback(async (formData: { nome: string }, id?: string): Promise<Categoria | void> => {
     try {
       if (id) {
@@ -186,12 +183,9 @@ const AdminCategories: React.FC = () => {
       }
       handleCloseModal();
       mutate();
-      // Não precisamos retornar a categoria aqui, o importante é fechar e recarregar
     } catch (err) {
-      // O erro já está sendo tratado e exibido pelo modal através da prop mutationError
-      console.error("Erro no handleSave:", err); // Log opcional
-      // Re-lança para garantir que o formulário não feche se houver erro
-      throw err;
+      console.error("Erro no handleSave:", err);
+      throw err; // Re-lança para o modal tratar a exibição
     }
   }, [handleCreate, handleUpdate, mutate, handleCloseModal]);
 
@@ -226,6 +220,9 @@ const AdminCategories: React.FC = () => {
       setPagina(1);
   }, [termoDebounced]);
 
+  // <<< CORREÇÃO: Usa getErrorMessage para exibir o erro geral >>>
+  const displayError = error ? getErrorMessage(error) : null;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -259,8 +256,9 @@ const AdminCategories: React.FC = () => {
         />
       </div>
 
-      {error && !isLoading && (
-        <ErrorMessage message={getErrorMessage(error)} />
+      {/* <<< CORREÇÃO: Exibe displayError (string | null) >>> */}
+      {displayError && !isLoading && (
+        <ErrorMessage message={displayError} />
       )}
 
       <CategoriesTable
@@ -284,7 +282,7 @@ const AdminCategories: React.FC = () => {
           onSave={handleSave}
           categoria={categoriaSelecionada}
           isMutating={isMutating}
-          mutationError={mutationError} // Passa o erro original (unknown)
+          mutationError={mutationError} // Passa o erro original (unknown) para o modal
         />
       )}
     </div>

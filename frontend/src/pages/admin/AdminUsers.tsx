@@ -100,7 +100,6 @@ const UsersTable: React.FC<{
                   <PerfilBadge perfil={usuario.perfil} />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-text-secondary">
-                   {/* CORREÇÃO: Usar criado_em */}
                   {usuario.criado_em ? formatarData(usuario.criado_em, { dateStyle: 'short', timeStyle: 'short' }) : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
@@ -158,13 +157,13 @@ const AdminUsers: React.FC = () => {
   const {
     data,
     isLoading,
-    error,
+    error, // Erro geral de carregamento
     mutate,
     handleCreate,
     handleUpdate,
     handleDelete,
     isMutating,
-    mutationError,
+    mutationError, // Erro específico das operações CUD
     setMutationError,
     idUsuarioLogado,
   } = useAdminUsers(pagina, termoDebounced);
@@ -173,7 +172,6 @@ const AdminUsers: React.FC = () => {
 
   const totalPaginas = useMemo(() => {
     if (!data) return 1;
-    // CORREÇÃO: Acessando data.meta e usando 'limite'
     const totalItems = data.meta?.total ?? 0;
     const itemsPerPage = data.meta?.limite ?? 10;
     return Math.ceil(totalItems / itemsPerPage) || 1;
@@ -200,7 +198,9 @@ const AdminUsers: React.FC = () => {
       handleCloseModal();
       mutate();
     } catch (err) {
-      throw err; // O erro será pego e tratado pelo modal
+      // O erro é capturado e setado no estado `mutationError` pelos hooks handleUpdate/handleCreate
+      // e será exibido pelo modal. Re-lançar aqui garante que a promessa seja rejeitada.
+      throw err;
     }
   }, [handleCreate, handleUpdate, mutate, handleCloseModal]);
 
@@ -235,6 +235,9 @@ const AdminUsers: React.FC = () => {
       setPagina(1);
   }, [termoDebounced]);
 
+  // <<< CORREÇÃO: Usa getErrorMessage para exibir o erro geral >>>
+  const displayError = error ? getErrorMessage(error) : null;
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -268,8 +271,9 @@ const AdminUsers: React.FC = () => {
         />
       </div>
 
-      {error && !isLoading && (
-        <ErrorMessage message={getErrorMessage(error)} />
+      {/* <<< CORREÇÃO: Exibe displayError (string | null) >>> */}
+      {displayError && !isLoading && (
+        <ErrorMessage message={displayError} />
       )}
 
       <UsersTable
@@ -294,7 +298,7 @@ const AdminUsers: React.FC = () => {
           onSave={handleSave}
           usuario={usuarioSelecionado}
           isLoading={isMutating}
-          error={mutationError} // Passa o erro original (unknown)
+          error={mutationError} // Passa o erro CUD original (unknown) para o modal
         />
       )}
     </div>

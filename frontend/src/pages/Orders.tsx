@@ -120,7 +120,8 @@ const Orders: React.FC = () => {
     isLoading,
     error,
     handleConcluirPedido,
-    isUpdating,
+    updatingId, // Usar updatingId para a lógica
+    // isUpdating: isAnyUpdating, // <<< CORREÇÃO: Removido isAnyUpdating
   } = useOrders();
 
   const handleConcluirCallback = useCallback(
@@ -142,7 +143,6 @@ const Orders: React.FC = () => {
     if (error) {
       return (
          <div className="pt-10">
-            {/* CORREÇÃO: Removido 'title' prop */}
             <ErrorMessage
                message={`Erro ao carregar pedidos: ${getErrorMessage(error)}`}
             />
@@ -170,7 +170,7 @@ const Orders: React.FC = () => {
             key={pedido.id}
             pedido={pedido}
             onConcluir={handleConcluirCallback}
-            isUpdating={isUpdating === pedido.id} // Verifica se este card está sendo atualizado
+            isUpdating={updatingId === pedido.id} // Comparação correta
           />
         ))}
       </div>

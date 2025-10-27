@@ -40,11 +40,11 @@ const Payment: React.FC = () => {
       );
     }
 
-    if (error && !isSubmitting) {
+    // Error handling for loading state
+    if (error && !isSubmitting && !isLoading) {
+      const loadingErrorMessage = `Erro ao carregar informações de pagamento: ${getErrorMessage(error)}`;
       return (
-        <ErrorMessage
-          message={`Erro ao carregar informações de pagamento: ${getErrorMessage(error)}`}
-        />
+        <ErrorMessage message={loadingErrorMessage} />
       );
     }
 
@@ -78,14 +78,11 @@ const Payment: React.FC = () => {
               Selecione o método de pagamento
             </h2>
 
-            {/* CORREÇÃO: Exibe o erro de submissão aqui */}
-            {error && isSubmitting && (
-              <div className="mb-4">
-                 <ErrorMessage
-                    message={`Erro ao Finalizar Pedido: ${getErrorMessage(error)}`}
-                 />
-              </div>
-            )}
+            {error && isSubmitting ? (
+               <div className="mb-4">
+                  <ErrorMessage message={`Erro ao Finalizar Pedido: ${getErrorMessage(error as any)}`} />
+               </div>
+            ) : null}
 
             <div className="grid grid-cols-2 gap-4">
               {pagamentoOpcoes.map((opcao) => {
