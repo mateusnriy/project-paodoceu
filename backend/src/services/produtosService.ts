@@ -1,4 +1,3 @@
-// mateusnriy/project-paodoceu/project-paodoceu-main/backend/src/services/produtosService.ts
 import { PrismaClient, Produto, Prisma } from '@prisma/client';
 import { CreateProdutoDto } from '../dtos/ICreateProdutoDTO';
 import { UpdateProdutoDto } from '../dtos/IUpdateProdutoDTO';
@@ -127,17 +126,20 @@ export class ProdutosService {
     }
     
     try {
-        // Mapear DTO (frontend/controller) para Schema (db)
+        // Desestrutura a DTO, o campo categoria_id ainda é usado aqui.
         const { estoque, categoria_id, imagem_url, ...restData } = data;
         
-        // CORREÇÃO: Usar o tipo gerado pelo Prisma para ProdutoUpdateInput
         const dataToUpdate: Prisma.ProdutoUpdateInput = { ...restData };
         
         if (estoque !== undefined) dataToUpdate.estoque = estoque;
-        if (categoria_id !== undefined) dataToUpdate.categoria_id = categoria_id;
         
-        // Garante que o campo é atualizado para null se for explicitamente fornecido como null (ou string vazia no controller)
-        if (imagem_url !== undefined) dataToUpdate.imagem_url = imagem_url; 
+        // CORREÇÃO: Usamos a sintaxe de relação 'connect' para atualizar a FK, 
+        // o que é a forma mais robusta e aceita pelo Prisma.
+        if (categoria_id !== undefined) {
+             dataToUpdate.categoria = { connect: { id: categoria_id } }; 
+        }
+        
+        if (imagem_url !== undefined) dataToUpdate.imagem_url = imagem_url;
 
         return prisma.produto.update({ 
             where: { id }, 
