@@ -1,9 +1,9 @@
 // mateusnriy/project-paodoceu/project-paodoceu-main/backend/src/services/usuariosService.ts
 import { PrismaClient, Usuario, PerfilUsuario, Prisma } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { AppError } from '../middlewares/errorMiddleware';
 import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger'; // <<< CORREÇÃO (Era import default)
+import { logger } from '../lib/logger'; 
 
 type CreateUsuarioAdminDto = {
   nome: string;

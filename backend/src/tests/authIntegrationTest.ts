@@ -6,7 +6,11 @@ import { Server } from 'http';
 import { hash } from 'bcryptjs';
 
 let server: Server;
-let request: supertest.SuperTest<supertest.Test>;
+// Correção (TS2322): Remover tipagem explícita 'SuperTest<Test>'.
+// O tipo será inferido no beforeAll para evitar conflitos.
+let request: any; 
+// Nota: 'any' é usado aqui para contornar o TS,
+// mas a inferência real ocorrerá no 'beforeAll'.
 
 const testUser = {
   email: 'admin.seguranca@teste.com',
@@ -21,27 +25,27 @@ beforeAll(async () => {
     data: {
       nome: 'Admin Teste Seguranca',
       email: testUser.email,
-      senha: senhaHash, // Correção (Erro 32)
+      senha: senhaHash, 
       perfil: 'ADMINISTRADOR',
       ativo: true,
     },
   });
 
   server = app.listen(0); // Porta aleatória
-  request = supertest(server); // Correção (Erro 33)
+  // Inferência de tipo ocorre aqui (Linha 31)
+  request = supertest(server); 
 });
 
 // Fechar o servidor e limpar usuário
 afterAll(async () => {
   await prisma.usuario.deleteMany({ where: { email: testUser.email } });
-  await server.close(); // Correção (Erro 34)
+  await server.close(); 
 });
 
 /**
  * Helper para extrair cookies da resposta
  */
 const getCookies = (response: supertest.Response): string[] => {
-  // Correção (Erro 35-40): Garantir que 'set-cookie' é tratado como array
   const cookies = response.headers['set-cookie'];
   if (!cookies) return [];
   return Array.isArray(cookies) ? cookies : [cookies];
@@ -161,4 +165,3 @@ describe('Fluxo de Autenticação e Segurança (SEG-01, SEG-02, SEG-03)', () => 
     expect(response.headers['strict-transport-security']).toBeDefined();
   });
 });
-

@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/errorMiddleware';
-import { compare, hash } from 'bcrypt'; // <<< CORREÇÃO (Era bcryptjs)
+import { compare, hash } from 'bcryptjs'; 
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { logger } from '../lib/logger';

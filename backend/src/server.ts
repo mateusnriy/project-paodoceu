@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { app } from './app';
 import { createServer } from 'http'; // <--- IMPORTAR
 import { env } from './config/env';
