@@ -1,42 +1,67 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { env } from '../config/env';
+import { AppError } from './errorMiddleware';
+import { prisma } from '../lib/prisma';
 
 interface JwtPayload {
   id: string;
 }
 
-export const authMiddleware = async (req: Request, res: Response, next: NextFunction) => {
-  const { authorization } = req.headers;
+export const authMiddleware = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  // 1. Ler o token do cookie (CHANGE-SEG-01)
+  const { token } = req.cookies;
 
-  if (!authorization) {
-    return res.status(401).json({ message: 'Token não fornecido.' });
+  if (!token) {
+    throw new AppError('Token de autenticação não fornecido.', 401);
   }
 
-  const [, token] = authorization.split(' ');
-
   try {
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      throw new Error('Chave secreta JWT não configurada.');
-    }
+    // 2. Verificar o token
+    const decoded = jwt.verify(token, env.JWT_SECRET) as JwtPayload;
 
-    const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
-    
-    const usuario = await prisma.usuario.findUnique({ where: { id: decoded.id } });
+    // 3. Verificar se o usuário existe no banco
+    const usuario = await prisma.usuario.findUnique({
+      where: { id: decoded.id },
+      select: {
+        id: true, // ID é necessário para controle granular (RF23)
+        nome: true,
+        email: true,
+        perfil: true,
+        ativo: true,
+      },
+    });
 
     if (!usuario) {
-      return res.status(401).json({ message: 'Token inválido.' });
+      throw new AppError('Usuário não encontrado.', 401);
     }
 
-    const { senha, ...usuarioLogado } = usuario;
+    if (!usuario.ativo) {
+      throw new AppError('Usuário inativo.', 401);
+    }
 
-    req.usuario = usuarioLogado;
-
+    // 4. Anexar usuário ao objeto Request
+    req.usuario = usuario;
     next();
   } catch (error) {
-    return res.status(401).json({ message: 'Token inválido ou expirado.' });
+    // Limpar cookie inválido
+    res.cookie('token', '', {
+      httpOnly: true,
+      secure: env.NODE_ENV !== 'development',
+      sameSite: 'strict',
+      expires: new Date(0),
+      path: '/',
+    });
+    
+    if (error instanceof jwt.JsonWebTokenError) {
+      throw new AppError('Token inválido.', 401);
+    }
+    
+    // Propagar outros erros (ex: AppError de usuário inativo/não encontrado)
+    throw error;
   }
 };

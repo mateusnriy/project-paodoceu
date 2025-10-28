@@ -1,8 +1,9 @@
-export type CreateProdutoDto = {
+export interface CreateProdutoDto {
   nome: string;
   descricao?: string;
   preco: number;
-  estoque?: number;
-  categoria_id: string;
-  imagem_url?: string;
-};
+  // categoria_id: string; // <-- DE
+  categoriaId: string; // <-- PARA
+  estoque: number;
+  ativo?: boolean;
+}

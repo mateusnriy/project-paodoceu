@@ -1,25 +1,27 @@
-import app from './app';
-// Remover dotenv daqui, pois já é carregado em config/env.ts
-// import dotenv from 'dotenv';
-import logger from './lib/logger';
-import { env } from './config/env'; // <<< Importar as variáveis validadas
+import { app } from './app';
+import { createServer } from 'http'; // <--- IMPORTAR
+import { env } from './config/env';
+import { logger } from './lib/logger';
+import { initSocketServer } from './lib/socketServer'; // <--- IMPORTAR
 
-// dotenv.config(); // <<< REMOVER
+const PORT = env.PORT;
 
-// Usar a porta validada do objeto 'env'
-const PORT = env.PORT; // <<< ALTERADO
+// Criar servidor HTTP a partir do app Express
+const httpServer = createServer(app); // <--- MODIFICAR
 
-app.listen(PORT, () => {
-  logger.info(`Servidor Pão do Céu rodando na porta ${PORT} em modo ${env.NODE_ENV}`); // <<< ALTERADO
-  logger.info(`Acesso em: http://localhost:${PORT}`);
+// Inicializar o Socket.IO Server, anexando-o ao servidor HTTP
+initSocketServer(httpServer); // <--- ADICIONAR
+
+const server = httpServer.listen(PORT, () => { // <--- USAR httpServer
+  logger.info(`Servidor HTTP e Socket.IO rodando na porta ${PORT}`);
 });
 
-process.on('uncaughtException', (error) => {
-  logger.error('Uncaught Exception:', error);
-  // process.exit(1); // Considerar descomentar em produção
+// Graceful shutdown (sem alteração)
+process.on('SIGINT', () => {
+  logger.info('Recebido SIGINT. Fechando servidor...');
+  server.close(() => {
+    logger.info('Servidor HTTP fechado.');
+    process.exit(0);
+  });
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  // process.exit(1); // Considerar descomentar em produção
-});

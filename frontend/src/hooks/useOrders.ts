@@ -1,120 +1,98 @@
-// src/hooks/useOrders.ts
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { api } from '../services/api';
-import { Pedido, StatusPedido } from '../types';
+import { useState, useEffect, useCallback } from 'react';
+import api from '../services/api';
+import { Pedido } from '../types';
 import { logError } from '../utils/logger';
-
-interface OrderWithUI extends Pedido {
-  completed?: boolean;
-}
+import { socket } from '../lib/socket'; // <--- IMPORTAR SOCKET
 
 export const useOrders = () => {
-  const [pedidos, setPedidos] = useState<OrderWithUI[]>([]);
+  const [pedidosProntos, setPedidosProntos] = useState<Pedido[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<unknown>(null);
-  const [isUpdating, setIsUpdating] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const loadOrders = useCallback(async () => {
+  // Busca inicial de pedidos prontos
+  const fetchPedidosProntos = useCallback(async () => {
+    setIsLoading(true);
     setError(null);
-    if (pedidos.length === 0) { // Só loading na primeira vez
-        setIsLoading(true);
-    }
-
     try {
-      const response = await api.get<Pedido[]>('/pedidos/prontos'); // Assume que retorna apenas os PRONTOS
-      const sortedPedidos = response.data.sort((a, b) =>
-          new Date(b.atualizado_em).getTime() - new Date(a.atualizado_em).getTime()
-      );
-
-      // Processa a resposta para manter o estado 'completed' se já existir
-      setPedidos(prevPedidos => {
-         const updatedPedidosMap = new Map<string, OrderWithUI>();
-         prevPedidos.forEach(p => updatedPedidosMap.set(p.id, p));
-
-         const newPedidos = sortedPedidos
-             .filter(p => p.status === StatusPedido.PRONTO) // Garante que só entram prontos
-             .map(p => {
-                 const existing = updatedPedidosMap.get(p.id);
-                 return { ...p, completed: existing?.completed ?? false };
-             });
-
-         // Remove pedidos que não estão mais na lista de prontos (já foram concluídos)
-         const finalPedidos = newPedidos.filter(p => !p.completed || updatedPedidosMap.has(p.id));
-
-         // Verifica se a lista realmente mudou para evitar re-render desnecessário
-         if (JSON.stringify(finalPedidos) !== JSON.stringify(prevPedidos.filter(p => finalPedidos.some(fp => fp.id === p.id)))) {
-            return finalPedidos;
-         }
-         return prevPedidos;
-      });
-
+      const { data } = await api.get<Pedido[]>('/api/pedidos/prontos');
+      setPedidosProntos(data);
     } catch (err) {
-      logError('Erro detalhado ao buscar pedidos prontos:', err);
-      setError(err);
-      // Mantém a lista antiga em caso de falha de rede temporária
+      logError('Erro ao buscar pedidos prontos', err);
+      setError('Falha ao carregar pedidos. Tente novamente.');
     } finally {
       setIsLoading(false);
     }
-  }, [pedidos.length]); // Dependência ajustada para loading inicial
+  }, []);
 
+  // 1. Remover polling (setInterval)
+  /*
   useEffect(() => {
-    loadOrders();
-    const intervalId = setInterval(loadOrders, 10000);
+    fetchPedidosProntos();
+    const intervalId = setInterval(fetchPedidosProntos, 5000); // 5 segundos
     return () => clearInterval(intervalId);
-  }, [loadOrders]);
+  }, [fetchPedidosProntos]);
+  */
 
-  const handleConcluirPedido = useCallback(async (pedidoId: string) => {
-    if (isUpdating) return;
+  // 2. Efeito para busca inicial
+  useEffect(() => {
+    fetchPedidosProntos();
+  }, [fetchPedidosProntos]);
 
-    setIsUpdating(pedidoId);
-    setError(null);
+  // 3. Efeito para ouvir eventos Socket.IO
+  useEffect(() => {
+    // Evento: Novo pedido pronto (vindo do pagamento)
+    const handlePedidoNovo = (novoPedido: Pedido) => {
+      // Adiciona o novo pedido no início da lista
+      setPedidosProntos((prevPedidos) => [novoPedido, ...prevPedidos]);
+    };
 
-    // --- UI Otimista ---
-    setPedidos((prevPedidos) =>
-      prevPedidos.map((p) =>
-        p.id === pedidoId
-          ? { ...p, completed: true, status: StatusPedido.ENTREGUE } // Marca como completed e muda status visualmente
-          : p
-      )
+    // Evento: Pedido foi entregue
+    const handlePedidoEntregue = (data: { id: string }) => {
+      setPedidosProntos((prevPedidos) =>
+        prevPedidos.filter((p) => p.id !== data.id),
+      );
+    };
+
+    // Registrar listeners
+    socket.on('pedido:novo', handlePedidoNovo);
+    socket.on('pedido:entregue', handlePedidoEntregue);
+
+    // Limpar listeners ao desmontar
+    return () => {
+      socket.off('pedido:novo', handlePedidoNovo);
+      socket.off('pedido:entregue', handlePedidoEntregue);
+    };
+  }, []);
+
+
+  // Ação de marcar como entregue
+  const marcarComoEntregue = useCallback(async (id: string) => {
+    // UI Otimista: Remove imediatamente
+    setPedidosProntos((prevPedidos) =>
+      prevPedidos.filter((p) => p.id !== id),
     );
 
     try {
-      await api.patch(`/pedidos/${pedidoId}/entregar`);
-
-      // Sucesso: Agendar remoção da UI após um tempo
-      const timerId = setTimeout(() => {
-        setPedidos((prevPedidos) => prevPedidos.filter((p) => p.id !== pedidoId));
-        setIsUpdating(null);
-      }, 1500); // Remove após 1.5 segundos
-
-      return () => clearTimeout(timerId); // Função de limpeza
-
+      // O backend emitirá o evento 'pedido:entregue'
+      // Não precisamos de UI otimista se o socket for robusto,
+      // mas vamos manter para feedback instantâneo e
+      // deixar o socket apenas confirmar o estado.
+      await api.patch(`/api/pedidos/${id}/entregar`);
+      // O evento socket 'pedido:entregue' vai garantir a remoção
+      // caso a UI otimista falhe ou se outro atendente o fizer.
     } catch (err) {
-      logError('Erro ao marcar pedido como entregue:', err, { pedidoId });
-      setError(err);
-
-      // --- Reverte UI Otimista ---
-      setPedidos((prevPedidos) =>
-        prevPedidos.map((p) =>
-          p.id === pedidoId
-            ? { ...p, completed: false, status: StatusPedido.PRONTO } // Volta ao estado anterior
-            : p
-        )
-      );
-      setIsUpdating(null);
+      logError(`Erro ao marcar pedido ${id} como entregue`, err);
+      setError('Falha ao atualizar pedido. Atualizando lista...');
+      // Reverter UI otimista (rebuscando a lista)
+      fetchPedidosProntos();
     }
-  }, [isUpdating]); // Dependência isUpdating
-
-
-  // Filtra os pedidos que não estão marcados como 'completed' para exibição
-  const pedidosVisiveis = useMemo(() => pedidos.filter(p => !p.completed), [pedidos]);
+  }, [fetchPedidosProntos]);
 
   return {
-    pedidos: pedidosVisiveis,
+    pedidosProntos,
     isLoading,
     error,
-    handleConcluirPedido,
-    isUpdating: !!isUpdating, // Retorna boolean
-    updatingId: isUpdating, // Retorna o ID que está sendo atualizado (ou null)
+    marcarComoEntregue,
+    retry: fetchPedidosProntos,
   };
 };

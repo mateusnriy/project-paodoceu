@@ -15,6 +15,9 @@
   "dependencies": {
     "@sentry/react": "^7.100.1",
     "@sentry/vite-plugin": "^2.16.1",
+    "@types/node": "^20.11.18",
+    "@types/react": "^18.2.56",
+    "@types/react-dom": "^18.2.19",
     "axios": "^1.6.8",
     "class-variance-authority": "^0.7.1",
     "date-fns": "^3.6.0",
@@ -22,11 +25,10 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.65.0",
+    "react-hot-toast": "^2.4.1",
     "react-router-dom": "^6.22.3",
     "recharts": "^2.12.3",
-    "@types/react": "^18.2.56",
-    "@types/react-dom": "^18.2.19",
-    "@types/node": "^20.11.18"
+    "socket.io-client": "^4.7.5"
   },
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.10",

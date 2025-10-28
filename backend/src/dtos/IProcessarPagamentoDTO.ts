@@ -1,6 +1,6 @@
-import { MetodoPagamento } from '@prisma/client';
+import { TipoPagamento } from '@prisma/client';
 
-export type ProcessarPagamentoDto = {
-  metodo: MetodoPagamento;
-  valor_pago: number;
-};
+export interface ProcessarPagamentoDto {
+  // Correção: Definir o campo esperado pela validação e serviço
+  tipoPagamento: TipoPagamento;
+}

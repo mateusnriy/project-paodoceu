@@ -1,56 +1,59 @@
 import { Request, Response } from 'express';
 import { PedidosService } from '../services/pedidosService';
-import { AppError } from '../middlewares/errorMiddleware';
+import { CreatePedidoDto } from '../dtos/ICreatePedidoDTO';
+import { ProcessarPagamentoDto } from '../dtos/IProcessarPagamentoDTO';
 
+// Instanciar o serviço (em DI seria injetado)
 const pedidosService = new PedidosService();
 
 export class PedidosController {
+  
   async criar(req: Request, res: Response) {
-    const atendenteId = req.usuario?.id;
-    if (!atendenteId) {
-      throw new AppError('Atendente não identificado.', 401);
-    }
+    const createPedidoDto: CreatePedidoDto = req.body;
+    const atendenteId = req.usuario.id; // Do authMiddleware
 
-    const novoPedido = await pedidosService.criar(req.body, atendenteId);
-    return res.status(201).json(novoPedido);
+    // Correção (Erro 14): Método 'criar' existe no serviço corrigido
+    const novoPedido = await pedidosService.criar(createPedidoDto, atendenteId);
+    res.status(201).json(novoPedido);
   }
 
-  async listarTodos(req: Request, res: Response) {
+  async listar(req: Request, res: Response) {
+    // Correção (Erro 15): Usar 'listarTodos'
     const pedidos = await pedidosService.listarTodos();
-    return res.status(200).json(pedidos);
+    res.status(200).json(pedidos);
   }
 
-  async listarPedidosProntos(req: Request, res: Response) {
+  async listarProntos(req: Request, res: Response) {
+    // Correção (Erro 16): Usar 'listarPedidosProntos'
     const pedidos = await pedidosService.listarPedidosProntos();
-    return res.status(200).json(pedidos);
+    res.status(200).json(pedidos);
   }
 
-  async obterPorId(req: Request, res: Response) {
+  async obter(req: Request, res: Response) {
     const { id } = req.params;
+    // Correção (Erro 17): Usar 'obterPorId'
     const pedido = await pedidosService.obterPorId(id);
-
-    if (!pedido) {
-      throw new AppError('Pedido não encontrado.', 404);
-    }
-
-    return res.status(200).json(pedido);
+    res.status(200).json(pedido);
   }
 
-  async processarPagamento(req: Request, res: Response) {
+  async pagar(req: Request, res: Response) {
     const { id } = req.params;
-    const comprovante = await pedidosService.processarPagamento(id, req.body);
-    return res.status(200).json(comprovante);
+    const pagamentoDto: ProcessarPagamentoDto = req.body;
+    
+    const pedidoPago = await pedidosService.processarPagamento(id, pagamentoDto);
+    res.status(200).json(pedidoPago);
   }
 
-  async marcarComoEntregue(req: Request, res: Response) {
+  async entregar(req: Request, res: Response) {
     const { id } = req.params;
-    const pedidoAtualizado = await pedidosService.marcarComoEntregue(id);
-    return res.status(200).json(pedidoAtualizado);
+    const pedidoEntregue = await pedidosService.marcarComoEntregue(id);
+    res.status(200).json(pedidoEntregue);
   }
 
   async cancelar(req: Request, res: Response) {
     const { id } = req.params;
+    // Correção (Erro 18): Usar 'cancelar'
     const pedidoCancelado = await pedidosService.cancelar(id);
-    return res.status(200).json(pedidoCancelado);
+    res.status(200).json(pedidoCancelado);
   }
 }

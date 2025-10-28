@@ -1,29 +1,18 @@
 import { z } from 'zod';
+import { PerfilUsuario } from '@prisma/client';
 
 export const loginSchema = z.object({
-  body: z.object({
-    email: z
-      .string({ required_error: 'O email é obrigatório.' })
-      .email('Formato de email inválido.')
-      .transform(email => email.toLowerCase()), // Normaliza o email para minúsculas
-    senha: z
-      .string({ required_error: 'A senha é obrigatória.' })
-      .min(1, 'A senha não pode estar vazia.'), // Senha não pode ser vazia, mas a validação de tamanho real é no login
-  }),
+  email: z.string().email('Email inválido.'),
+  senha: z.string().min(1, 'Senha é obrigatória.'),
 });
 
 export const registrarSchema = z.object({
-  body: z.object({
-    nome: z
-      .string({ required_error: 'O nome é obrigatório.' })
-      .min(3, 'O nome precisa ter no mínimo 3 caracteres.')
-      .trim(), // Remove espaços extras
-    email: z
-      .string({ required_error: 'O email é obrigatório.' })
-      .email('Formato de email inválido.')
-      .transform(email => email.toLowerCase()), // Normaliza o email para minúsculas
-    senha: z
-      .string({ required_error: 'A senha é obrigatória.' })
-      .min(6, 'A senha precisa ter no mínimo 6 caracteres.'),
-  }),
+  nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres.'),
+  email: z.string().email('Email inválido.'),
+  senha: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres.'),
+  perfil: z.nativeEnum(PerfilUsuario).optional(), // Perfil é opcional no DTO, definido pelo serviço
 });
+
+// Correção: Exportar os tipos inferidos (DTOs)
+export type LoginDto = z.infer<typeof loginSchema>;
+export type RegistrarDto = z.infer<typeof registrarSchema>;

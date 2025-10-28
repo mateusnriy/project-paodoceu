@@ -1,193 +1,153 @@
-// src/pages/POS.tsx
-import React, { useCallback } from 'react';
-// import { Loader2 } from 'lucide-react'; // REMOVIDO
-import { OrderSummary } from '../components/common/OrderSummary';
-import { ProductCard } from '../components/common/ProductCard';
-import { Button } from '../components/common/Button';
 import { usePOS } from '../hooks/usePOS';
+import { formatarMoeda } from '../utils/formatters';
+import { ProductCard } from '../components/common/ProductCard';
+import { OrderSummary } from '../components/common/OrderSummary';
+import { LoadingSpinner } from '../components/ui/LoadingSpinner';
 import { ErrorMessage } from '../components/ui/ErrorMessage';
-import { getErrorMessage } from '../utils/errors';
-import { Categoria, Produto } from '../types';
+import { Button } from '../components/common/Button';
 
-interface CategoriaPillProps {
-  categoria: Categoria | { id: 'todos'; nome: string };
-  categoriaAtiva: string | null;
-  onClick: (id: string | null) => void;
-}
+// (Assumindo que ícones (ex: Search, ChevronLeft, ChevronRight)
+// estão disponíveis ou são importados de 'lucide-react')
+// import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
-const CategoriaPill: React.FC<CategoriaPillProps> = React.memo(
-  ({ categoria, categoriaAtiva, onClick }) => {
-    const id = categoria.id === 'todos' ? null : categoria.id;
-    const isActive = categoriaAtiva === id;
-
-    const baseClasses =
-      'px-4 py-2 rounded-full font-semibold text-base transition-colors duration-150 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue';
-
-    const activeClasses = 'bg-primary-blue text-white';
-
-    const inactiveClasses =
-      'bg-primary-white text-text-secondary border border-gray-300 hover:bg-background-light-blue';
-
-    return (
-      <button
-        onClick={() => onClick(id)}
-        className={`${baseClasses} ${isActive ? activeClasses : inactiveClasses}`}
-        aria-pressed={isActive}
-      >
-        {categoria.nome}
-      </button>
-    );
-  }
-);
-CategoriaPill.displayName = 'CategoriaPill'; // Adicionado displayName
-
-
-const POS: React.FC = () => {
+export default function POS() {
   const {
-    pedido,
-    total,
-    produtosFiltrados,
+    produtos,
     categorias,
     categoriaAtiva,
     setCategoriaAtiva,
-    isLoadingProdutos,
-    isLoadingCategorias,
-    errorProdutos,
-    errorCategorias,
-    handleAddToCart,
-    handleRemoveFromCart,
-    handleUpdateQuantity,
-    handleLimparCarrinho,
-    handleNavigateToPayment,
+    pedido,
+    total,
+    isLoading,
+    error,
+    onAddToCart,
+    onRemove,
+    onUpdateQuantity,
+    handleIrParaPagamento,
+    // Importar novos estados
+    termoBusca,
+    setTermoBusca,
+    meta,
+    irParaPagina,
+    pagina,
   } = usePOS();
 
-  // Callbacks memoizados
-  const handleRemoveCallback = useCallback(handleRemoveFromCart, [handleRemoveFromCart]);
-  const handleUpdateCallback = useCallback(handleUpdateQuantity, [handleUpdateQuantity]);
-  const handleLimparCallback = useCallback(handleLimparCarrinho, [handleLimparCarrinho]);
-  const handleCheckoutCallback = useCallback(handleNavigateToPayment, [handleNavigateToPayment]);
-  const handleAddCallback = useCallback(handleAddToCart, [handleAddToCart]);
-  const handleCategoriaClick = useCallback(setCategoriaAtiva, [setCategoriaAtiva]);
-
-
-  const renderFiltroCategorias = () => {
-    if (isLoadingCategorias) {
-      return <div className="h-10 animate-pulse bg-gray-200 rounded-full w-full" />;
-    }
-    if (errorCategorias) {
-      // CORREÇÃO: Removido 'title'
-      return <ErrorMessage message="Erro ao carregar categorias." />;
-    }
-    return (
-      <nav className="flex flex-wrap gap-3">
-        <CategoriaPill
-          categoria={{ id: 'todos', nome: 'Todos' }}
-          categoriaAtiva={categoriaAtiva}
-          onClick={handleCategoriaClick}
-        />
-        {categorias.map((cat) => (
-          <CategoriaPill
-            key={cat.id}
-            categoria={cat}
-            categoriaAtiva={categoriaAtiva}
-            onClick={handleCategoriaClick}
-          />
-        ))}
-      </nav>
-    );
-  };
-
-
-  const renderListaProdutos = () => {
-    if (isLoadingProdutos) {
-      return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-xl shadow-soft h-64 animate-pulse" />
-          ))}
-        </div>
-      );
-    }
-    if (errorProdutos) {
-      // CORREÇÃO: Removido 'title' prop e usado getErrorMessage
-      return <ErrorMessage message={getErrorMessage(errorProdutos)} />;
-    }
-    if (produtosFiltrados.length === 0) {
-      return (
-        <div className="text-center py-20">
-          <h2 className="text-2xl font-semibold text-text-primary mb-4">
-            Nenhum produto encontrado
-          </h2>
-          <p className="text-text-secondary">
-            Tente selecionar outra categoria ou verificar os filtros.
-          </p>
-        </div>
-      );
-    }
-    return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-        {produtosFiltrados.map((produto: Produto) => (
-          <ProductCard
-            key={produto.id}
-            produto={produto}
-            onAddToCart={handleAddCallback}
-          />
-        ))}
-      </div>
-    );
-  };
-
   return (
-
-    <main className="container mx-auto p-4 md:p-8">
-      <div className="flex flex-col lg:flex-row lg:gap-8">
-
-        {/* Lado Esquerdo: Produtos e Categorias */}
-        <div className="lg:w-2/3">
-          <div className="mb-6">
-            {renderFiltroCategorias()}
+    <div className="flex h-[calc(100vh-4rem)]"> {/* Subtrai altura do Header */}
+      {/* Coluna de Produtos (Esquerda) */}
+      <div className="flex-1 flex flex-col p-4 bg-gray-50 overflow-y-auto">
+        
+        {/* --- Filtros (Busca e Categorias) --- */}
+        <div className="flex flex-col md:flex-row gap-2 mb-4">
+          {/* Campo de Busca */}
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder="Buscar produto por nome..."
+              value={termoBusca}
+              onChange={(e) => setTermoBusca(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+            {/* Ícone de Lupa (Exemplo) */}
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+              {/* <Search size={20} /> */}
+              (Lupa)
+            </span>
           </div>
-          <div>
-            {renderListaProdutos()}
-          </div>
-        </div>
-
-        {/* Lado Direito: Resumo do Pedido (fixo) */}
-        <div className="lg:w-1/3 lg:sticky top-[104px] h-fit mt-8 lg:mt-0">
-          <OrderSummary
-            pedido={pedido}
-            total={total}
-            onItemRemove={handleRemoveCallback}
-            onItemUpdateQuantity={handleUpdateCallback}
-            // CORREÇÃO: onLimparCarrinho removido daqui
+          
+          {/* Filtro de Categoria */}
+          <select
+            value={categoriaAtiva}
+            onChange={(e) => setCategoriaAtiva(e.target.value)}
+            className="w-full md:w-48 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
-            {/* Botão de Pagamento */}
-            <Button
-              onClick={handleCheckoutCallback}
-              disabled={pedido.itens.length === 0 || isLoadingProdutos || isLoadingCategorias}
-              className="w-full"
-              size="lg"
-            >
-              Ir para Pagamento
-            </Button>
-
-            {/* Botão Limpar Carrinho adicionado aqui */}
-            {pedido.itens.length > 0 && (
-              <Button
-                onClick={handleLimparCallback}
-                variant="link"
-                size="sm"
-                className="text-status-error w-full mt-2" // Adicionado mt-2 para espaçamento
-                disabled={isLoadingProdutos || isLoadingCategorias}
-              >
-                Limpar Carrinho
-              </Button>
-            )}
-          </OrderSummary>
+            <option value="todos">Todas as Categorias</option>
+            {categorias.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.nome}
+              </option>
+            ))}
+          </select>
         </div>
-      </div>
-    </main>
-  );
-};
 
-export default POS;
+        {/* --- Grid de Produtos --- */}
+        {isLoading && (
+          <div className="flex-1 flex items-center justify-center">
+            <LoadingSpinner className="h-10 w-10" />
+          </div>
+        )}
+
+        {error && !isLoading && (
+          <div className="flex-1 flex items-center justify-center">
+            <ErrorMessage message={error} />
+          </div>
+        )}
+
+        {!isLoading && !error && produtos.length === 0 && (
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-gray-500">Nenhum produto encontrado.</p>
+          </div>
+        )}
+
+        {!isLoading && !error && produtos.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {produtos.map((produto) => (
+              <ProductCard
+                key={produto.id}
+                produto={produto}
+                onAddToCart={onAddToCart}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* --- Paginação --- */}
+        {meta && meta.totalPaginas > 1 && (
+          <div className="flex justify-center items-center gap-4 mt-6">
+            <Button
+              onClick={() => irParaPagina(pagina - 1)}
+              disabled={!meta.hasAnterior || isLoading}
+              variant="outline"
+            >
+              {/* <ChevronLeft size={16} /> */}
+              Anterior
+            </Button>
+            <span className="text-gray-700 font-medium">
+              Página {meta.pagina} de {meta.totalPaginas}
+            </span>
+            <Button
+              onClick={() => irParaPagina(pagina + 1)}
+              disabled={!meta.hasNext || isLoading}
+              variant="outline"
+            >
+              Próximo
+              {/* <ChevronRight size={16} /> */}
+            </Button>
+          </div>
+        )}
+
+      </div>
+
+      {/* Coluna do Pedido (Direita) */}
+      <aside className="w-80 md:w-96 bg-white border-l shadow-lg flex flex-col">
+        <OrderSummary
+          itens={pedido}
+          total={total}
+          onUpdateQuantity={onUpdateQuantity}
+          onRemove={onRemove}
+        />
+        <div className="p-4 mt-auto border-t">
+          <Button
+            size="lg"
+            className="w-full"
+            onClick={handleIrParaPagamento}
+            disabled={pedido.length === 0}
+          >
+            Ir para Pagamento ({formatarMoeda(total)})
+          </Button>
+        </div>
+      </aside>
+    </div>
+  );
+}
+

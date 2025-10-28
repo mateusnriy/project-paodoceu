@@ -1,72 +1,68 @@
 import 'express-async-errors';
-import express, { Request, Response, Application } from 'express';
+import express from 'express';
 import cors from 'cors';
-import rateLimit from 'express-rate-limit'; // <<< Importar
+import rateLimit from 'express-rate-limit';
+import helmet from 'helmet'; // <--- (SEG-03)
+import cookieParser from 'cookie-parser'; // <--- (SEG-01)
+import { env } from './config/env';
+import { errorMiddleware } from './middlewares/errorMiddleware';
+import { csrfMiddleware } from './middlewares/csrfMiddleware'; // <--- (SEG-02)
+
+// Importar rotas
 import authRoutes from './routes/authRoutes';
-import userRoutes from './routes/usuariosRoutes';
+import usuariosRoutes from './routes/usuariosRoutes';
 import categoriasRoutes from './routes/categoriasRoutes';
 import produtosRoutes from './routes/produtosRoutes';
 import pedidosRoutes from './routes/pedidosRoutes';
 import relatoriosRoutes from './routes/relatoriosRoutes';
-import { errorMiddleware } from './middlewares/errorMiddleware';
-import logger from './lib/logger'; // Importar logger para o handler
-import { env } from './config/env'; // Importar env
 
-const app: Application = express();
+const app = express();
 
-// --- Middlewares Essenciais ---
-app.use(cors()); // Habilita CORS para todas as origens (ajustar em produção se necessário)
-app.use(express.json()); // Parser para JSON bodies
+// --- Configuração de CORS (Atualizada) ---
+// Deve permitir credenciais (cookies) da origem do frontend
+app.use(cors({
+  origin: env.NODE_ENV === 'development'
+    ? 'http://localhost:5173' // Origem do Vite
+    : 'https://seu-dominio-de-producao.com', // TODO: Atualizar em produção
+  credentials: true, // <--- (SEG-01) Permite envio de cookies
+}));
 
-// --- Rate Limiter ---
-// Aumentar o limite geral em desenvolvimento para evitar 429 com hot-reload
-const isDev = env.NODE_ENV === 'development';
-const generalMax = isDev ? 1000 : 200; // 1000 reqs em dev, 200 em prod
+// --- Middlewares Globais (Atualizados) ---
+app.use(helmet()); // <--- (SEG-03) Adiciona headers de segurança
+app.use(express.json());
+app.use(cookieParser()); // <--- (SEG-01) Habilita parse de cookies
 
-const generalLimiter = rateLimit({
-	windowMs: 15 * 60 * 1000, // Janela de 15 minutos
-	max: generalMax, // <<< CORREÇÃO: Limite aumentado em desenvolvimento
-	message: 'Muitas requisições originadas deste IP, tente novamente após 15 minutos.',
-  standardHeaders: true, // Retorna info do limite nos headers `RateLimit-*`
-  legacyHeaders: false, // Desabilita headers `X-RateLimit-*`
-  handler: (req, res, next, options) => { // Logar quando o limite for atingido
-      logger.warn(`Rate limit excedido para IP ${req.ip}`, { limit: options.max, windowMs: options.windowMs, path: req.path });
-      res.status(options.statusCode).send(options.message);
-  },
-});
-app.use(generalLimiter); // Aplicar a todas as rotas
-
-// Aplicar um limite mais estrito especificamente para rotas de autenticação
-const authLimiter = rateLimit({
-	windowMs: 10 * 60 * 1000, // Janela de 10 minutos
-	max: isDev ? 50 : 10, // <<< CORREÇÃO: Limite aumentado em desenvolvimento
-	message: 'Muitas tentativas de login/registro deste IP, tente novamente após 10 minutos.',
+// Rate limiting (RN09 - já existia, mantido)
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // Limite de 100 requisições por IP
+  message: 'Muitas requisições originadas deste IP, tente novamente após 15 minutos.',
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res, next, options) => { // Logar quando o limite for atingido
-      logger.warn(`Auth Rate limit excedido para IP ${req.ip}`, { limit: options.max, windowMs: options.windowMs, path: req.path });
-      res.status(options.statusCode).send(options.message);
-  },
 });
-// Aplicar antes das rotas de autenticação
-app.use('/api/auth', authLimiter);
+app.use(limiter);
 
 // --- Rotas da API ---
-app.get('/', (req: Request, res: Response) => {
-  res.status(200).json({
-    message: 'API do sistema Pão do Céu está no ar!',
-    status: 'OK',
-  });
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'API Pão do Céu v2.2 Operacional' });
 });
 
+// Rotas de Autenticação (NÃO usam CSRF, pois elas *definem* os tokens)
 app.use('/api/auth', authRoutes);
-app.use('/api/usuarios', userRoutes);
+
+// Aplicar proteção CSRF a todas as outras rotas da API
+app.use('/api', csrfMiddleware); // <--- (SEG-02)
+
+// Rotas protegidas (CSRF + Auth)
+app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/categorias', categoriasRoutes);
 app.use('/api/produtos', produtosRoutes);
 app.use('/api/pedidos', pedidosRoutes);
 app.use('/api/relatorios', relatoriosRoutes);
 
-// --- Middleware de Erro (Deve ser o último) ---
+// --- Error Handling ---
+// Deve vir depois das rotas
 app.use(errorMiddleware);
 
-export default app;
+export { app };
+
