@@ -4,7 +4,7 @@ import { CreateCategoriaDto } from '../dtos/ICreateCategoriaDTO';
 import { UpdateCategoriaDto } from '../dtos/IUpdateCategoriaDTO';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/errorMiddleware';
-import logger from '../lib/logger';
+import { logger } from '../lib/logger'; // <<< CORREÇÃO (Era import default)
 
 // Interface para a resposta paginada
 interface PaginatedResponse<T> {

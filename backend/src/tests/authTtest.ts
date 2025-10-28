@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { Server } from 'http';
 
 let server: Server;
+// <<< CORREÇÃO: Tipo correto é SuperTest<Test>
 let request: supertest.SuperTest<supertest.Test>;
 
 // Iniciar o servidor de teste
@@ -21,7 +22,7 @@ beforeAll(async () => {
     data: {
       nome: 'Admin Teste',
       email: 'admin@teste.com',
-      senhaHash: '$2a$10$fakesenha1234567890abcde', // Senha "123456" (exemplo)
+      senha: '$2a$10$fakesenha1234567890abcde', // Senha "123456" (exemplo)
       perfil: 'ADMINISTRADOR',
       ativo: true,
     },
@@ -32,8 +33,10 @@ beforeAll(async () => {
 });
 
 // Fechar o servidor
-afterAll((done) => {
-  server.close(done);
+afterAll(async () => {
+  await new Promise<void>((resolve) => {
+    server.close(() => resolve());
+  });
 });
 
 describe('Fluxo de Autenticação (CHANGE-SEG-01)', () => {
@@ -63,8 +66,10 @@ describe('Fluxo de Autenticação (CHANGE-SEG-01)', () => {
     expect(response.body.usuario.email).toBe('admin@teste.com');
     
     // Verificar cookies (CHANGE-SEG-01 e SEG-02)
-    const cookies = response.headers['set-cookie'];
-    expect(cookies).toBeDefined();
+    const cookiesHeader = response.headers['set-cookie'];
+    expect(cookiesHeader).toBeDefined();
+    const cookies = Array.isArray(cookiesHeader) ? cookiesHeader : [cookiesHeader];
+
     expect(cookies.some((cookie: string) => cookie.startsWith('token='))).toBe(true);
     expect(cookies.some((cookie: string) => cookie.includes('HttpOnly'))).toBe(true);
     expect(cookies.some((cookie: string) => cookie.startsWith('csrf-token='))).toBe(true);
@@ -82,8 +87,11 @@ describe('Fluxo de Autenticação (CHANGE-SEG-01)', () => {
     // 2. Acessar rota protegida
     const response = await request.get('/api/usuarios').set('Cookie', cookie);
 
+    // NOTA: O controller de usuários 'listarTodos' retorna um objeto paginado.
+    // O teste original (response.body.dados) estava correto, assumindo a 
+    // implementação de 'usuariosService.listarPaginado'.
     expect(response.status).toBe(200);
-    expect(Array.isArray(response.body.dados)).toBe(true);
+    expect(Array.isArray(response.body.data)).toBe(true); // O service retorna { data: [], meta: {} }
   });
 
   it('deve deslogar e limpar os cookies', async () => {
@@ -100,7 +108,10 @@ describe('Fluxo de Autenticação (CHANGE-SEG-01)', () => {
     expect(logoutRes.status).toBe(200);
     
     // Verificar se os cookies foram expirados
-    const clearedCookies = logoutRes.headers['set-cookie'];
+    const clearedCookiesHeader = logoutRes.headers['set-cookie'];
+    expect(clearedCookiesHeader).toBeDefined();
+    const clearedCookies = Array.isArray(clearedCookiesHeader) ? clearedCookiesHeader : [clearedCookiesHeader];
+
     expect(clearedCookies.some((c: string) => c.includes('token=;'))).toBe(true);
     expect(clearedCookies.some((c: string) => c.includes('csrf-token=;'))).toBe(true);
     expect(clearedCookies.some((c: string) => c.includes('Expires='))).toBe(true);

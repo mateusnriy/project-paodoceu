@@ -17,3 +17,6 @@ declare global {
     }
   }
 }
+
+// <<< CORREÇÃO: Adicionado para tornar este arquivo um módulo
+export {};

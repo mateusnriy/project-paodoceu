@@ -1,17 +1,15 @@
 import React, { memo, ReactNode } from 'react';
-// import { Button } from './Button'; // REMOVIDO
-import { Trash2, Minus, Plus } from 'lucide-react';
-import { Pedido, PedidoItem } from '../../types'; // Importa o tipo 'Pedido'
+import { Trash2, Minus, Plus, ShoppingCart } from 'lucide-react'; // Adicionar ShoppingCart
+import { Pedido, PedidoItem } from '../../types'; // Importar PedidoItem aqui
 import { formatarMoeda } from '../../utils/formatters';
 
 // --- Props Refatoradas ---
 interface OrderSummaryProps {
-  pedido: Pedido;
+  pedido: Pedido; // Já espera Pedido
   total: number;
-  onItemUpdateQuantity?: (id: string, quantidade: number) => void;
-  onItemRemove?: (id: string) => void;
-  // onLimparCarrinho?: () => void; // <<< REMOVIDO >>>
-  children: ReactNode; // Para os botões de ação (ex: "Ir para Pagamento")
+  onItemUpdateQuantity?: (itemId: string, quantidade: number) => void; // Usa itemId (que será produto.id no carrinho local)
+  onItemRemove?: (itemId: string) => void; // Usa itemId
+  children: ReactNode; // Para os botões de ação (ex: "Limpar Carrinho")
 }
 
 // --- Componente ItemdoCarrinho (Interno) ---
@@ -21,6 +19,7 @@ const CartItem: React.FC<{
   onRemove: OrderSummaryProps['onItemRemove'];
 }> = memo(({ item, onUpdateQuantity, onRemove }) => {
 
+  // Usar item.id (que no carrinho local é o produto.id)
   const handleDecrease = onUpdateQuantity
     ? () => onUpdateQuantity(item.id, item.quantidade - 1)
     : undefined;
@@ -33,15 +32,20 @@ const CartItem: React.FC<{
     ? () => onRemove(item.id)
     : undefined;
 
+  // Verifica se as funções foram passadas para habilitar interatividade
   const isInteractive = !!(onUpdateQuantity && onRemove);
+  // Verifica se o produto está em estoque para desabilitar o botão '+'
+  const isOutOfStock = item.quantidade >= item.produto.quantidadeEstoque;
+  // Verifica se a quantidade é 1 para desabilitar o botão '-'
+  const isMinQuantity = item.quantidade <= 1;
 
   return (
     <li className="flex justify-between items-center py-3 border-b border-gray-200 last:border-b-0">
       {/* Informações do Produto */}
-      <div className="flex-1 pr-2">
-        <p className="font-semibold text-text-primary truncate">{item.produto.nome}</p>
+      <div className="flex-1 pr-2 overflow-hidden"> {/* Adicionado overflow-hidden */}
+        <p className="font-semibold text-text-primary truncate" title={item.produto.nome}>{item.produto.nome}</p>
         <p className="text-sm text-text-secondary">
-          {formatarMoeda(item.produto.preco)} x {item.quantidade}
+          {formatarMoeda(item.preco)} x {item.quantidade} {/* Usar item.preco */}
         </p>
       </div>
 
@@ -51,42 +55,46 @@ const CartItem: React.FC<{
           <button
             onClick={handleDecrease}
             className="
-              flex items-center justify-center w-9 h-9 rounded-lg
+              flex items-center justify-center w-8 h-8 rounded-md {/* Tamanho um pouco menor */}
               bg-background-light-blue text-text-secondary
               hover:bg-primary-blue/20 hover:text-primary-blue
               disabled:bg-status-disabled-bg disabled:text-status-disabled-text disabled:cursor-not-allowed
+              transition-colors duration-150
             "
-            disabled={item.quantidade <= 1}
+            disabled={isMinQuantity} // Desabilitar se quantidade for 1
             aria-label={`Diminuir quantidade de ${item.produto.nome}`}
           >
             <Minus size={16} />
           </button>
 
-          <span className="w-8 text-center font-medium text-text-primary" aria-live="polite">
+          {/* Exibe a quantidade atual */}
+          <span className="w-8 text-center font-medium text-text-primary text-sm" aria-live="polite">
             {item.quantidade}
           </span>
 
           <button
             onClick={handleIncrease}
             className="
-              flex items-center justify-center w-9 h-9 rounded-lg
+              flex items-center justify-center w-8 h-8 rounded-md
               bg-background-light-blue text-text-secondary
               hover:bg-primary-blue/20 hover:text-primary-blue
+              disabled:bg-status-disabled-bg disabled:text-status-disabled-text disabled:cursor-not-allowed
+              transition-colors duration-150
             "
-             // Verificação de estoque movida para o hook usePOS
-            // disabled={item.quantidade >= item.produto.quantidadeEstoque}
+            disabled={isOutOfStock} // Desabilitar se estiver sem estoque
             aria-label={`Aumentar quantidade de ${item.produto.nome}`}
           >
             <Plus size={16} />
           </button>
 
+          {/* Botão Remover */}
           <button
             onClick={handleRemove}
             className="
-              flex items-center justify-center w-9 h-9 rounded-lg
+              flex items-center justify-center w-8 h-8 rounded-md
               bg-background-light-blue text-text-secondary
               hover:bg-status-error/10 hover:text-status-error
-              ml-1
+              ml-1 transition-colors duration-150
             "
             aria-label={`Remover ${item.produto.nome} do carrinho`}
           >
@@ -94,46 +102,65 @@ const CartItem: React.FC<{
           </button>
         </div>
       )}
+
+       {/* Exibe subtotal se não for interativo (ex: tela de pagamento) */}
+       {!isInteractive && (
+            <div className="text-right flex-shrink-0 ml-2">
+                 <p className="text-sm font-semibold text-text-primary">
+                    {formatarMoeda(item.preco * item.quantidade)}
+                 </p>
+            </div>
+       )}
     </li>
   );
 });
 CartItem.displayName = 'CartItem';
 
+
 // --- Componente Principal OrderSummary ---
 export const OrderSummary = memo<OrderSummaryProps>(({
-  pedido,
+  pedido, // Recebe Pedido
   total,
   onItemUpdateQuantity,
   onItemRemove,
-  // onLimparCarrinho, // <<< REMOVIDO >>>
-  children,
+  children, // Botões como Limpar ou Finalizar
 }) => {
-  const { itens } = pedido;
+  const { itens } = pedido; // Extrai itens do objeto Pedido
 
   return (
-    <div className="bg-primary-white rounded-xl shadow-soft p-6 h-full flex flex-col border border-gray-200">
+    // Container principal com altura flexível e scroll interno
+    <div className="bg-primary-white rounded-xl shadow-soft h-full flex flex-col border border-gray-200 overflow-hidden">
 
       {/* Cabeçalho do Carrinho */}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-2xl font-bold text-primary-blue">
-          Carrinho
+      <div className="flex justify-between items-center p-6 border-b border-gray-200 flex-shrink-0"> {/* Padding ajustado */}
+        <h2 className="text-xl font-bold text-primary-blue flex items-center gap-2"> {/* Tamanho ajustado */}
+           <ShoppingCart size={22}/> Carrinho
         </h2>
-        {/* O botão de limpar agora é passado como 'children' pela página 'POS.tsx' */}
+        {/* Renderiza os botões passados como children (ex: Limpar Carrinho) */}
+        <div className="flex gap-2">
+           {children}
+        </div>
       </div>
 
       {/* Lista de Itens */}
       {itens.length === 0 ? (
-        <div className="flex-grow flex items-center justify-center py-10">
-          <p className="text-text-secondary text-center">
-            Nenhum item adicionado
+        // Mensagem de carrinho vazio
+        <div className="flex-grow flex flex-col items-center justify-center p-10 text-center">
+          <ShoppingCart size={48} className="text-gray-300 mb-4" />
+          <p className="text-text-secondary font-medium">
+            Seu carrinho está vazio
+          </p>
+          <p className="text-sm text-text-secondary/80 mt-1">
+             Adicione produtos da lista ao lado.
           </p>
         </div>
       ) : (
-        <div className="flex-grow overflow-y-auto mb-4 -mr-2 pr-2">
-          <ul className="space-y-2">
+        // Container da lista com scroll
+        <div className="flex-grow overflow-y-auto p-6 pt-3"> {/* Padding ajustado */}
+          <ul className="space-y-0"> {/* Remover space-y, CartItem já tem padding/border */}
             {itens.map((item) => (
               <CartItem
-                key={item.id}
+                key={item.id} // Usar item.id (produtoId temporário) como chave
                 item={item}
                 onUpdateQuantity={onItemUpdateQuantity}
                 onRemove={onItemRemove}
@@ -143,23 +170,21 @@ export const OrderSummary = memo<OrderSummaryProps>(({
         </div>
       )}
 
-      {/* Rodapé (Total e Ações) */}
-      <div className="border-t border-gray-200 pt-4 mt-auto">
-        <div className="flex justify-between items-center mb-4">
-          <span className="font-semibold text-lg text-text-primary">Total:</span>
-          <span
-            className="font-bold text-xl text-primary-blue"
-            aria-live="polite"
-          >
-            {formatarMoeda(total)}
-          </span>
-        </div>
-
-        {/* Botões de Ação (passados como children) */}
-        <div className="flex flex-col gap-2">
-          {children}
-        </div>
-      </div>
+      {/* Rodapé (Total) - Só mostra se houver itens */}
+      {itens.length > 0 && (
+          <div className="border-t border-gray-200 p-6 pt-4 flex-shrink-0 bg-gray-50"> {/* Fundo diferente */}
+            <div className="flex justify-between items-center">
+              <span className="font-semibold text-lg text-text-primary">Total:</span>
+              <span
+                className="font-bold text-xl text-primary-blue"
+                aria-live="polite"
+              >
+                {formatarMoeda(total)}
+              </span>
+            </div>
+             {/* Ações principais (como "Ir para Pagamento") podem ficar fora do OrderSummary, no layout pai */}
+          </div>
+      )}
     </div>
   );
 });

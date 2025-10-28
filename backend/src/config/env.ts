@@ -1,7 +1,7 @@
 // backend/src/config/env.ts (adicionar/modificar)
 import { z } from 'zod';
 import dotenv from 'dotenv';
-import logger from '../lib/logger';
+import { logger } from '../lib/logger'; // <<< CORREÇÃO (Era import default)
 
 dotenv.config();
 

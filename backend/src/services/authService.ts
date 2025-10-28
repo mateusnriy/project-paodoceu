@@ -1,6 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/errorMiddleware';
-import { compare, hash } from 'bcryptjs';
+import { compare, hash } from 'bcrypt'; // <<< CORREÇÃO (Era bcryptjs)
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env';
 import { logger } from '../lib/logger';
@@ -54,17 +54,17 @@ export class AuthService {
     const { email, nome, senha } = registrarData;
 
     const { hasAdmin } = await this.checkFirstUser();
-    let perfil = PerfilUsuario.ATENDENTE;
+    let perfil: PerfilUsuario = PerfilUsuario.ATENDENTE; // <<< CORREÇÃO (Adicionado tipo explícito)
     let ativo = false; // (DRS RF15: Novos atendentes devem ser ativados)
 
     if (!hasAdmin) {
-      perfil = PerfilUsuario.ADMINISTRADOR;
+      perfil = PerfilUsuario.ADMINISTRADOR; // (Agora compila)
       ativo = true; // Primeiro admin é ativo
     } else {
       // Se for registro público, verificar se o perfil foi enviado
       // (a lógica original permitia registro público de ATENDENTE)
       if (registrarData.perfil) {
-        perfil = registrarData.perfil;
+        perfil = registrarData.perfil; // (Agora compila)
       }
     }
     
@@ -86,7 +86,7 @@ export class AuthService {
         email,
         senha: senhaHash,
         perfil,
-        ativo: perfil === 'ADMINISTRADOR', // Apenas o primeiro admin começa ativo
+        ativo: perfil === 'ADMINISTRADOR', // (Agora compila)
       },
     });
 

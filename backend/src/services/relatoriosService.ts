@@ -2,7 +2,7 @@
 import { PrismaClient, Pedido, ItemPedido, Produto, Categoria, Prisma } from '@prisma/client';
 import { endOfDay, startOfDay, formatISO } from 'date-fns';
 import { prisma } from '../lib/prisma';
-import logger from '../lib/logger';
+import { logger } from '../lib/logger'; // <<< CORREÇÃO (Era import default)
 import { AppError } from '../middlewares/errorMiddleware';
 
 export class RelatoriosService {

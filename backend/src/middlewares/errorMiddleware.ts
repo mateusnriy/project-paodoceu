@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import logger from '../lib/logger'; // <<< Importar o logger
+import { logger } from '../lib/logger'; // <<< CORREÇÃO (Era import default)
 
 export class AppError extends Error {
   public readonly statusCode: number;

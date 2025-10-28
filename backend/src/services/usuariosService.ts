@@ -3,7 +3,7 @@ import { PrismaClient, Usuario, PerfilUsuario, Prisma } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { AppError } from '../middlewares/errorMiddleware';
 import { prisma } from '../lib/prisma';
-import logger from '../lib/logger';
+import { logger } from '../lib/logger'; // <<< CORREÇÃO (Era import default)
 
 type CreateUsuarioAdminDto = {
   nome: string;

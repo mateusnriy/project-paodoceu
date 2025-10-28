@@ -1,22 +1,19 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../services/api';
+// import api from '../services/api'; // Remover se usar camada de serviço
+import { productService } from '../services/productService'; // <<< USAR CAMADA DE SERVIÇO
+import { categoryService } from '../services/categoryService'; // <<< USAR CAMADA DE SERVIÇO
 import {
   Produto,
   Categoria,
-  PedidoItem,
   PaginatedResponse,
   ApiMeta,
+  Pedido, // Manter Pedido para o objeto de exibição
 } from '../types';
 import { logError } from '../utils/logger';
 import { useDebounce } from './useDebounce';
-
-// Estado do carrinho
-const useCart = () => {
-  // (Lógica do carrinho movida para cá para organizar)
-  // ... (useState<PedidoItem[]>, onAddToCart, onRemove, etc.)
-  // Por simplicidade, manteremos no hook principal por enquanto.
-};
+import { useCart } from './useCart'; // <<< Importar useCart
+import { getErrorMessage } from '../utils/errors'; // <<< Importar getErrorMessage
 
 export const usePOS = () => {
   const [produtos, setProdutos] = useState<Produto[]>([]);
@@ -24,23 +21,26 @@ export const usePOS = () => {
   const [categoriaAtiva, setCategoriaAtiva] = useState<string | 'todos'>(
     'todos',
   );
-  
-  // --- Novos estados para Paginação e Busca ---
+
+  // --- Estados de Paginação e Busca ---
   const [meta, setMeta] = useState<ApiMeta | null>(null);
   const [pagina, setPagina] = useState(1);
   const [termoBusca, setTermoBusca] = useState('');
-  const debouncedTermoBusca = useDebounce(termoBusca, 300); // 300ms debounce
+  const debouncedTermoBusca = useDebounce(termoBusca, 300);
 
-  const [pedido, setPedido] = useState<PedidoItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Loading para produtos/categorias
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  // <<< Usar o hook do carrinho >>>
+  const { pedidoItens, total, onAddToCart, onRemove, onUpdateQuantity, limparCarrinho } = useCart();
+
   // Buscar Categorias (executa 1 vez)
   const fetchCategorias = useCallback(async () => {
+    // Não precisa de setIsLoading aqui, pois o loading principal é dos produtos
     try {
-      // Categorias não precisam de paginação no PDV
-      const { data } = await api.get<Categoria[]>('/api/categorias');
+      // const { data } = await api.get<Categoria[]>('/categorias'); // <<< REMOVER
+      const data = await categoryService.listAll(); // <<< USAR SERVIÇO
       setCategorias(data);
     } catch (err) {
       logError('Erro ao buscar categorias', err);
@@ -57,28 +57,22 @@ export const usePOS = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams();
-      params.append('pagina', String(pagina));
-      params.append('limite', '12'); // Limite de 12 produtos por página
-
-      if (categoriaAtiva !== 'todos') {
-        params.append('categoriaId', categoriaAtiva);
-      }
-      if (debouncedTermoBusca) {
-        params.append('termo', debouncedTermoBusca);
-      }
-
-      const { data } = await api.get<PaginatedResponse<Produto>>(
-        `/api/produtos?${params.toString()}`,
-      );
-      
-      setProdutos(data.dados);
-      setMeta(data.meta);
+        const params = {
+           pagina,
+           limite: 12, // Limite de 12 produtos por página no PDV
+           categoriaId: categoriaAtiva === 'todos' ? undefined : categoriaAtiva,
+           termo: debouncedTermoBusca || undefined,
+           // incluirInativos: false, // O backend deve filtrar ativos por padrão para o PDV
+        };
+      // const { data } = await api.get<PaginatedResponse<Produto>>(/* ... */); // <<< REMOVER
+      const responseData = await productService.list(params); // <<< USAR SERVIÇO
+      setProdutos(responseData.data); // Corrigido para responseData.data
+      setMeta(responseData.meta);
     } catch (err) {
       logError('Erro ao buscar produtos', err);
-      setError('Falha ao carregar produtos.');
-      setProdutos([]);
-      setMeta(null);
+      setError(getErrorMessage(err)); // Usar getErrorMessage
+      setProdutos([]); // Limpar produtos em caso de erro
+      setMeta(null); // Limpar meta em caso de erro
     } finally {
       setIsLoading(false);
     }
@@ -86,66 +80,62 @@ export const usePOS = () => {
 
   useEffect(() => {
     fetchProdutos();
-  }, [fetchProdutos]);
+  }, [fetchProdutos]); // Dependência correta
 
-  // Resetar página ao mudar filtro
+  // Resetar página ao mudar filtro de categoria ou busca
   useEffect(() => {
     setPagina(1);
   }, [categoriaAtiva, debouncedTermoBusca]);
-  
+
   // --- Funções de Paginação ---
   const irParaPagina = (novaPagina: number) => {
+    // Adicionar verificação de limites
     if (novaPagina > 0 && (!meta || novaPagina <= meta.totalPaginas)) {
       setPagina(novaPagina);
     }
   };
 
-  // ... (Lógica do carrinho: onAddToCart, onRemove, onUpdateQuantity, total)
-  // ... (handleIrParaPagamento)
-  // (O restante do hook permanece o mesmo)
-
-  // (Lógica do carrinho - omitida para brevidade)
-  const onAddToCart = (produto: Produto) => { /* ... */ };
-  const onRemove = (produtoId: string) => { /* ... */ };
-  const onUpdateQuantity = (produtoId: string, novaQuantidade: number) => { /* ... */ };
-  const limparCarrinho = () => setPedido([]);
-  
-  const total = useMemo(() => {
-    return pedido.reduce((acc, item) => acc + item.precoVenda * item.quantidade, 0);
-  }, [pedido]);
-
   const handleIrParaPagamento = () => {
-    if (pedido.length === 0) {
-      // (Substituir por Toast - RF24)
-      alert('O carrinho está vazio.');
+    if (pedidoItens.length === 0) {
+      alert('O carrinho está vazio.'); // (Substituir por Toast - RF24)
       return;
     }
-    // Salvar no localStorage (ou Zustand/Contexto)
-    localStorage.setItem('paodoceu-carrinho', JSON.stringify(pedido));
-    localStorage.setItem('paodoceu-total', JSON.stringify(total));
+    // O useCart já salva no localStorage
     navigate('/vendas/pagamento');
   };
+
+   // Criar um objeto Pedido simulado para passar para OrderSummary
+   const pedidoParaExibicao = useMemo((): Pedido => ({
+      id: 'local', // ID Fixo para o carrinho local
+      itens: pedidoItens,
+      valor_total: total,
+      status: 'LOCAL', // Status especial
+      // Usar a data de criação persistida se existir, senão a atual
+      criado_em: localStorage.getItem('pedidoLocal') ? JSON.parse(localStorage.getItem('pedidoLocal')!).criado_em : new Date().toISOString(),
+      atualizado_em: new Date().toISOString(),
+      numero_sequencial_dia: 0, // Não aplicável localmente
+   }), [pedidoItens, total]);
+
 
   return {
     produtos,
     categorias,
     categoriaAtiva,
     setCategoriaAtiva,
-    pedido,
+    pedido: pedidoParaExibicao, // Passar o objeto Pedido simulado
     total,
     isLoading,
     error,
-    onAddToCart,
-    onRemove,
-    onUpdateQuantity,
-    limparCarrinho,
+    onAddToCart, // Vindo do useCart
+    onRemove, // Vindo do useCart
+    onUpdateQuantity, // Vindo do useCart
+    limparCarrinho, // Vindo do useCart
     handleIrParaPagamento,
-    // Exportar novos controles
+    // Exportar controles de paginação/busca
     termoBusca,
     setTermoBusca,
     meta,
     irParaPagina,
-    pagina,
+    pagina, // Exportar página atual
   };
 };
-

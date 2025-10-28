@@ -1,8 +1,10 @@
 import React from 'react';
 
-export const LoadingSpinner: React.FC<{ size?: number }> = ({ size = 24 }) => (
+// Aceita className para permitir customização adicional (ex: margens)
+export const LoadingSpinner: React.FC<{ size?: number; className?: string }> = ({ size = 24, className = '' }) => (
   <div
     style={{ width: size, height: size }}
-    className="border-t-2 border-b-2 border-primary rounded-full animate-spin"
+    // Usar a cor primária definida no tailwind.config.js e aplicar className recebido
+    className={`border-t-2 border-b-2 border-primary-blue rounded-full animate-spin ${className}`}
   ></div>
 );

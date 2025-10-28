@@ -11,9 +11,9 @@ const produtosController = new ProdutosController();
 
 router.use(authMiddleware);
 
-router.get('/', produtosController.listarTodos);
+router.get('/', produtosController.listar); // <<< CORREÇÃO (Era listarTodos)
 
-router.get('/:id', produtosController.obterPorId);
+router.get('/:id', produtosController.obter); // <<< CORREÇÃO (Era obterPorId)
 
 router.post('/', roleMiddleware([PerfilUsuario.ADMINISTRADOR]), validate(criarProdutoSchema), produtosController.criar);
 

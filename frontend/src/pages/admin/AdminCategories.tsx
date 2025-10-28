@@ -10,47 +10,9 @@ import { CategoryFormModal } from './components/CategoryFormModal';
 import { getErrorMessage } from '../../utils/errors';
 import { formatarData } from '../../utils/formatters';
 import { useDebounce } from '../../hooks/useDebounce';
+import { Pagination } from '../../components/ui/Pagination'; // <<< Importar Pagination
 
-// --- Componente de Paginação (Reutilizado - Memoizado) ---
-interface PaginationProps {
-  paginaAtual: number;
-  totalPaginas: number;
-  onPageChange: (page: number) => void;
-  isLoading: boolean;
-}
-const Pagination: React.FC<PaginationProps> = React.memo(
-  ({ paginaAtual, totalPaginas, onPageChange, isLoading }) => {
-    if (totalPaginas <= 1) return null;
-    return (
-      <div className="flex justify-center items-center gap-2 mt-6">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => onPageChange(paginaAtual - 1)}
-          disabled={paginaAtual === 1 || isLoading}
-          aria-label="Página anterior"
-        >
-          Anterior
-        </Button>
-        <span className="text-sm text-text-secondary font-medium">
-          Página {paginaAtual} de {totalPaginas}
-        </span>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => onPageChange(paginaAtual + 1)}
-          disabled={paginaAtual === totalPaginas || isLoading}
-          aria-label="Próxima página"
-        >
-          Próxima
-        </Button>
-      </div>
-    );
-  }
-);
-Pagination.displayName = 'Pagination';
-
-// --- Tabela de Categorias (Memoizado) ---
+// --- Tabela de Categorias (Memoizado - sem alterações no código interno) ---
 const CategoriesTable: React.FC<{
   categorias: Categoria[];
   onEdit: (categoria: Categoria) => void;
@@ -110,6 +72,7 @@ const CategoriesTable: React.FC<{
                     className="text-status-error hover:underline p-1"
                     aria-label={`Excluir ${categoria.nome}`}
                     title="Excluir"
+                    // Desabilitar se houver produtos ou se estiver carregando
                     disabled={isLoading || (categoria._count?.produtos ?? 0) > 0}
                   >
                     <Trash2 size={16} />
@@ -152,20 +115,20 @@ const AdminCategories: React.FC = () => {
     isMutating,
     mutationError, // Erro específico das operações CUD
     setMutationError,
-  } = useAdminCategories(pagina, termoDebounced, 10);
+  } = useAdminCategories(pagina, termoDebounced, 10); // Limite de 10 por página
 
+  // Usa optional chaining e nullish coalescing para segurança
   const categorias = data?.data ?? [];
+  const meta = data?.meta;
 
   const totalPaginas = useMemo(() => {
-      if (!data) return 1;
-      const totalItems = data.meta?.total ?? 0;
-      const itemsPerPage = data.meta?.limite ?? 10;
-      return Math.ceil(totalItems / itemsPerPage) || 1;
-  }, [data]);
+      if (!meta) return 1;
+      return meta.totalPaginas || 1;
+  }, [meta]);
 
   const handleOpenModal = useCallback((categoria: Categoria | null) => {
     setCategoriaSelecionada(categoria);
-    setMutationError(null);
+    setMutationError(null); // Limpa erro anterior ao abrir modal
     setModalAberto(true);
   }, [setMutationError]);
 
@@ -174,7 +137,7 @@ const AdminCategories: React.FC = () => {
     setModalAberto(false);
   }, []);
 
-  const handleSave = useCallback(async (formData: { nome: string }, id?: string): Promise<Categoria | void> => {
+  const handleSave = useCallback(async (formData: { nome: string }, id?: string): Promise<void> => { // Retorno ajustado para void, pois não usamos o resultado aqui
     try {
       if (id) {
         await handleUpdate(id, formData);
@@ -182,45 +145,54 @@ const AdminCategories: React.FC = () => {
         await handleCreate(formData);
       }
       handleCloseModal();
-      mutate();
+      mutate(); // Revalida os dados da página atual
     } catch (err) {
-      console.error("Erro no handleSave:", err);
-      throw err; // Re-lança para o modal tratar a exibição
+      // O erro já é tratado no hook e passado via mutationError para o modal
+      console.error("Erro no handleSave (AdminCategories):", err);
+      // Não precisa re-lançar se o modal já exibe o mutationError
     }
   }, [handleCreate, handleUpdate, mutate, handleCloseModal]);
 
 
   const handleDeleteConfirm = useCallback(async (id: string) => {
     const categoriaParaExcluir = categorias.find(c => c.id === id);
-    if ((categoriaParaExcluir?._count?.produtos ?? 0) > 0) {
-         alert('Não é possível excluir categorias com produtos associados.');
+    if (!categoriaParaExcluir) return;
+
+    if ((categoriaParaExcluir._count?.produtos ?? 0) > 0) {
+         alert('Não é possível excluir categorias com produtos associados. Remova ou altere os produtos primeiro.');
          return;
     }
-    if (window.confirm(`Tem certeza que deseja excluir a categoria "${categoriaParaExcluir?.nome}"?`)) {
+
+    if (window.confirm(`Tem certeza que deseja excluir a categoria "${categoriaParaExcluir?.nome}"? Esta ação não pode ser desfeita.`)) {
       try {
         await handleDelete(id);
+        // Se a página atual ficar vazia após a exclusão e não for a primeira página, volte uma página
         if (categorias.length === 1 && pagina > 1) {
-            setPagina(pagina - 1); // Volta para a página anterior se a última foi esvaziada
+            setPagina(pagina - 1); // O useEffect [pagina] buscará os dados da página anterior
         } else {
             mutate(); // Revalida a página atual
         }
+        // Opcional: Adicionar toast de sucesso
       } catch (err) {
+        // Exibe erro específico retornado pelo hook/serviço
         alert(`Erro ao excluir categoria: ${getErrorMessage(err)}`);
       }
     }
   }, [handleDelete, mutate, categorias, pagina]);
 
   const handlePageChange = useCallback((newPage: number) => {
+      // A verificação já está dentro do componente Pagination, mas mantemos aqui por segurança
       if (newPage >= 1 && newPage <= totalPaginas) {
           setPagina(newPage);
       }
   }, [totalPaginas]);
 
+  // Reseta para a primeira página quando o termo de busca (debounced) mudar
   useEffect(() => {
       setPagina(1);
   }, [termoDebounced]);
 
-  // <<< CORREÇÃO: Usa getErrorMessage para exibir o erro geral >>>
+  // Converte erro geral (unknown) para string ou null
   const displayError = error ? getErrorMessage(error) : null;
 
   return (
@@ -230,58 +202,66 @@ const AdminCategories: React.FC = () => {
         <Button
            variant="primary"
            onClick={() => handleOpenModal(null)}
-           disabled={isLoading || isMutating}
+           disabled={isLoading || isMutating} // Desabilitar se carregando ou mutando
         >
           <Plus size={20} className="-ml-1 mr-2" />
           Nova Categoria
         </Button>
       </div>
 
+      {/* Input de Busca */}
       <div className="relative">
          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
            <Search size={20} className="text-text-secondary" aria-hidden="true" />
         </div>
         <input
-          type="search"
+          type="search" // Usar tipo search para melhor semântica e UX (botão X)
           placeholder="Buscar categorias por nome..."
           value={termoBusca}
           onChange={(e) => setTermoBusca(e.target.value)}
-          disabled={isMutating}
+          disabled={isMutating} // Desabilitar durante CUD
           className="
             block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg
-            leading-5 bg-primary-white text-text-primary placeholder-gray-500
+            leading-5 bg-primary-white text-text-primary placeholder-text-secondary/70 {/* Placeholder mais sutil */}
             focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-primary-blue focus:border-primary-blue
-            sm:text-sm
+            sm:text-sm transition-colors duration-150
           "
         />
       </div>
 
-      {/* <<< CORREÇÃO: Exibe displayError (string | null) >>> */}
+      {/* Exibição de Erro Geral */}
       {displayError && !isLoading && (
-        <ErrorMessage message={displayError} />
+        <ErrorMessage message={displayError} title="Erro ao Carregar Categorias"/>
       )}
 
+      {/* Tabela de Categorias */}
       <CategoriesTable
         categorias={categorias}
         onEdit={handleOpenModal}
         onDelete={handleDeleteConfirm}
+        // Passar isLoading OU isMutating para mostrar loading na tabela durante CUD
         isLoading={isLoading || isMutating}
       />
 
-      <Pagination
-        paginaAtual={pagina}
-        totalPaginas={totalPaginas}
-        onPageChange={handlePageChange}
-        isLoading={isLoading || isMutating}
-      />
+      {/* Paginação */}
+      {meta && (
+        <Pagination
+          paginaAtual={meta.pagina}
+          totalPaginas={totalPaginas}
+          onPageChange={handlePageChange}
+          isLoading={isLoading || isMutating} // Desabilitar botões durante CUD
+        />
+      )}
 
+
+      {/* Modal de Formulário */}
       {modalAberto && (
         <CategoryFormModal
           isOpen={modalAberto}
           onClose={handleCloseModal}
           onSave={handleSave}
           categoria={categoriaSelecionada}
-          isMutating={isMutating}
+          isMutating={isMutating} // Passa o estado de mutação para o modal
           mutationError={mutationError} // Passa o erro original (unknown) para o modal
         />
       )}
