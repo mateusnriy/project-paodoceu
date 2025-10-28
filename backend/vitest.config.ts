@@ -4,7 +4,7 @@ export default defineConfig({
   test: {
     globals: true, // Permite usar 'describe', 'it', 'expect' globalmente
     environment: 'node',
-    // Arquivo de setup para rodar antes de cada teste (ex: limpar DB)
+    // Arquivo de setup para rodar antes de cada teste (ex: limpar DB, mock logger)
     setupFiles: ['./src/tests/setup.ts'], 
     include: ['src/tests/**/*.test.ts'], // Padrão de nomenclatura dos testes
     coverage: {
