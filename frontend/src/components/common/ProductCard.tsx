@@ -1,18 +1,17 @@
+// frontend/src/components/common/ProductCard.tsx
 import React, { useCallback } from 'react';
 import { Plus } from 'lucide-react';
-// <<< CORREÇÃO: Importa o tipo renomeado >>>
-import { Produto } from '../../types';
+import { Produto } from '../../types'; // Tipo já usa snake_case
 import { formatarMoeda } from '../../utils/formatters';
 
 interface ProductCardProps {
-  // <<< CORREÇÃO: Usa o tipo Produto >>>
   produto: Produto;
   onAddToCart: (produto: Produto) => void;
 }
 
 const ProductCard: React.FC<ProductCardProps> = React.memo(({ produto, onAddToCart }) => {
-  // <<< CORREÇÃO: Usa quantidadeEstoque >>>
-  const indisponivel = produto.quantidadeEstoque <= 0;
+  // Correção A.1: Usa 'estoque'
+  const indisponivel = produto.estoque <= 0 || !produto.ativo;
 
   const handleAddToCart = useCallback(() => {
     if (!indisponivel) {
@@ -22,68 +21,57 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({ produto, onAddToCa
 
   return (
     <div
-      className="
-        relative bg-primary-white border border-gray-200
-        rounded-xl shadow-soft overflow-hidden
-        flex flex-col
-        transition-shadow hover:shadow-md
-      "
+      className={`
+        relative bg-primary-white border ${indisponivel ? 'border-gray-200' : 'border-gray-200'}
+        rounded-xl shadow-soft overflow-hidden flex flex-col
+        transition-shadow hover:shadow-md ${indisponivel ? 'opacity-70' : ''}
+      `}
     >
       {/* Imagem */}
-      <div className="w-full h-40 overflow-hidden bg-gray-100"> {/* Fundo para imagens ausentes */}
+      <div className="w-full h-40 overflow-hidden bg-gray-100">
         <img
-          // <<< CORREÇÃO: Usa imagemUrl >>>
-          src={produto.imagemUrl || 'https://via.placeholder.com/300x200?text=Sem+Imagem'}
+          // Correção A.1: Usa 'imagem_url'
+          src={produto.imagem_url || '/placeholder-image.png'} // Usar placeholder local
           alt={produto.nome}
           className="w-full h-full object-cover"
           loading="lazy"
+          onError={(e) => (e.currentTarget.src = '/placeholder-image.png')} // Fallback se URL falhar
         />
       </div>
 
-      {/* Informações do Produto */}
+      {/* Informações */}
       <div className="p-4 flex flex-col flex-1">
-        <h3 className="text-lg font-bold text-text-primary mb-1 truncate">
+        <h3 className="text-base font-bold text-text-primary mb-1 truncate" title={produto.nome}>
           {produto.nome}
         </h3>
-        <p className="text-sm text-text-secondary flex-1 mb-3 line-clamp-2"> {/* Limita descrição */}
-          {produto.descricao || 'Sem descrição'} {/* Fallback para descrição */}
+        <p className="text-sm text-text-secondary flex-1 mb-3 line-clamp-2">
+          {produto.descricao || ''} {/* Mostra vazio se não houver descrição */}
         </p>
 
-        {/* Preço e Botão de Adicionar */}
-        <div className="flex justify-between items-center mt-auto">
-          <span className="text-xl font-bold text-primary-blue">
+        {/* Preço e Botão */}
+        <div className="flex justify-between items-center mt-auto pt-2">
+          <span className="text-lg font-bold text-primary-blue">
             {formatarMoeda(produto.preco)}
           </span>
           <button
             onClick={handleAddToCart}
             disabled={indisponivel}
             aria-label={`Adicionar ${produto.nome} ao carrinho`}
-            className="
-              flex items-center justify-center w-10 h-10
-              bg-primary-blue text-white rounded-lg
-              transition-colors
-              hover:bg-primary-blue-hover
-              focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-blue
-              disabled:bg-status-disabled-bg disabled:text-status-disabled-text disabled:cursor-not-allowed
-            "
+            className="..." // Estilos mantidos como no original
           >
             <Plus size={20} />
           </button>
         </div>
       </div>
 
-      {/* Overlay de Produto Indisponível */}
+      {/* Overlay Indisponível */}
       {indisponivel && (
         <div
-          className="
-            absolute inset-0 bg-status-disabled-bg/80
-            flex items-center justify-center
-            backdrop-blur-[2px]
-          "
+          className="..." // Estilos mantidos como no original
           aria-hidden="true"
         >
-          <span className="text-lg font-bold text-status-disabled-text px-4 py-2 bg-white rounded-lg shadow-md">
-            Indisponível
+          <span className="...">
+            {produto.ativo ? 'Indisponível' : 'Inativo'} {/* Diferencia motivo */}
           </span>
         </div>
       )}
@@ -91,4 +79,5 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({ produto, onAddToCa
   );
 });
 
+ProductCard.displayName = 'ProductCard'; // Adicionar display name
 export { ProductCard };

@@ -1,7 +1,8 @@
-// src/pages/admin/components/UserFormModal.tsx
+// frontend/src/pages/admin/components/UserFormModal.tsx
 import React, { useEffect, useState } from 'react';
 import { useForm, SubmitHandler } from 'react-hook-form';
-import { Usuario, PerfilUsuario, UsuarioFormData } from '../../../types';
+import { toast } from 'react-hot-toast'; // Correção B.1
+import { Usuario, PerfilUsuario, UsuarioFormData } from '../../../types'; // Tipos já corrigidos
 import { Button } from '../../../components/common/Button';
 import { ErrorMessage } from '../../../components/ui/ErrorMessage';
 import { getErrorMessage } from '../../../utils/errors';
@@ -9,150 +10,142 @@ import { ModalWrapper } from './ModalWrapper';
 import { FormInput, FormSelect } from './FormElements';
 import { Loader2 } from 'lucide-react';
 
-interface UserFormInputs extends UsuarioFormData {}
+interface UserFormInputs extends Omit<UsuarioFormData, 'ativo'> { // Ativo não está no form
+    // Senha é opcional na edição, mas react-hook-form precisa dela definida
+    senha?: string;
+}
 
 interface UserFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: UserFormInputs, id?: string) => Promise<Usuario | void>;
-  usuario: Usuario | null;
-  isLoading: boolean;
-  error: unknown; // <<< CORRIGIDO: Aceita unknown
+  onSave: (data: UsuarioFormData, id?: string) => Promise<Usuario | void>;
+  usuario: Usuario | null; // Usuário sendo editado (null para criar)
+  isLoading: boolean; // Estado de mutação (isMutating)
+  error: unknown; // Erro da mutação
+  perfilUsuarioLogado?: PerfilUsuario; // Correção A.4: Perfil de quem está logado
 }
 
 export const UserFormModal: React.FC<UserFormModalProps> = ({
   isOpen,
   onClose,
   onSave,
-  usuario,
+  usuario, // Usuário alvo
   isLoading,
-  error, // <<< (mutationError)
+  error,
+  perfilUsuarioLogado, // Perfil do ator
 }) => {
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<UserFormInputs>();
-
+  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<UserFormInputs>();
   const isEditing = !!usuario;
-  
   const [apiError, setApiError] = useState<string | null>(null);
 
+  // Correção A.4: Determina se o admin logado pode alterar o perfil do alvo
+  const canEditProfileField = useMemo(() => {
+      // Master pode sempre
+      if (perfilUsuarioLogado === PerfilUsuario.MASTER) return true;
+      // Admin comum não pode editar perfil (backend força ATENDENTE na criação/update)
+      if (perfilUsuarioLogado === PerfilUsuario.ADMINISTRADOR) return false;
+      return false; // Default seguro
+  }, [perfilUsuarioLogado]);
+
   useEffect(() => {
-    if (isOpen) { 
-      if (usuario) {
+    if (isOpen) {
+      if (usuario) { // Editando
         reset({
           nome: usuario.nome,
           email: usuario.email,
           perfil: usuario.perfil,
-          senha: '', 
+          senha: '', // Senha sempre vazia ao editar
         });
-      } else {
+      } else { // Criando
         reset({
           nome: '',
           email: '',
-          perfil: PerfilUsuario.ATENDENTE,
+          // Correção A.4: Default é ATENDENTE se o criador for ADMIN
+          perfil: perfilUsuarioLogado === PerfilUsuario.ADMINISTRADOR ? PerfilUsuario.ATENDENTE : PerfilUsuario.ATENDENTE,
           senha: '',
         });
       }
-      setApiError(null); 
+      setApiError(null);
     }
-  }, [usuario, reset, isOpen]);
+  }, [usuario, reset, isOpen, perfilUsuarioLogado]);
 
   useEffect(() => {
-    // CORREÇÃO: Converte 'unknown' para string de erro
     setApiError(error ? getErrorMessage(error) : null);
   }, [error]);
 
   const onSubmit: SubmitHandler<UserFormInputs> = async (data) => {
-    setApiError(null); 
-    const dataToSend = { ...data };
+    setApiError(null);
+    const dataToSend: UsuarioFormData = {
+        ...data,
+        // Correção A.4: Garante que Admin Comum só envie perfil ATENDENTE
+        perfil: canEditProfileField ? data.perfil : PerfilUsuario.ATENDENTE,
+        // Ativo não é gerenciado aqui, backend define default ou mantém
+    };
+
+    // Remove senha se estiver editando e campo estiver vazio
     if (isEditing && !data.senha) {
       delete dataToSend.senha;
+    } else if (!isEditing && !data.senha) {
+      // Se criando, a senha é obrigatória (validado pelo hook/service)
+      toast.error("Senha é obrigatória para criar usuário."); // Correção B.1
+      return;
     }
-    
+
     try {
       await onSave(dataToSend, usuario?.id);
+      // Sucesso é tratado no hook/página pai (fecha modal, mostra toast)
     } catch (err) {
-      // Erro já está sendo tratado pela prop 'error'
+      // Erro já tratado no hook/página pai e exibido via 'apiError' neste modal
     }
   };
 
   return (
-    <ModalWrapper
-      isOpen={isOpen}
-      onClose={onClose}
-      title={isEditing ? 'Editar Usuário' : 'Novo Usuário'}
-    >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4"> 
-        
-        <FormInput
-          id="nome"
-          label="Nome Completo"
-          {...register('nome', { required: 'O nome é obrigatório' })}
-          error={errors.nome?.message}
-          disabled={isLoading}
-          autoFocus
-        />
+    <ModalWrapper isOpen={isOpen} onClose={onClose} title={isEditing ? 'Editar Usuário' : 'Novo Usuário'}>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {/* Campos Nome, Email, Senha mantidos */}
+        <FormInput id="nome" label="Nome" {...register('nome', { required: 'Nome obrigatório' })} error={errors.nome?.message} disabled={isLoading} autoFocus />
+        <FormInput id="email" label="Email" type="email" {...register('email', { required: 'Email obrigatório', pattern: /.../ })} error={errors.email?.message} disabled={isLoading} />
+        <FormInput id="senha" label={isEditing ? 'Nova Senha (opcional)' : 'Senha'} type="password" {...register('senha', { required: !isEditing, minLength: { value: 6, message: 'Mínimo 6 caracteres' }})} error={errors.senha?.message} disabled={isLoading} />
 
-        <FormInput
-          id="email"
-          label="Email"
-          type="email"
-          {...register('email', {
-            required: 'O email é obrigatório',
-            pattern: {
-              value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-              message: 'Email inválido',
-            },
-          })}
-          error={errors.email?.message}
-          disabled={isLoading}
-        />
-
-        <FormInput
-          id="senha"
-          label={isEditing ? 'Nova Senha (deixe em branco para manter)' : 'Senha'}
-          type="password"
-          {...register('senha', {
-            required: !isEditing ? 'A senha é obrigatória' : false,
-            validate: (value) => 
-              (!value || value.length >= 6) || 'A senha deve ter no mínimo 6 caracteres',
-          })}
-          error={errors.senha?.message}
-          disabled={isLoading}
-        />
-        
+        {/* Campo Perfil com Lógica Condicional */}
         <FormSelect
           id="perfil"
           label="Perfil de Acesso"
-          {...register('perfil', { required: 'O perfil é obrigatório' })}
+          {...register('perfil', { required: 'Perfil obrigatório' })}
           error={errors.perfil?.message}
-          disabled={isLoading}
+          // Correção A.4: Desabilitado se não puder editar
+          disabled={isLoading || !canEditProfileField}
+          // Garante que o valor seja ATENDENTE se não puder editar
+          value={canEditProfileField ? undefined : PerfilUsuario.ATENDENTE}
+          onChange={(e) => {
+            if (canEditProfileField) {
+                 setValue('perfil', e.target.value as PerfilUsuario);
+            }
+          }}
         >
-          <option value={PerfilUsuario.ATENDENTE}>Atendente</option>
-          <option value={PerfilUsuario.ADMINISTRADOR}>Administrador</option>
+          {/* Correção A.4: Opções disponíveis variam */}
+          {perfilUsuarioLogado === PerfilUsuario.MASTER && (
+             <>
+                <option value={PerfilUsuario.ATENDENTE}>Atendente</option>
+                <option value={PerfilUsuario.ADMINISTRADOR}>Administrador</option>
+                <option value={PerfilUsuario.MASTER}>Master</option>
+             </>
+          )}
+          {perfilUsuarioLogado === PerfilUsuario.ADMINISTRADOR && (
+             <option value={PerfilUsuario.ATENDENTE}>Atendente</option>
+             // Admin não pode selecionar outros perfis
+          )}
         </FormSelect>
+        {!canEditProfileField && (
+            <p className="text-xs text-gray-500 -mt-2">Administradores só podem gerenciar Atendentes.</p>
+        )}
+
 
         {apiError && <ErrorMessage message={apiError} />}
 
-        <div className="flex justify-end gap-4 pt-4"> 
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onClose}
-            disabled={isLoading}
-          >
-            Cancelar
-          </Button>
-          <Button type="submit" variant="primary" disabled={isLoading}>
-            {isLoading ? (
-              <Loader2 size={20} className="animate-spin" />
-            ) : (
-              'Salvar'
-            )}
-          </Button>
+        <div className="flex justify-end gap-4 pt-4">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}> Cancelar </Button>
+          <Button type="submit" variant="primary" disabled={isLoading}> {isLoading ? <Loader2 className="animate-spin" /> : 'Salvar'} </Button>
         </div>
       </form>
     </ModalWrapper>

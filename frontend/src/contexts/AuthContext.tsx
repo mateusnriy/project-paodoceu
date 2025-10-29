@@ -1,3 +1,4 @@
+// frontend/src/contexts/AuthContext.tsx
 import React, {
   createContext,
   useContext,
@@ -6,65 +7,64 @@ import React, {
   useMemo,
   useCallback,
 } from 'react';
-import { useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { Usuario, AuthUsuario, LoginPayload, RegisterPayload } from '../types';
-import api from '../services/api';
+// import { useNavigate, useLocation, Navigate } from 'react-router-dom'; // <<< Navigate removido
+import { useNavigate, useLocation } from 'react-router-dom'; // <<< Navigate removido
+// import { Usuario, AuthUsuario, LoginPayload, RegisterPayload } from '../types'; // <<< Usuario removido
+import { AuthUsuario, LoginPayload, RegisterPayload } from '../types'; // <<< Usuario removido
+import { authService } from '../services/authService'; // <<< USAR SERVICE
 import { logError } from '../utils/logger';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
+import { getErrorMessage } from '../utils/errors'; // Importar getErrorMessage
+import { toast } from 'react-hot-toast'; // Importar toast
 
 interface AuthContextProps {
   isAuthenticated: boolean;
   usuario: AuthUsuario | null;
   isLoadingAuth: boolean;
   login: (payload: LoginPayload) => Promise<void>;
-  register: (payload: RegisterPayload) => Promise<void>;
+  // register: (payload: RegisterPayload) => Promise<void>; // Assinatura antiga
+  register: (payload: Omit<RegisterPayload, 'perfil' | 'ativo'>) => Promise<void>; // Assinatura corrigida
   logout: () => Promise<void>;
+  // setAuthData: (usuario: AuthUsuario | null) => void; // Expor se Register precisar
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
-
-// (SEG-01) Removemos toda a manipulação de localStorage para o TOKEN.
-// O cookie HttpOnly é a única fonte da verdade.
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [usuario, setUsuario] = useState<AuthUsuario | null>(null);
-  const [isLoadingAuth, setIsLoadingAuth] = useState(true); // Inicia true
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
   const isAuthenticated = useMemo(() => !!usuario, [usuario]);
 
-  // (SEG-01) Função interna para definir o estado do usuário
+  // Função interna para definir o estado do usuário
   const setAuthData = useCallback((authUsuario: AuthUsuario | null) => {
     setUsuario(authUsuario);
-    // (localStorage.setItem/removeItem(TOKEN_KEY) REMOVIDO)
-    // (api.defaults.headers.common['Authorization'] REMOVIDO)
   }, []);
 
-  // (SEG-01) Verifica o status da autenticação no carregamento
+  // Verifica o status da autenticação no carregamento
   const checkAuthStatus = useCallback(async () => {
     setIsLoadingAuth(true);
     try {
-      // Usamos a nova rota GET /api/auth/me (que usa o cookie)
-      const response = await api.get<AuthUsuario>('/api/auth/me');
-      setAuthData(response.data);
+      const currentUser = await authService.getCurrentUser();
+      setAuthData(currentUser);
     } catch (error) {
       logError('checkAuthStatus falhou (usuário não logado)', error);
-      setAuthData(null);
+      setAuthData(null); // Limpa o usuário se a verificação falhar
     } finally {
       setIsLoadingAuth(false);
     }
   }, [setAuthData]);
 
   useEffect(() => {
-    // Verifica o status apenas uma vez no carregamento do App
     checkAuthStatus();
   }, [checkAuthStatus]);
 
 
-  // Efeito para redirecionamento (lógica original mantida)
+  // Efeito para redirecionamento
   useEffect(() => {
     if (!isLoadingAuth) {
       const publicRoutes = ['/login', '/register', '/display'];
@@ -72,10 +72,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         location.pathname.startsWith(route),
       );
 
-      if (isAuthenticated && isPublicRoute) {
-        navigate('/vendas'); // Redireciona logado
+      if (isAuthenticated && isPublicRoute && location.pathname !== '/display') {
+        navigate('/vendas', { replace: true });
       } else if (!isAuthenticated && !isPublicRoute) {
-        navigate('/login'); // Redireciona deslogado
+        navigate('/login', { replace: true });
       }
     }
   }, [isAuthenticated, isLoadingAuth, location.pathname, navigate]);
@@ -83,53 +83,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // --- Funções de API ---
 
-  const login = async (payload: LoginPayload) => {
-    // O backend agora define o cookie
-    const { data } = await api.post<{ usuario: AuthUsuario }>(
-      '/api/auth/login',
-      payload,
-    );
-    // Apenas definimos o usuário no estado
-    setAuthData(data.usuario);
-    navigate('/vendas');
-  };
+  const login = useCallback(async (payload: LoginPayload) => {
+    try {
+      const loggedUser = await authService.login(payload);
+      setAuthData(loggedUser);
+      navigate('/vendas', { replace: true });
+    } catch (error) {
+        logError('Falha no Login:', error, payload);
+        toast.error(`Falha no login: ${getErrorMessage(error)}`);
+        // Re-lança o erro para a página de Login tratar (ex: exibir mensagem)
+        throw error;
+     }
+  }, [setAuthData, navigate]);
 
-  const register = async (payload: RegisterPayload) => {
-    // (Lógica original de check-first mantida)
-    const { data: checkData } = await api.get<{ hasAdmin: boolean }>(
-      '/api/auth/check-first',
-    );
-    
-    const perfil = checkData.hasAdmin ? 'ATENDENTE' : 'ADMINISTRADOR';
+  // Função de registro corrigida para usar o serviço e tratar a resposta
+  const register = useCallback(async (payload: Omit<RegisterPayload, 'perfil' | 'ativo'>) => {
+      try {
+          // O serviço lida com a lógica de check-first e atribuição de perfil/ativo
+          const { usuario: registeredUser, message, token } = await authService.register(payload);
 
-    // O backend define o cookie
-    const { data } = await api.post<{ usuario: AuthUsuario }>(
-      '/api/auth/register',
-      { ...payload, perfil },
-    );
-    setAuthData(data.usuario);
-    navigate('/vendas');
-  };
+          if (token && registeredUser) { // Primeiro usuário (Admin Master) criado e logado
+             setAuthData(registeredUser);
+             toast.success(message || 'Administrador Master criado com sucesso!');
+             navigate('/vendas', { replace: true });
+          } else if (message) { // Usuário normal (Atendente) criado, precisa de ativação
+             toast.success(message);
+             navigate('/login', { replace: true }); // Redireciona para login
+          } else {
+             throw new Error("Resposta inesperada do servidor após registro.");
+          }
+      } catch (error) {
+          logError('Falha no Registro:', error, { email: payload.email });
+          toast.error(`Falha no registro: ${getErrorMessage(error)}`);
+          throw error; // Re-lança para a página de Registro tratar
+      }
+  }, [setAuthData, navigate]);
 
-  // (SEG-01) Logout agora chama o backend
   const logout = useCallback(async () => {
     try {
-      await api.post('/api/auth/logout');
+      await authService.logout();
     } catch (error) {
-      logError('Falha ao deslogar no backend', error);
-      // Continua o logout no frontend mesmo se falhar
+      logError('Falha ao deslogar no backend (continuando logout local):', error);
     } finally {
       setAuthData(null);
-      navigate('/login');
+      navigate('/login', { replace: true });
     }
   }, [setAuthData, navigate]);
 
 
-  // Se estiver carregando, exibe um spinner global
-  if (isLoadingAuth) {
+  if (isLoadingAuth && location.pathname !== '/display') { // Não mostra loading global no display
     return (
       <div className="flex h-screen w-full items-center justify-center bg-gray-100">
-        <LoadingSpinner className="h-12 w-12" />
+        <LoadingSpinner size={40} />
       </div>
     );
   }
@@ -141,8 +146,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         usuario,
         isLoadingAuth,
         login,
-        register,
+        register, // Função de registro atualizada
         logout,
+        // setAuthData, // Não expor diretamente
       }}
     >
       {children}
@@ -157,4 +163,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

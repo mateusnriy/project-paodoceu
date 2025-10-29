@@ -1,4 +1,5 @@
-// src/types/order.ts
+// frontend/src/types/order.ts
+// Garante preco_unitario em PedidoItem
 import { Produto } from './product';
 
 export enum StatusPedido {
@@ -6,7 +7,7 @@ export enum StatusPedido {
   PRONTO = 'PRONTO',
   ENTREGUE = 'ENTREGUE',
   CANCELADO = 'CANCELADO',
-  LOCAL = 'LOCAL',
+  LOCAL = 'LOCAL', // Status interno do frontend
 }
 
 export enum TipoPagamento {
@@ -17,30 +18,36 @@ export enum TipoPagamento {
 }
 
 export interface PedidoItem {
-  id: string;
+  id: string; // ID do ItemPedido (ou produto.id localmente)
   produto: Produto;
   quantidade: number;
-  preco: number; // No frontend, usamos 'preco', mas o backend usa 'preco_unitario'
-  subtotal?: number; // Adicionado para dados do backend
-  pedidoId: string;
+  preco_unitario: number; // << CORREÇÃO GARANTIDA
+  subtotal?: number;
+  pedidoId?: string;
+  produto_id?: string;
 }
 
 export interface Pedido {
   id: string;
   numero_sequencial_dia?: number;
-  senha?: string; // Disponível no backend, pode ser útil
-  valor_total: number; // Corrigido de 'total' para corresponder ao backend
-  status: StatusPedido | string; // Permite o 'LOCAL'
+  senha?: string;
+  valor_total: number;
+  status: StatusPedido | string;
   itens: PedidoItem[];
-  criado_em: string; // Corrigido de 'dataCriacao'
-  atualizado_em: string; // Corrigido de 'dataAtualizacao'
-  cliente_nome?: string;
-  atendente_id?: string;
-  atendente?: { nome: string }; // Exemplo se precisar do nome
-  pagamento?: { metodo: TipoPagamento; valor_pago: number; troco: number }; // Exemplo se precisar dos dados de pagamento
+  criado_em: string;
+  atualizado_em: string;
+  cliente_nome?: string | null;
+  atendente_id?: string | null;
+  atendente?: { nome: string };
+  pagamento?: { metodo: TipoPagamento; valor_pago: number; troco: number };
 }
 
 export interface PaymentPayload {
   metodo: TipoPagamento;
   valor_pago: number;
+}
+
+export interface CreateOrderPayload {
+  cliente_nome?: string;
+  itens: { produto_id: string; quantidade: number }[];
 }

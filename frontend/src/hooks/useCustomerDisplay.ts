@@ -1,94 +1,105 @@
+// frontend/src/hooks/useCustomerDisplay.ts
 import { useState, useEffect, useCallback } from 'react';
-import api from '../services/api';
-import { Pedido } from '../types';
+// import api from '../services/api'; // Remover se usar camada de serviço
+import { orderService } from '../services/orderService'; // Correção B.2
+import { Pedido } from '../types'; // Tipo já corrigido (A.1)
 import { logError } from '../utils/logger';
-import { socket } from '../lib/socket'; // <--- IMPORTAR SOCKET
+import { socket } from '../lib/socket';
+import { getErrorMessage } from '../utils/errors';
 
+// Interface ajustada para refletir melhor o backend e o hook
 interface DisplayData {
-  emPreparacao: Pedido[];
-  prontos: Pedido[];
+  pedidosEmPreparacao: Pedido[];
+  pedidosProntos: Pedido[];
 }
 
-// Lógica de áudio (simples)
+const MAX_PRONTOS_DISPLAY = 5; // Quantos pedidos prontos mostrar na lista
+
+// Lógica de áudio (simples placeholder)
 const playNotificationSound = () => {
-  // Em produção, usar um arquivo de áudio hospedado
-  // new Audio('/sounds/notification.mp3').play();
   console.log('BEEP! Pedido pronto.');
+  // new Audio('/sounds/notification.mp3').play(); // Implementação real
 };
 
 export const useCustomerDisplay = () => {
+  // Estados separados para melhor gerenciamento
   const [pedidosEmPreparacao, setPedidosEmPreparacao] = useState<Pedido[]>([]);
-  const [pedidosProntos, setPedidosProntos] = useState<Pedido[]>([]);
-  const [pedidoAtual, setPedidoAtual] = useState<Pedido | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [pedidosProntos, setPedidosProntos] = useState<Pedido[]>([]); // Lista dos últimos prontos
+  const [pedidoChamado, setPedidoChamado] = useState<Pedido | null>(null); // O que está sendo exibido/piscando
 
-  // Busca inicial dos dados do display
-  // (Assume que existe uma rota GET /api/pedidos/display no backend)
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<unknown>(null); // Armazena erro original
+
   const fetchDisplayData = useCallback(async () => {
-    setIsLoading(true);
+    // Só mostra loading total na primeira vez
+    if (pedidosEmPreparacao.length === 0 && pedidosProntos.length === 0) setIsLoading(true);
     setError(null);
     try {
-      // *Nota: Esta rota não existe no código original.
-      // Deve ser criada no backend (RF12)
-      // `pedidosController.listarDisplay`
-      const { data } = await api.get<DisplayData>('/api/pedidos/display');
-      setPedidosEmPreparacao(data.emPreparacao || []);
-      setPedidosProntos(data.prontos || []);
-      setPedidoAtual(data.prontos.length > 0 ? data.prontos[0] : null);
+      // Correção B.2: Usar orderService
+      const data = await orderService.getDisplayData();
+      // Ordenar prontos pelo mais recente (atualizado_em DESC)
+      const prontosOrdenados = (data.pedidosProntos || []).sort(
+        (a, b) => new Date(b.atualizado_em).getTime() - new Date(a.atualizado_em).getTime()
+      );
+      setPedidosEmPreparacao(data.pedidosEmPreparacao || []);
+      setPedidosProntos(prontosOrdenados.slice(0, MAX_PRONTOS_DISPLAY)); // Pega os X mais recentes
+      setPedidoChamado(prontosOrdenados.length > 0 ? prontosOrdenados[0] : null); // O mais recente é o chamado
     } catch (err) {
       logError('Erro ao buscar dados do display', err);
-      setError('Falha ao carregar dados do display.');
+      setError(err); // Armazena erro original
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [pedidosEmPreparacao.length, pedidosProntos.length]); // Dependências para loading inicial
 
-  // 1. Remover Polling
-  /*
+  // Efeito para busca inicial
   useEffect(() => {
     fetchDisplayData();
-    const intervalId = setInterval(fetchDisplayData, 5000); // 5 segundos
-    return () => clearInterval(intervalId);
-  }, [fetchDisplayData]);
-  */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Executa apenas uma vez
 
-  // 2. Efeito para busca inicial
+  // Efeito para ouvir eventos Socket.IO
   useEffect(() => {
-    fetchDisplayData();
-  }, [fetchDisplayData]);
-
-  // 3. Efeito para ouvir eventos Socket.IO
-  useEffect(() => {
-    // Evento: Novo pedido pronto (vindo do pagamento)
-    const handlePedidoDisplay = (novoPedidoPronto: Pedido) => {
-      // Adiciona aos prontos
-      setPedidosProntos((prev) => [novoPedidoPronto, ...prev.slice(0, 4)]); // Limita a 5
-      // Define como pedido atual (pisca)
-      setPedidoAtual(novoPedidoPronto);
-      // Toca o som
-      playNotificationSound();
-
-      // Remove de "em preparação" (se aplicável)
-      setPedidosEmPreparacao((prev) =>
-        prev.filter((p) => p.id !== novoPedidoPronto.id),
+    // Evento: Novo pedido ficou PRONTO (enviado pelo backend quando pagamento é processado)
+    const handlePedidoProntoDisplay = (novoPedidoPronto: Pedido) => {
+      console.log('Socket: pedido:pronto:display recebido', novoPedidoPronto);
+      setPedidoChamado(novoPedidoPronto); // Define como o pedido chamado (pisca)
+      setPedidosProntos((prevProntos) => {
+        // Adiciona no início e limita a lista
+        const novaLista = [novoPedidoPronto, ...prevProntos.filter(p => p.id !== novoPedidoPronto.id)];
+        return novaLista.slice(0, MAX_PRONTOS_DISPLAY);
+      });
+      // Remove da lista de preparação se existir
+      setPedidosEmPreparacao((prevPreparacao) =>
+        prevPreparacao.filter((p) => p.id !== novoPedidoPronto.id)
       );
+      playNotificationSound();
     };
 
-    // Registrar listener
-    socket.on('pedido:display', handlePedidoDisplay);
+    // Correção: Listener para pedido entregue
+    const handlePedidoEntregueDisplay = (data: { id: string }) => {
+        console.log('Socket: pedido:entregue:display recebido', data);
+        // Remove da lista de prontos
+        setPedidosProntos((prevProntos) => prevProntos.filter(p => p.id !== data.id));
+        // Se o pedido entregue era o que estava sendo chamado, limpa o chamado
+        setPedidoChamado((atual) => (atual?.id === data.id ? null : atual));
+    };
 
-    // Limpar listener
+
+    socket.on('pedido:pronto:display', handlePedidoProntoDisplay); // Ouvir evento específico do display
+    socket.on('pedido:entregue:display', handlePedidoEntregueDisplay); // Ouvir evento de entrega
+
     return () => {
-      socket.off('pedido:display', handlePedidoDisplay);
+      socket.off('pedido:pronto:display', handlePedidoProntoDisplay);
+      socket.off('pedido:entregue:display', handlePedidoEntregueDisplay);
     };
-  }, []);
+  }, []); // Sem dependências
 
   return {
-    pedidoAtual,
-    pedidosProntos,
-    pedidosEmPreparacao,
+    pedidoChamado, // Renomeado de pedidoAtual
+    pedidosProntos, // Lista dos últimos X prontos
+    pedidosAguardando: pedidosEmPreparacao, // Renomeado para clareza na página
     isLoading,
-    error,
+    error: error ? getErrorMessage(error) : null, // Retorna string de erro formatada
   };
 };

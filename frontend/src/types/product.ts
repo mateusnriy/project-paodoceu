@@ -1,10 +1,10 @@
-// src/types/product.ts
-
+// frontend/src/types/product.ts
+// Garante snake_case em ProdutoFormData
 export interface Categoria {
   id: string;
   nome: string;
-  criado_em: string; // Corrigido de dataCriacao
-  atualizado_em: string; // Adicionado
+  criado_em: string;
+  atualizado_em: string;
   _count?: {
     produtos: number;
   };
@@ -14,21 +14,24 @@ export interface Produto {
   id: string;
   nome: string;
   preco: number;
-  quantidadeEstoque: number; // Mapeado de 'estoque' pelo backend
-  imagemUrl: string | null;  // Mapeado de 'imagem_url' pelo backend
-  descricao?: string;
-  categoria: Categoria; // Inclui o objeto categoria
-  categoriaId: string; // Mapeado de 'categoria_id' pelo backend
-  criado_em: string; // Adicionado
-  atualizado_em: string; // Adicionado
+  estoque: number;
+  imagem_url: string | null;
+  descricao?: string | null;
+  categoria: Categoria;
+  categoria_id: string;
+  criado_em: string;
+  atualizado_em: string;
+  ativo: boolean;
 }
 
-// FormData está correto
 export interface ProdutoFormData {
   nome: string;
   descricao?: string;
   preco: number;
-  quantidadeEstoque: number;
-  categoriaId: string;
-  imagemUrl?: string;
+  // --- Correção: Garantir snake_case ---
+  estoque: number;
+  categoria_id: string;
+  imagem_url?: string;
+  // --- Fim Correção ---
+  ativo?: boolean;
 }

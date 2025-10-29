@@ -1,11 +1,13 @@
-// src/types/api.ts
+// frontend/src/types/api.ts
+// Define e exporta ApiMeta
+export interface ApiMeta {
+  total: number;
+  pagina: number;
+  limite: number;
+  totalPaginas: number;
+}
 
 export interface PaginatedResponse<T> {
   data: T[];
-  meta: { // A resposta da API inclui um objeto 'meta'
-    total: number;
-    pagina: number;
-    limite: number;
-    totalPaginas: number;
-  };
+  meta: ApiMeta; // Usa a interface exportada
 }

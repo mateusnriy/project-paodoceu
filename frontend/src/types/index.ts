@@ -1,5 +1,5 @@
-// src/types/index.ts
+// frontend/src/types/index.ts
 export * from './user';
 export * from './product';
 export * from './order';
-export * from './api';
+export * from './api'; // Garante que ApiMeta seja re-exportado
