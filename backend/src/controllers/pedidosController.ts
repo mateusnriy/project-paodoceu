@@ -1,63 +1,76 @@
 import { Request, Response } from 'express';
 import { PedidosService } from '../services/pedidosService';
-import { CreatePedidoDto } from '../dtos/ICreatePedidoDTO';
-import { ProcessarPagamentoDto } from '../dtos/IProcessarPagamentoDTO';
 import { AppError } from '../middlewares/errorMiddleware';
+import { AuthUsuario } from '../types/express';
+import { StatusPedido } from '@prisma/client';
+import { CriarPedidoBody } from '../validations/pedidoValidation';
+import { ProcessarPagamentoDto } from '../dtos/IProcessarPagamentoDTO';
 
-const pedidosService = new PedidosService();
-
+// Injeção de dependência (o serviço é instanciado na ROTA)
 export class PedidosController {
+  private pedidosService: PedidosService;
 
-  async criar(req: Request, res: Response) {
-    const createPedidoDto: CreatePedidoDto = req.body;
-    if (!req.usuario) {
-        throw new AppError('Usuário não autenticado.', 401);
-    }
-    const atendenteId = req.usuario.id;
-    const novoPedido = await pedidosService.criar(createPedidoDto, atendenteId);
-    res.status(201).json(novoPedido);
+  constructor(pedidosService: PedidosService) {
+    this.pedidosService = pedidosService;
   }
 
-  async listarTodos(req: Request, res: Response) {
-    const pedidos = await pedidosService.listarTodos();
+  // --- Métodos de handler (arrow functions para manter o 'this') ---
+
+  listarTodos = async (req: Request, res: Response) => {
+    // (CORREÇÃO ERRO 1) 'listarTodos' agora existe no service
+    const pedidos = await this.pedidosService.listarTodos();
     res.status(200).json(pedidos);
-  }
+  };
 
-  async listarPedidosProntos(req: Request, res: Response) {
-    const pedidos = await pedidosService.listarPedidosProntos();
+  listarPedidosProntos = async (req: Request, res: Response) => {
+    const pedidos = await this.pedidosService.listarPedidosProntos();
     res.status(200).json(pedidos);
-  }
+  };
 
-  async obterPorId(req: Request, res: Response) {
+  obterPorId = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const pedido = await pedidosService.obterPorId(id);
-    if (!pedido) {
-      throw new AppError('Pedido não encontrado.', 404);
-    }
+    // (CORREÇÃO ERRO 2) 'obterPorId' agora existe no service
+    const pedido = await this.pedidosService.obterPorId(id);
     res.status(200).json(pedido);
-  }
+  };
 
-  async processarPagamento(req: Request, res: Response) {
+  criar = async (req: Request, res: Response) => {
+    const dadosPedido = req.body as CriarPedidoBody;
+    const atendente = req.usuario as AuthUsuario; // Vem do authMiddleware
+
+    const novoPedido = await this.pedidosService.criar(
+      dadosPedido,
+      atendente.id,
+    );
+    res.status(201).json(novoPedido);
+  };
+
+  processarPagamento = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const pagamentoDto = req.body as ProcessarPagamentoDto;
-    const pedidoPago = await pedidosService.processarPagamento(id, pagamentoDto);
-    res.status(200).json(pedidoPago);
-  }
+    const dadosPagamento = req.body as ProcessarPagamentoDto;
 
-  async marcarComoEntregue(req: Request, res: Response) {
-    const { id } = req.params;
-    const pedidoEntregue = await pedidosService.marcarComoEntregue(id);
-    res.status(200).json(pedidoEntregue);
-  }
+    const pagamento = await this.pedidosService.processarPagamento(
+      id,
+      dadosPagamento,
+    );
+    res.status(201).json(pagamento);
+  };
 
-  async cancelar(req: Request, res: Response) {
-    const { id } = req.params;
-    const pedidoCancelado = await pedidosService.cancelar(id);
-    res.status(200).json(pedidoCancelado);
-  }
-
-  async listarDisplay(req: Request, res: Response) {
-    const displayData = await pedidosService.listarParaDisplay();
+  listarDisplay = async (req: Request, res: Response) => {
+    // (CORREÇÃO ERRO 3) Corrigir nome do método
+    const displayData = await this.pedidosService.listarDisplay();
     res.status(200).json(displayData);
-  }
+  };
+
+  marcarComoEntregue = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const pedido = await this.pedidosService.marcarComoEntregue(id);
+    res.status(200).json(pedido);
+  };
+
+  cancelar = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const pedido = await this.pedidosService.cancelar(id);
+    res.status(200).json(pedido);
+  };
 }

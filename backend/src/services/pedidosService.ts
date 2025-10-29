@@ -1,131 +1,229 @@
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/errorMiddleware';
-import { CreatePedidoDto } from '../dtos/ICreatePedidoDTO';
-import { ProcessarPagamentoDto } from '../dtos/IProcessarPagamentoDTO';
-import { Pedido, Prisma, StatusPedido, Produto } from '@prisma/client';
-import { getIO } from '../lib/socketServer';
+import {
+  ItemPedido,
+  MetodoPagamento,
+  Pagamento,
+  Pedido,
+  StatusPedido,
+  Prisma,
+} from '@prisma/client';
+import { CriarPedidoBody, ItemPedidoDto } from '../validations/pedidoValidation';
+import { getSocketServer } from '../lib/socketServer';
 import { logger } from '../lib/logger';
+import { ProcessarPagamentoDto } from '../dtos/IProcessarPagamentoDTO';
 
-interface DisplayData {
-  emPreparacao: { id: string; numero_sequencial_dia: number; status: StatusPedido }[];
-  prontos: { id: string; numero_sequencial_dia: number; status: StatusPedido }[];
-}
+// Definir tipo para o retorno parcial de listarDisplay
+type PedidoDisplay = {
+  id: string;
+  numero_sequencial_dia: number;
+  cliente_nome: string | null;
+  status: StatusPedido;
+};
 
 export class PedidosService {
+  // (CORREÇÃO) REMOVIDA A PROPRIEDADE 'private io = getSocketServer();'
+  // Isso estava sendo chamado ANTES do 'initSocketServer' em 'server.ts'.
 
-  // Função auxiliar para gerar número sequencial diário
-  private async gerarNumeroSequencialDia(): Promise<number> {
+  /**
+   * Emite atualizações de pedidos via WebSocket.
+   */
+  private async emitirAtualizacaoPedidos() {
+    try {
+      // (CORREÇÃO) Chamar 'getSocketServer()' AQUI, no momento do uso.
+      // Neste ponto, o 'server.ts' já terá inicializado o 'io'.
+      const io = getSocketServer();
+
+      const pedidosPendentes = await this.listarPendentes();
+      const pedidosProntos = await this.listarPedidosProntos();
+      io.to('pdv').emit('pedidos_pendentes', pedidosPendentes);
+      io.to('display').emit('pedidos_prontos', pedidosProntos);
+    } catch (error) {
+      logger.error('Erro ao emitir atualização de WebSockets:', error);
+    }
+  }
+
+  /**
+   * Obtém o próximo número sequencial do dia para um pedido. (RF10)
+   */
+  private async getProximoNumeroDia(): Promise<number> {
     const hoje = new Date();
-    const inicioDoDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-    const fimDoDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 1);
+    hoje.setHours(0, 0, 0, 0); // Início do dia (local)
 
-    const ultimoPedidoDoDia = await prisma.pedido.findFirst({
+    const ultimoPedido = await prisma.pedido.findFirst({
+      where: { criado_em: { gte: hoje } },
+      orderBy: { numero_sequencial_dia: 'desc' },
+      select: { numero_sequencial_dia: true },
+    });
+
+    return (ultimoPedido?.numero_sequencial_dia ?? 0) + 1;
+  }
+
+  async criar(
+    data: CriarPedidoBody,
+    atendenteId: string,
+  ): Promise<Pedido & { itens: ItemPedido[] }> {
+    const { cliente_nome, itens } = data;
+
+    const idsProdutos = itens.map((item: ItemPedidoDto) => item.produto_id);
+    const produtos = await prisma.produto.findMany({
       where: {
-        criado_em: {
-          gte: inicioDoDia,
-          lt: fimDoDia,
-        },
-      },
-      orderBy: {
-        numero_sequencial_dia: 'desc',
+        id: { in: idsProdutos },
+        ativo: true, // (RN05)
       },
     });
 
-    return (ultimoPedidoDoDia?.numero_sequencial_dia ?? 0) + 1;
-  }
+    const produtosMap = new Map(produtos.map((p) => [p.id, p]));
 
-  async criar(data: CreatePedidoDto, atendenteId: string): Promise<Pedido> {
-    const { cliente_nome, itens } = data;
+    let valorTotalPedido = new Prisma.Decimal(0);
 
-    if (!itens || itens.length === 0) {
-      throw new AppError('O pedido deve conter pelo menos um item.', 400);
-    }
+    // O tipo 'ItemPedidoCreateWithoutPedidoInput' é o correto para 'itens: { create: [...] }'
+    const itensParaCriar: Prisma.ItemPedidoCreateWithoutPedidoInput[] = [];
 
-    const numeroSequencial = await this.gerarNumeroSequencialDia();
-    let valorTotalPedido = 0;
+    const consumoEstoque = new Map<string, number>();
 
-    const novoPedido = await prisma.$transaction(async (tx) => {
-      // Validar produtos e calcular subtotal/total dentro da transação
-      const itensPedidoCreateData: Prisma.ItemPedidoCreateManyPedidoInput[] = [];
-      const produtoIds = itens.map(item => item.produto_id);
-      
-      const produtos = await tx.produto.findMany({
-        where: { id: { in: produtoIds } },
-        select: { id: true, preco: true, ativo: true, nome: true }
-      });
-      const produtosMap = new Map(produtos.map(p => [p.id, p]));
+    for (const itemDto of itens) {
+      const produto = produtosMap.get(itemDto.produto_id);
 
-      for (const itemDto of itens) {
-        const produto = produtosMap.get(itemDto.produto_id);
-        if (!produto) {
-          throw new AppError(`Produto com ID ${itemDto.produto_id} não encontrado.`, 404);
-        }
-        if (!produto.ativo) { 
-            throw new AppError(`Produto "${produto.nome}" está inativo e não pode ser adicionado ao pedido.`, 400);
-        }
-        if (itemDto.quantidade <= 0) {
-           throw new AppError(`A quantidade para o produto "${produto.nome}" deve ser maior que zero.`, 400);
-        }
-
-        const subtotal = produto.preco * itemDto.quantidade;
-        valorTotalPedido += subtotal;
-
-        itensPedidoCreateData.push({
-          produto_id: itemDto.produto_id,
-          quantidade: itemDto.quantidade,
-          preco_unitario: produto.preco, 
-          subtotal: subtotal,
-        });
+      if (!produto) {
+        throw new AppError(
+          `Produto com ID ${itemDto.produto_id} não encontrado ou inativo.`,
+          404,
+        );
       }
 
-      const pedidoCriado = await tx.pedido.create({
+      const consumoAtual =
+        (consumoEstoque.get(produto.id) ?? 0) + itemDto.quantidade;
+      consumoEstoque.set(produto.id, consumoAtual);
+
+      if (produto.estoque < consumoAtual) {
+        throw new AppError(
+          `Estoque insuficiente para ${produto.nome}. Disponível: ${produto.estoque}, Pedido: ${consumoAtual}`,
+          400,
+        );
+      }
+
+      const subtotal = new Prisma.Decimal(produto.preco).times(
+        itemDto.quantidade,
+      );
+
+      valorTotalPedido = valorTotalPedido.plus(subtotal);
+
+      // (CORREÇÃO ERRO 1) O tipo 'ItemPedidoCreateWithoutPedidoInput'
+      // espera a sintaxe 'produto: { connect: ... }' em vez de 'produto_id'.
+      itensParaCriar.push({
+        produto: {
+          connect: { id: produto.id },
+        },
+        quantidade: itemDto.quantidade,
+        preco_unitario: produto.preco,
+        subtotal: subtotal,
+      });
+    }
+
+    const numeroSequencial = await this.getProximoNumeroDia();
+
+    const transactionResult = await prisma.$transaction(async (tx) => {
+      const novoPedido = await tx.pedido.create({
         data: {
           numero_sequencial_dia: numeroSequencial,
           valor_total: valorTotalPedido,
-          cliente_nome: cliente_nome,
-          atendente_id: atendenteId,
+          cliente_nome,
           status: StatusPedido.PENDENTE,
+          atendente_id: atendenteId,
           itens: {
-            createMany: {
-              data: itensPedidoCreateData,
-            },
+            create: itensParaCriar, // 'create' aceita 'ItemPedidoCreateWithoutPedidoInput[]'
           },
         },
-        include: { 
-          itens: {
-            include: { produto: true }
-          },
-          atendente: { 
-            select: { id: true, nome: true }
-          }
-        }
+        include: {
+          itens: true, // Garante que 'itens' esteja no retorno
+        },
       });
 
-      return pedidoCriado;
+      for (const [produtoId, quantidadeConsumida] of consumoEstoque.entries()) {
+        await tx.produto.update({
+          where: { id: produtoId },
+          data: {
+            estoque: {
+              decrement: quantidadeConsumida,
+            },
+          },
+        });
+      }
+
+      return novoPedido;
     });
 
-    logger.info(`Pedido #${numeroSequencial} (ID: ${novoPedido.id}) criado por Atendente ID: ${atendenteId}. Valor: ${valorTotalPedido.toFixed(2)}`);
-    return novoPedido;
+    this.emitirAtualizacaoPedidos();
+
+    return transactionResult;
+  }
+
+  async processarPagamento(
+    pedidoId: string,
+    data: ProcessarPagamentoDto,
+  ): Promise<Pagamento> {
+    const { metodo, valor_pago } = data;
+
+    const pedido = await prisma.pedido.findUnique({
+      where: { id: pedidoId },
+    });
+
+    if (!pedido) {
+      throw new AppError('Pedido não encontrado.', 404);
+    }
+    if (pedido.status !== StatusPedido.PENDENTE) {
+      throw new AppError(
+        `Pagamento não permitido para pedido com status ${pedido.status}.`,
+        400,
+      );
+    }
+
+    const valorPagoDecimal = new Prisma.Decimal(valor_pago);
+
+    if (valorPagoDecimal.lt(pedido.valor_total)) {
+      throw new AppError('Valor pago é menor que o total do pedido.', 400);
+    }
+
+    let trocoDecimal = new Prisma.Decimal(0);
+    if (valorPagoDecimal.gt(pedido.valor_total)) {
+      trocoDecimal = valorPagoDecimal.minus(pedido.valor_total);
+    }
+
+    const pagamento = await prisma.$transaction(async (tx) => {
+      const novoPagamento = await tx.pagamento.create({
+        data: {
+          pedido_id: pedidoId,
+          metodo,
+          valor_pago: valorPagoDecimal,
+          troco: trocoDecimal,
+        },
+      });
+
+      await tx.pedido.update({
+        where: { id: pedidoId },
+        data: {
+          status: StatusPedido.PRONTO,
+          pagamento: {
+            connect: { id: novoPagamento.id },
+          },
+        },
+      });
+
+      return novoPagamento;
+    });
+
+    this.emitirAtualizacaoPedidos();
+
+    return pagamento;
   }
 
   async listarTodos(): Promise<Pedido[]> {
     return prisma.pedido.findMany({
       orderBy: { criado_em: 'desc' },
       include: {
+        atendente: { select: { nome: true } },
         itens: { include: { produto: true } },
-        atendente: { select: { id: true, nome: true } }, 
-        pagamento: true,
-      },
-    });
-  }
-
-  async listarPedidosProntos(): Promise<Pedido[]> {
-    return prisma.pedido.findMany({
-      where: { status: StatusPedido.PRONTO },
-      orderBy: { atualizado_em: 'asc' }, 
-      include: {
-        itens: { include: { produto: true } },
-        atendente: { select: { id: true, nome: true } },
       },
     });
   }
@@ -134,209 +232,107 @@ export class PedidosService {
     const pedido = await prisma.pedido.findUnique({
       where: { id },
       include: {
+        atendente: { select: { nome: true } },
         itens: { include: { produto: true } },
-        atendente: { select: { id: true, nome: true } },
         pagamento: true,
       },
     });
+
+    if (!pedido) {
+      throw new AppError('Pedido não encontrado.', 404);
+    }
     return pedido;
   }
 
-  async processarPagamento(
-    id: string,
-    data: ProcessarPagamentoDto,
-  ): Promise<Pedido> {
-    const io = getIO();
-
-    const pedidoAtualizado = await prisma.$transaction(async (tx) => {
-      const pedidoExistente = await tx.pedido.findUnique({
-        where: { id },
-        include: { itens: true, pagamento: true },
-      });
-
-      if (!pedidoExistente) {
-        throw new AppError('Pedido não encontrado.', 404);
-      }
-
-      if (pedidoExistente.status !== StatusPedido.PENDENTE) {
-        throw new AppError(
-          `Apenas pedidos pendentes podem ser pagos. Status atual: ${pedidoExistente.status}`,
-          400,
-        );
-      }
-
-      if (pedidoExistente.pagamento) {
-        throw new AppError('Este pedido já possui um pagamento registrado.', 409);
-      }
-
-      const { metodo, valor_pago } = data; 
-      const valorTotalPedido = pedidoExistente.valor_total;
-      let troco = 0;
-
-      if (valor_pago < valorTotalPedido) {
-        throw new AppError(
-          `Valor pago (R$ ${valor_pago.toFixed(2)}) é insuficiente para o total do pedido (R$ ${valorTotalPedido.toFixed(2)}).`,
-          400,
-        );
-      }
-
-      if (metodo === 'DINHEIRO') {
-        troco = valor_pago - valorTotalPedido;
-      } else if (valor_pago > valorTotalPedido) {
-         throw new AppError(`Valor pago (R$ ${valor_pago.toFixed(2)}) difere do total do pedido (R$ ${valorTotalPedido.toFixed(2)}) para o método ${metodo}.`, 400);
-      }
-
-      for (const item of pedidoExistente.itens) {
-        const produto = await tx.produto.findUniqueOrThrow({
-          where: { id: item.produto_id },
-        }).catch(() => { throw new AppError(`Produto com ID ${item.produto_id} não encontrado durante o pagamento.`, 404); });
-
-        const novoEstoque = produto.estoque - item.quantidade;
-        if (novoEstoque < 0) {
-          throw new AppError(
-            `Estoque insuficiente para ${produto.nome}. Disponível: ${produto.estoque}, Tentativa de baixa: ${item.quantidade}`,
-            409,
-          );
-        }
-
-        await tx.produto.update({
-          where: { id: item.produto_id }, 
-          data: { estoque: novoEstoque },
-        });
-      }
-
-      await tx.pagamento.create({
-        data: {
-          pedido_id: id, 
-          metodo: metodo,
-          valor_pago: valor_pago,
-          troco: troco,
-        },
-      });
-
-      const pedidoFinalizado = await tx.pedido.update({
-        where: { id },
-        data: {
-          status: StatusPedido.PRONTO,
-          atualizado_em: new Date(),
-        },
-        include: {
-          itens: { include: { produto: true } },
-          atendente: { select: { id: true, nome: true } },
-          pagamento: true,
-        },
-      });
-
-      logger.info(`Pedido #${pedidoFinalizado.numero_sequencial_dia} (ID: ${id}) pago. Método: ${metodo}, Valor: ${valor_pago.toFixed(2)}, Troco: ${troco.toFixed(2)}`);
-      return pedidoFinalizado;
+  async listarPendentes(): Promise<Pedido[]> {
+    return prisma.pedido.findMany({
+      where: { status: StatusPedido.PENDENTE },
+      orderBy: { criado_em: 'asc' },
     });
-
-    io.emit('pedido:novo', pedidoAtualizado); 
-    io.emit('pedido:display', pedidoAtualizado);
-
-    return pedidoAtualizado;
   }
 
-  async marcarComoEntregue(id: string): Promise<Pedido> {
-    const io = getIO();
+  async listarPedidosProntos(): Promise<Pedido[]> {
+    return prisma.pedido.findMany({
+      where: { status: StatusPedido.PRONTO },
+      orderBy: { atualizado_em: 'asc' },
+    });
+  }
 
-    const pedido = await prisma.pedido.findUniqueOrThrow({
-      where: { id },
-      select: { status: true, numero_sequencial_dia: true }
-    }).catch(() => { throw new AppError('Pedido não encontrado.', 404); });
+  async listarDisplay(): Promise<PedidoDisplay[]> {
+    return prisma.pedido.findMany({
+      where: {
+        status: { in: [StatusPedido.PRONTO] },
+      },
+      select: {
+        id: true,
+        numero_sequencial_dia: true,
+        cliente_nome: true,
+        status: true,
+      },
+      orderBy: { numero_sequencial_dia: 'asc' },
+      take: 20,
+    });
+  }
 
-
+  async marcarComoEntregue(pedidoId: string): Promise<Pedido> {
+    const pedido = await prisma.pedido.findUnique({ where: { id: pedidoId } });
+    if (!pedido) {
+      throw new AppError('Pedido não encontrado.', 404);
+    }
     if (pedido.status !== StatusPedido.PRONTO) {
-      throw new AppError(`Apenas pedidos prontos podem ser entregues. Status atual: ${pedido.status}`, 400);
+      throw new AppError(
+        'Apenas pedidos com status "PRONTO" podem ser entregues.',
+        400,
+      );
     }
 
     const pedidoAtualizado = await prisma.pedido.update({
-      where: { id },
-      data: {
-        status: StatusPedido.ENTREGUE,
-        atualizado_em: new Date(),
-      },
+      where: { id: pedidoId },
+      data: { status: StatusPedido.ENTREGUE },
     });
 
-    io.emit('pedido:entregue', { id: pedidoAtualizado.id });
-
-    logger.info(`Pedido #${pedido.numero_sequencial_dia} (ID: ${id}) marcado como entregue.`);
+    this.emitirAtualizacaoPedidos();
     return pedidoAtualizado;
   }
 
-  async cancelar(id: string): Promise<Pedido> {
-    const io = getIO();
-    let statusOriginal: StatusPedido | null = null;
+  async cancelar(pedidoId: string): Promise<Pedido> {
+    const pedido = await prisma.pedido.findUnique({
+      where: { id: pedidoId },
+      include: { itens: true },
+    });
 
-     const pedidoCancelado = await prisma.$transaction(async (tx) => {
-        const pedido = await tx.pedido.findUnique({
-          where: { id },
-          include: { itens: true, pagamento: true }, 
-        });
+    if (!pedido) {
+      throw new AppError('Pedido não encontrado.', 404);
+    }
 
-        if (!pedido) {
-          throw new AppError('Pedido não encontrado.', 404);
-        }
-        statusOriginal = pedido.status; 
+    if (pedido.status !== StatusPedido.PENDENTE) {
+      throw new AppError(
+        'Apenas pedidos "PENDENTES" podem ser cancelados.',
+        400,
+      );
+    }
 
-        if (pedido.status !== StatusPedido.PENDENTE && pedido.status !== StatusPedido.PRONTO) {
-          throw new AppError(`Não é possível cancelar um pedido com status ${pedido.status}.`, 400);
-        }
-
-        if (pedido.status === StatusPedido.PRONTO) {
-            logger.info(`Cancelando pedido PRONTO #${pedido.numero_sequencial_dia} (ID: ${id}). Revertendo estoque...`);
-            for (const item of pedido.itens) {
-              await tx.produto.update({
-                where: { id: item.produto_id }, 
-                data: { estoque: { increment: item.quantidade } },
-              });
-            }
-            logger.info(`Estoque revertido para pedido #${pedido.numero_sequencial_dia}.`);
-        }
-
-        const pedidoAtualizado = await tx.pedido.update({
-          where: { id },
+    const pedidoCancelado = await prisma.$transaction(async (tx) => {
+      for (const item of pedido.itens) {
+        await tx.produto.update({
+          where: { id: item.produto_id },
           data: {
-            status: StatusPedido.CANCELADO,
-            atualizado_em: new Date(), 
+            estoque: {
+              increment: item.quantidade,
+            },
           },
         });
+      }
 
-         logger.info(`Pedido #${pedido.numero_sequencial_dia} (ID: ${id}) cancelado.`);
-         return pedidoAtualizado;
-     });
+      const pedidoAtualizado = await tx.pedido.update({
+        where: { id: pedidoId },
+        data: { status: StatusPedido.CANCELADO },
+      });
 
-     if (statusOriginal === StatusPedido.PRONTO) {
-        io.emit('pedido:cancelado', { id: pedidoCancelado.id });
-     }
+      return pedidoAtualizado;
+    });
 
+    this.emitirAtualizacaoPedidos();
     return pedidoCancelado;
-  }
-
-  async listarParaDisplay(): Promise<DisplayData> {
-    const [prontos, emPreparacao] = await Promise.all([
-      prisma.pedido.findMany({
-        where: { status: StatusPedido.PRONTO },
-        orderBy: { atualizado_em: 'desc' },
-        take: 5,
-         select: {
-           id: true,
-           numero_sequencial_dia: true,
-           status: true,
-         }
-      }),
-      prisma.pedido.findMany({
-        where: { status: StatusPedido.PENDENTE },
-        orderBy: { criado_em: 'asc' },
-        take: 15, 
-         select: {
-           id: true,
-           numero_sequencial_dia: true,
-           status: true,
-         }
-      })
-    ]);
-
-    return { prontos, emPreparacao };
   }
 }

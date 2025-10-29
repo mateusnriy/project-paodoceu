@@ -1,4 +1,4 @@
-
+// backend/prisma/schema.prisma
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -35,19 +35,19 @@ model Usuario {
   senha         String
   perfil        PerfilUsuario @default(ATENDENTE)
   ativo         Boolean       @default(false)
-  criado_em     DateTime      @default(now())
-  atualizado_em DateTime      @updatedAt
-  pedidos       Pedido[]
+  criado_em     DateTime      @default(now()) @map("criado_em")
+  atualizado_em DateTime      @updatedAt @map("atualizado_em")
+  pedidos       Pedido[] // Relação com pedidos atendidos por este usuário
 
   @@map("usuarios")
 }
 
 model Categoria {
   id            String    @id @default(uuid())
-  nome          String    @unique
-  criado_em     DateTime  @default(now())
-  atualizado_em DateTime  @updatedAt
-  produtos      Produto[]
+  nome          String    @unique // Nome da categoria deve ser único
+  criado_em     DateTime  @default(now()) @map("criado_em")
+  atualizado_em DateTime  @updatedAt @map("atualizado_em")
+  produtos      Produto[] // Relação com produtos desta categoria
 
   @@map("categorias")
 }
@@ -56,13 +56,13 @@ model Produto {
   id            String       @id @default(uuid())
   nome          String
   descricao     String?
-  preco         Float
+  preco         Decimal      @db.Decimal(10, 2)
   estoque       Int          @default(0)
-  imagem_url    String?
+  imagem_url    String?      @map("imagem_url")
   ativo         Boolean      @default(true)
-  categoria_id  String
-  criado_em     DateTime     @default(now())
-  atualizado_em DateTime     @updatedAt
+  categoria_id  String       @map("categoria_id")
+  criado_em     DateTime     @default(now()) @map("criado_em")
+  atualizado_em DateTime     @updatedAt @map("atualizado_em")
   categoria     Categoria    @relation(fields: [categoria_id], references: [id])
   itens_pedido  ItemPedido[]
 
@@ -71,14 +71,14 @@ model Produto {
 
 model Pedido {
   id                    String       @id @default(uuid())
-  numero_sequencial_dia Int
-  valor_total           Float
-  cliente_nome          String?
+  numero_sequencial_dia Int          @map("numero_sequencial_dia")
+  valor_total           Decimal      @db.Decimal(10, 2) @map("valor_total")
+  cliente_nome          String?      @map("cliente_nome")
   status                StatusPedido @default(PENDENTE)
-  criado_em             DateTime     @default(now())
-  atualizado_em         DateTime     @updatedAt
-  atendente_id          String?
-  atendente             Usuario?     @relation(fields: [atendente_id], references: [id], onDelete: SetNull) 
+  criado_em             DateTime     @default(now()) @map("criado_em")
+  atualizado_em         DateTime     @updatedAt @map("atualizado_em")
+  atendente_id          String?      @map("atendente_id")
+  atendente             Usuario?     @relation(fields: [atendente_id], references: [id], onDelete: SetNull)
   itens                 ItemPedido[]
   pagamento             Pagamento?
 
@@ -87,24 +87,27 @@ model Pedido {
 
 model ItemPedido {
   id             String  @id @default(uuid())
-  pedido_id      String
-  produto_id     String
+  pedido_id      String  @map("pedido_id")
+  produto_id     String  @map("produto_id")
   quantidade     Int
-  preco_unitario Float
-  subtotal       Float
-  pedido         Pedido  @relation(fields: [pedido_id], references: [id], onDelete: Cascade) 
-  produto        Produto @relation(fields: [produto_id], references: [id], onDelete: Restrict) 
+  preco_unitario Decimal @db.Decimal(10, 2) @map("preco_unitario")
+  subtotal       Decimal @db.Decimal(10, 2)
+  pedido         Pedido  @relation(fields: [pedido_id], references: [id], onDelete: Cascade)
+  produto        Produto @relation(fields: [produto_id], references: [id], onDelete: Restrict)
+
   @@map("itens_pedido")
 }
 
 model Pagamento {
-  id            String          @id @default(uuid())
-  pedido_id     String          @unique
-  metodo        MetodoPagamento
-  valor_pago    Float
-  troco         Float           @default(0)
-  criado_em     DateTime        @default(now())
-  pedido        Pedido          @relation(fields: [pedido_id], references: [id], onDelete: Cascade)
+  id          String          @id @default(uuid())
+  pedido_id   String          @unique @map("pedido_id")
+  metodo      MetodoPagamento
+  valor_pago  Decimal         @db.Decimal(10, 2) @map("valor_pago")
+  troco       Decimal         @default(0) @db.Decimal(10, 2)
+  criado_em   DateTime        @default(now()) @map("criado_em")
+  pedido      Pedido          @relation(fields: [pedido_id], references: [id], onDelete: Cascade)
 
   @@map("pagamentos")
 }
+
+// REMOVIDO: Modelo PasswordResetToken

@@ -1,64 +1,25 @@
-import { Prisma, PrismaClient, StatusPedido } from '@prisma/client';
-import { endOfDay, startOfDay, formatISO } from 'date-fns';
 import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger';
 import { AppError } from '../middlewares/errorMiddleware';
+import { Pedido, Prisma, StatusPedido } from '@prisma/client';
+import { endOfDay, startOfDay } from 'date-fns';
 
 export class RelatoriosService {
-  private getDateRange(dataInicio?: Date, dataFim?: Date) {
-    const inicio = dataInicio ? startOfDay(dataInicio) : undefined;
-    const fim = dataFim ? endOfDay(dataFim) : undefined;
-    return inicio || fim ? { gte: inicio, lte: fim } : undefined;
-  }
-
-  private get paidOrderFilter() {
-    return {
-      status: {
-        not: StatusPedido.PENDENTE,
-      },
-      pagamento: {
-        isNot: null,
-      },
-    };
-  }
-
-  private async vendasPorDia(dataInicio?: Date, dataFim?: Date) {
-    const range = this.getDateRange(dataInicio, dataFim);
-    
-    const dataInicioSql = range?.gte ?? startOfDay(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
-    const dataFimSql = range?.lte ?? endOfDay(new Date());
-
-    const query = Prisma.sql`
-      SELECT
-        DATE(p."criado_em") as data,
-        SUM(p."valor_total") as total
-      FROM "pedidos" p
-      INNER JOIN "pagamentos" pag ON p."id" = pag."pedido_id"
-      WHERE p."criado_em" >= ${dataInicioSql}::timestamp
-      AND p."criado_em" <= ${dataFimSql}::timestamp
-      GROUP BY DATE(p."criado_em")
-      ORDER BY data ASC;
-    `;
-
-    try {
-      const vendasAgrupadas: { data: Date; total: number }[] =
-        await prisma.$queryRaw(query);
-
-      return vendasAgrupadas.map((item) => ({
-        data: formatISO(new Date(item.data), { representation: 'date' }),
-        total: Number(item.total) || 0,
-      }));
-    } catch (error: any) {
-      logger.error('Erro na query $queryRaw de vendasPorDia:', {
-        errorMessage: error.message,
-      });
-      throw new AppError('Erro ao processar relatório diário.', 500);
+  /**
+   * Gera um relatório de vendas consolidado (RF13).
+   */
+  async obterRelatorioVendas(
+    dataInicio: Date,
+    dataFim: Date,
+  ): Promise<any> {
+    if (dataInicio > dataFim) {
+      throw new AppError('Data inicial deve ser anterior à data final.', 400);
     }
-  }
 
-  async vendasPorPeriodo(dataInicio?: Date, dataFim?: Date) {
-    const range = this.getDateRange(dataInicio, dataFim);
+    // Ajustar datas para cobrir o dia inteiro
+    const inicio = startOfDay(dataInicio);
+    const fim = endOfDay(dataFim);
 
+    // 1. Agregação principal (Total Vendido, Total Pedidos)
     const agregacao = await prisma.pedido.aggregate({
       _sum: {
         valor_total: true,
@@ -67,141 +28,131 @@ export class RelatoriosService {
         id: true,
       },
       where: {
-        ...this.paidOrderFilter,
-        criado_em: range,
+        status: StatusPedido.ENTREGUE, // Apenas pedidos concluídos
+        criado_em: {
+          gte: inicio,
+          lte: fim,
+        },
       },
     });
 
-    const totalVendido = agregacao._sum.valor_total || 0;
-    const totalPedidos = agregacao._count.id || 0;
-    const ticketMedio = totalPedidos > 0 ? totalVendido / totalPedidos : 0;
+    // (CORREÇÃO ERRO 8) Usar Decimal para cálculos
+    // const totalVendido = agregacao._sum.valor_total || 0; // OLD
+    // _sum retorna Decimal | null
+    const totalVendidoDecimal =
+      agregacao._sum.valor_total ?? new Prisma.Decimal(0);
+    const totalPedidos = agregacao._count.id; // _count retorna number
 
-    return {
-      periodo: {
-        inicio: dataInicio?.toISOString().split('T')[0] || 'N/A',
-        fim: dataFim?.toISOString().split('T')[0] || 'N/A',
-      },
-      totalVendido,
-      totalPedidos,
-      ticketMedio,
-    };
-  }
+    // const ticketMedio = totalPedidos > 0 ? totalVendido / totalPedidos : 0; // OLD
+    const ticketMedioDecimal =
+      totalPedidos > 0
+        ? totalVendidoDecimal.dividedBy(totalPedidos)
+        : new Prisma.Decimal(0);
 
-  async vendasPorProduto(
-    dataInicio?: Date,
-    dataFim?: Date,
-    limite: number = 5,
-  ) {
-    const range = this.getDateRange(dataInicio, dataFim);
-
-    const itensVendidosAgrupados = await prisma.itemPedido.groupBy({
+    // 2. Produtos Mais Vendidos
+    const produtosMaisVendidos = await prisma.itemPedido.groupBy({
       by: ['produto_id'],
+      _sum: {
+        quantidade: true,
+        subtotal: true,
+      },
       where: {
         pedido: {
-          ...this.paidOrderFilter,
-          criado_em: range,
+          status: StatusPedido.ENTREGUE,
+          criado_em: { gte: inicio, lte: fim },
         },
-      },
-      _sum: {
-        subtotal: true,
-        quantidade: true,
       },
       orderBy: {
         _sum: {
-          subtotal: 'desc',
+          quantidade: 'desc',
         },
       },
-      take: limite,
+      take: 10,
     });
 
-    const produtoIds = itensVendidosAgrupados.map((item) => item.produto_id);
+    // 3. Buscar nomes dos produtos (otimização: buscar todos de uma vez)
+    const produtoIds = produtosMaisVendidos.map((p) => p.produto_id);
     const produtos = await prisma.produto.findMany({
       where: { id: { in: produtoIds } },
       select: { id: true, nome: true },
     });
-    const produtoMap = new Map(produtos.map((p) => [p.id, p.nome]));
+    const produtosMap = new Map(produtos.map((p) => [p.id, p.nome]));
 
-    return itensVendidosAgrupados.map((item) => ({
-      nome: produtoMap.get(item.produto_id) || 'Produto Desconhecido',
-      quantidade: Number(item._sum.quantidade) || 0,
-      total: Number(item._sum.subtotal) || 0,
+    // Mapear resultado
+    const topProdutos = produtosMaisVendidos.map((p) => ({
+      produtoNome: produtosMap.get(p.produto_id) || 'Produto Excluído',
+      quantidadeVendida: p._sum.quantidade || 0,
+      // (CORREÇÃO ERRO 8) Converter Decimal para DTO
+      totalVendido: p._sum.subtotal?.toNumber() || 0,
     }));
-  }
 
-  async vendasPorCategoria(dataInicio?: Date, dataFim?: Date) {
-    const range = this.getDateRange(dataInicio, dataFim);
-
-    const itensAgrupados = await prisma.itemPedido.groupBy({
-      by: ['produto_id'],
+    // 4. Vendas por Categoria
+    const vendasPorCategoria = await prisma.itemPedido.groupBy({
+      by: ['produto_id'], // Agrupa por produto
+      _sum: {
+        subtotal: true,
+      },
       where: {
         pedido: {
-          ...this.paidOrderFilter,
-          criado_em: range,
+          status: StatusPedido.ENTREGUE,
+          criado_em: { gte: inicio, lte: fim },
         },
-      },
-      _sum: {
-        quantidade: true,
-        subtotal: true,
       },
     });
 
-    const produtoIds = itensAgrupados.map((item) => item.produto_id);
+    // Buscar categorias dos produtos
     const produtosComCategoria = await prisma.produto.findMany({
-      where: { id: { in: produtoIds } },
+      where: {
+        id: { in: vendasPorCategoria.map((p) => p.produto_id) },
+      },
       select: {
         id: true,
-        categoria_id: true,
-        categoria: {
-          select: { nome: true },
-        },
+        categoria: { select: { id: true, nome: true } },
       },
     });
     const produtoCategoriaMap = new Map(
-      produtosComCategoria.map((p) => [
-        p.id,
-        { id: p.categoria_id, nome: p.categoria.nome },
-      ]),
+      produtosComCategoria.map((p) => [p.id, p.categoria]),
     );
 
-    const relatorioMap = new Map<string, { nome: string; quantidade: number; valor: number }>();
+    // Consolidar por Categoria
+    const consolidadoCategoria: Record<
+      string,
+      { nome: string; total: Prisma.Decimal }
+    > = {};
 
-    for (const item of itensAgrupados) {
+    for (const item of vendasPorCategoria) {
       const categoria = produtoCategoriaMap.get(item.produto_id);
-      if (!categoria) continue;
-
-      const { id, nome } = categoria;
-      const quantidade = Number(item._sum.quantidade) || 0;
-      const valor = Number(item._sum.subtotal) || 0;
-
-      const entrada = relatorioMap.get(id) || { nome, quantidade: 0, valor: 0 };
-      entrada.quantidade += quantidade;
-      entrada.valor += valor;
-      relatorioMap.set(id, entrada);
+      if (categoria && item._sum.subtotal) {
+        if (!consolidadoCategoria[categoria.id]) {
+          consolidadoCategoria[categoria.id] = {
+            nome: categoria.nome,
+            total: new Prisma.Decimal(0),
+          };
+        }
+        consolidadoCategoria[categoria.id].total =
+          consolidadoCategoria[categoria.id].total.plus(item._sum.subtotal);
+      }
     }
 
-    return Array.from(relatorioMap.values()).sort((a, b) => b.valor - a.valor);
-  }
+    const topCategorias = Object.values(consolidadoCategoria)
+      .map((c) => ({
+        ...c,
+        // (CORREÇÃO ERRO 8) Converter Decimal para DTO
+        total: c.total.toNumber(),
+      }))
+      .sort((a, b) => b.total - a.total);
 
-  async relatorioDeVendas(
-    tipo: string,
-    dataInicio?: Date,
-    dataFim?: Date,
-    limite?: number,
-  ) {
-    switch (tipo) {
-      case 'periodo':
-        return this.vendasPorPeriodo(dataInicio, dataFim);
-      case 'produto':
-        return this.vendasPorProduto(dataInicio, dataFim, limite);
-      case 'categoria':
-        return this.vendasPorCategoria(dataInicio, dataFim);
-      case 'diario':
-        return this.vendasPorDia(dataInicio, dataFim);
-      default:
-        throw new AppError(
-          "Tipo de relatório inválido. Valores válidos: 'periodo', 'produto', 'categoria', 'diario'.",
-          400,
-        );
-    }
+    return {
+      periodo: { inicio, fim },
+      resumo: {
+        // (CORREÇÃO ERRO 8) Converter Decimal para DTO (saída da API)
+        totalVendido: totalVendidoDecimal.toNumber(),
+        totalPedidos,
+        ticketMedio: ticketMedioDecimal.toDecimalPlaces(2).toNumber(),
+      },
+      topProdutos,
+      topCategorias,
+    };
   }
 }
+

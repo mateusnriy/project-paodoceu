@@ -1,52 +1,83 @@
+// backend/src/controllers/produtosController.ts
 import { Request, Response } from 'express';
 import { ProdutosService } from '../services/produtosService';
 import { CreateProdutoDto } from '../dtos/ICreateProdutoDTO';
 import { UpdateProdutoDto } from '../dtos/IUpdateProdutoDTO';
-
-const produtosService = new ProdutosService();
+// CORREÇÃO: Importar tipos do local correto
+import {
+  AjustarEstoqueBody,
+  ListarProdutosQuery,
+} from '../validations/produtoValidation';
 
 export class ProdutosController {
+  private produtosService: ProdutosService;
 
-  async listar(req: Request, res: Response) {
-    const page = Number(req.query.pagina) || 1;
-    const limit = Number(req.query.limite) || 10;
-    const nomeQuery = req.query.termo as string | undefined;
-    const produtosPaginados = await produtosService.listarPaginado(page, limit, nomeQuery);
-    res.status(200).json(produtosPaginados);
+  /**
+   * (CORREÇÃO) Aceitar o serviço via injeção de dependência
+   */
+  constructor(produtosService: ProdutosService) {
+    this.produtosService = produtosService;
   }
 
-  async obter(req: Request, res: Response) {
+  /**
+   * Handler para listar paginado (Admin)
+   */
+  listarPaginado = async (req: Request, res: Response) => {
+    // Validado pelo Zod (listarProdutosSchema)
+    const { pagina, limite, nome } =
+      req.query as unknown as ListarProdutosQuery;
+
+    const resultado = await this.produtosService.listarPaginado(
+      pagina || 1, // Garantir valores padrão
+      limite || 10,
+      nome,
+    );
+    res.status(200).json(resultado);
+  };
+
+  /**
+   * Handler para listar ativos (PDV)
+   */
+  listarTodosAtivos = async (req: Request, res: Response) => {
+    const produtos = await this.produtosService.listarTodosAtivos();
+    res.status(200).json(produtos);
+  };
+
+  /**
+   * Handler para obter por ID (Admin)
+   */
+  obterPorId = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const produto = await produtosService.obterPorId(id);
+    const produto = await this.produtosService.obterPorId(id);
     res.status(200).json(produto);
-  }
+  };
 
-  async criar(req: Request, res: Response) {
-    const createProdutoDto: CreateProdutoDto = req.body;
-    const novoProduto = await produtosService.criar(createProdutoDto);
-    const produtoCompleto = await produtosService.obterPorId(novoProduto.id);
-    res.status(201).json(produtoCompleto);
-  }
+  criar = async (req: Request, res: Response) => {
+    const data = req.body as CreateProdutoDto;
+    const produto = await this.produtosService.criar(data);
+    res.status(201).json(produto);
+  };
 
-  async atualizar(req: Request, res: Response) {
+  atualizar = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const updateProdutoDto: UpdateProdutoDto = req.body;
-    const produtoAtualizado = await produtosService.atualizar(id, updateProdutoDto);
-    const produtoCompleto = await produtosService.obterPorId(produtoAtualizado.id);
-    res.status(200).json(produtoCompleto);
-  }
+    const data = req.body as UpdateProdutoDto;
+    const produto = await this.produtosService.atualizar(id, data);
+    res.status(200).json(produto);
+  };
 
-  async ajustarEstoque(req: Request, res: Response) {
+  /**
+   * Handler para ajuste rápido de estoque
+   */
+  ajustarEstoque = async (req: Request, res: Response) => {
     const { id } = req.params;
-    const { quantidade } = req.body;
-    const produtoAtualizado = await produtosService.ajustarEstoque(id, quantidade);
-    const produtoCompleto = await produtosService.obterPorId(produtoAtualizado.id);
-    res.status(200).json(produtoCompleto);
-  }
+    const { quantidade } = req.body as AjustarEstoqueBody;
+    const produto = await this.produtosService.ajustarEstoque(id, quantidade);
+    res.status(200).json(produto);
+  };
 
-  async deletar(req: Request, res: Response) {
+  deletar = async (req: Request, res: Response) => {
     const { id } = req.params;
-    await produtosService.deletar(id);
-    res.status(204).send();
-  }
+    await this.produtosService.deletar(id);
+    res.status(204).send(); // 204 No Content
+  };
 }

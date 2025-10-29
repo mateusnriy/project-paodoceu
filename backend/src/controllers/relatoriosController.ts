@@ -1,44 +1,64 @@
 import { Request, Response } from 'express';
 import { RelatoriosService } from '../services/relatoriosService';
-import { ImpressaoService } from '../services/impressaoService';
+import { z } from 'zod';
 import { AppError } from '../middlewares/errorMiddleware';
+import { ImpressaoService } from '../services/impressaoService'; // (CORREÇÃO ERRO 9) Importar serviço
 
-const relatoriosService = new RelatoriosService();
-const impressaoService = new ImpressaoService();
+// Schema de validação local para a query
+const relatorioQuerySchema = z.object({
+  dataInicio: z.coerce.date({
+    errorMap: () => ({ message: 'Data de início inválida.' }),
+  }),
+  dataFim: z.coerce.date({
+    errorMap: () => ({ message: 'Data de fim inválida.' }),
+  }),
+});
 
 export class RelatoriosController {
-  async gerarComprovante(req: Request, res: Response) {
-    const { id } = req.params;
-    const dadosComprovante = await impressaoService.gerarDadosComprovante(id);
-    return res.status(200).json(dadosComprovante);
+  private relatoriosService: RelatoriosService;
+  private impressaoService: ImpressaoService; // (CORREÇÃO ERRO 9)
+
+  constructor(relatoriosService: RelatoriosService) {
+    this.relatoriosService = relatoriosService;
+    this.impressaoService = new ImpressaoService(); // (CORREÇÃO ERRO 9) Instanciar
   }
 
-  async relatorioDeVendas(req: Request, res: Response) {
+  obterRelatorioVendas = async (req: Request, res: Response) => {
+    // Validar a query
+    const result = relatorioQuerySchema.safeParse(req.query);
 
-    const { tipo, data_inicio, data_fim, limite } = req.query;
-
-    if (!tipo || typeof tipo !== 'string') {
-      throw new AppError("O parâmetro 'tipo' do relatório é obrigatório.", 400);
+    if (!result.success) {
+      // (CORREÇÃO ERRO 3) Lançar o ZodError diretamente
+      // O errorMiddleware global irá tratá-lo e formatá-lo.
+      throw result.error;
     }
 
-    const dataInicio = data_inicio ? new Date(data_inicio as string) : undefined;
-    const dataFim = data_fim ? new Date(data_fim as string) : undefined;
-    const limiteNum = limite ? parseInt(limite as string, 10) : undefined;
+    const { dataInicio, dataFim } = result.data;
 
-    if (dataInicio && isNaN(dataInicio.getTime())) {
-      throw new AppError("Formato inválido para 'data_inicio'.", 400);
-    }
-    if (dataFim && isNaN(dataFim.getTime())) {
-      throw new AppError("Formato inválido para 'data_fim'.", 400);
-    }
-
-    const relatorio = await relatoriosService.relatorioDeVendas(
-      tipo,
+    const relatorio = await this.relatoriosService.obterRelatorioVendas(
       dataInicio,
       dataFim,
-      limiteNum
     );
 
-    return res.status(200).json(relatorio);
-  }
+    res.status(200).json(relatorio);
+  };
+
+  /**
+   * (CORREÇÃO ERRO 9) Implementação do método faltante
+   */
+  gerarComprovante = async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    if (!id || typeof id !== 'string') {
+      throw new AppError('ID do pedido é inválido.', 400);
+    }
+
+    // O service (impressaoService) já lida com 404
+    const dadosComprovante = await this.impressaoService.gerarDadosComprovante(
+      id,
+    );
+
+    // No futuro, isso poderia gerar um PDF. Por agora, retorna JSON.
+    res.status(200).json(dadosComprovante);
+  };
 }

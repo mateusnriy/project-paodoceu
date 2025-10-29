@@ -1,35 +1,63 @@
+import { Server } from 'socket.io';
 import { Server as HttpServer } from 'http';
-import { Server, Socket } from 'socket.io';
-import { env } from '../config/env';
 import { logger } from './logger';
+import { env } from '../config/env'; // (CORREÇÃO) Importar 'env'
 
+// (CORREÇÃO ERRO 16) Armazenar a instância Singleton
 let io: Server;
 
-export const initSocketServer = (httpServer: HttpServer) => {
+export const initSocketServer = (httpServer: HttpServer): Server => {
   io = new Server(httpServer, {
     cors: {
-      origin: env.NODE_ENV === 'development' 
-        ? 'http://localhost:5173' // Origem do Vite
-        : '[https://seu-dominio-de-producao.com](https://seu-dominio-de-producao.com)', //Atualizar em produção
+      origin: process.env.FRONTEND_ORIGIN, // Vindo do .env
       methods: ['GET', 'POST'],
-      credentials: true,
     },
   });
 
-  io.on('connection', (socket: Socket) => {
-    logger.info(`Cliente conectado (Socket ID: ${socket.id})`);
+  io.on('connection', (socket) => {
+    logger.info(`Socket conectado: ${socket.id}`);
+
+    // Salas (Rooms) para RNF08
+    socket.on('join_pdv', () => {
+      socket.join('pdv');
+      logger.info(`Socket ${socket.id} entrou na sala [pdv]`);
+    });
+
+    socket.on('join_display', () => {
+      socket.join('display');
+      logger.info(`Socket ${socket.id} entrou na sala [display]`);
+    });
 
     socket.on('disconnect', () => {
-      logger.info(`Cliente desconectado (Socket ID: ${socket.id})`);
+      logger.info(`Socket desconectado: ${socket.id}`);
     });
   });
 
-  logger.info('Servidor Socket.IO inicializado.');
+  return io;
 };
 
-export const getIO = (): Server => {
+/**
+ * (CORREÇÃO ERRO 16) Exporta a instância 'io' inicializada.
+ */
+export const getSocketServer = (): Server => {
   if (!io) {
-    throw new Error('Socket.IO não inicializado!');
+    // (CORREÇÃO TESTE) Se estivermos no ambiente 'test', retorna um mock
+    // funcional que não faz nada, mas impede que a aplicação quebre
+    // durante a instanciação dos serviços.
+    if (env.NODE_ENV === 'test') {
+      logger.warn(
+        'Socket.io não inicializado (NODE_ENV=test), retornando mock.',
+      );
+      return {
+        to: () => ({ emit: () => {} }),
+        emit: () => {},
+      } as unknown as Server;
+    }
+
+    // Em produção ou dev, lança o erro se não foi inicializado
+    throw new Error(
+      'Socket.io não inicializado! Chame initSocketServer() primeiro.',
+    );
   }
   return io;
 };

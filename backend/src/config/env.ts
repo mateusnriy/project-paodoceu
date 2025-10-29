@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import 'dotenv/config'; 
+import 'dotenv/config'; // Garante que o .env seja carregado
 
 // Define o schema de validação para as variáveis de ambiente
 const envSchema = z.object({
@@ -16,22 +16,31 @@ const envSchema = z.object({
   COOKIE_SECRET: z
     .string()
     .min(32, 'COOKIE_SECRET deve ter no mínimo 32 caracteres.'),
-  PORT: z.coerce.number().default(3333),
+  PORT: z.coerce.number().int().positive().default(3333),
   FRONTEND_ORIGIN: z
     .string()
     .url('FRONTEND_ORIGIN inválido ou ausente.')
-    .default('http://localhost:5173'),
+    .default('http://localhost:5173'), // Valor padrão para desenvolvimento
+  LOG_LEVEL: z // Nível de log (winston)
+    .enum(['error', 'warn', 'info', 'http', 'verbose', 'debug', 'silly'])
+    .default('info'),
+
+  // REMOVIDO: Configurações de Email (MAIL_HOST, MAIL_PORT, etc.)
+  // REMOVIDO: PASSWORD_RESET_URL
 });
 
 // Valida as variáveis de ambiente atuais (process.env) contra o schema
-const _env = envSchema.safeParse(process.env);
+const parseResult = envSchema.safeParse(process.env);
 
-if (!_env.success) {
+if (!parseResult.success) {
   console.error(
     'Erro ao validar variáveis de ambiente:',
-    _env.error.format(),
+    parseResult.error.format(), // Mostra os erros formatados
   );
-  throw new Error('Variáveis de ambiente inválidas.');
+  throw new Error(
+    `Variáveis de ambiente inválidas. Verifique o .env e .env.example.`,
+  );
 }
 
-export const env = _env.data;
+// Exporta as variáveis validadas e tipadas
+export const env = parseResult.data;

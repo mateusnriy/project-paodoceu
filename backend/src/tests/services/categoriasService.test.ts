@@ -1,7 +1,6 @@
 // backend/src/tests/services/categoriasService.test.ts
-
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { prisma as prismaMock } from '../../lib/prisma';
+import { prisma } from '../../lib/prisma';
 import { CategoriasService } from '../../services/categoriasService';
 import { AppError } from '../../middlewares/errorMiddleware';
 
@@ -23,6 +22,22 @@ vi.mock('../../lib/prisma', () => ({
   },
 }));
 
+// Cast para os tipos mockados
+const prismaMock = prisma as unknown as {
+  categoria: {
+    findFirst: ReturnType<typeof vi.fn>;
+    create: ReturnType<typeof vi.fn>;
+    findUnique: ReturnType<typeof vi.fn>;
+    update: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
+    count: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
+  };
+  produto: {
+    count: ReturnType<typeof vi.fn>;
+  };
+};
+
 describe('CategoriasService', () => {
   let categoriasService: CategoriasService;
 
@@ -43,7 +58,7 @@ describe('CategoriasService', () => {
     vi.restoreAllMocks();
   });
 
-  // Testes de criar() (Mantidos)
+  // Testes de criar()
   describe('criar', () => {
     it('deve criar uma nova categoria com sucesso', async () => {
       const mockCategoria = {
@@ -74,7 +89,7 @@ describe('CategoriasService', () => {
     });
   });
 
-  // Testes de atualizar() (Mantidos)
+  // Testes de atualizar()
   describe('atualizar', () => {
     it('deve atualizar uma categoria com sucesso', async () => {
       const mockCategoria = {
@@ -125,7 +140,7 @@ describe('CategoriasService', () => {
     });
   });
 
-  // --- CORREÇÃO (Falha de Teste) ---
+  // (P4.2) Teste de 'deletar' alinhado com a regra de negócio
   describe('deletar', () => {
     it('deve deletar uma categoria sem produtos', async () => {
       const mockCategoria = {
@@ -134,12 +149,12 @@ describe('CategoriasService', () => {
         criado_em: new Date(),
         atualizado_em: new Date(),
       };
-      // 1. Mock para findUnique (serviço agora chama isso primeiro)
+      // 1. Mock para findUnique (serviço chama isso primeiro)
       vi.mocked(prismaMock.categoria.findUnique).mockResolvedValue(mockCategoria);
       // 2. Mock para contagem de produtos (retorna 0)
       vi.mocked(prismaMock.produto.count).mockResolvedValue(0);
-      // 3. Mock da deleção (não precisa retornar nada)
-      vi.mocked(prismaMock.categoria.delete).mockResolvedValue(mockCategoria); // (Retorno é ok)
+      // 3. Mock da deleção
+      vi.mocked(prismaMock.categoria.delete).mockResolvedValue(mockCategoria);
 
       await categoriasService.deletar('1');
 

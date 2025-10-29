@@ -8,12 +8,15 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "sourceMap": true // Adicionado para melhor debugging
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "src/**/*.d.ts" // Garantir que os types sejam incluídos
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "src/tests" // Testes não precisam ir para o build
   ]
 }

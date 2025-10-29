@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { UsuariosService } from '../services/usuariosService';
 import { AppError } from '../middlewares/errorMiddleware';
+import { AuthUsuario } from '../types/express';
 
 const usuariosService = new UsuariosService();
 
@@ -27,19 +28,25 @@ export class UsuariosController {
   }
 
   async criar(req: Request, res: Response) {
-    const novoUsuario = await usuariosService.criar(req.body);
+    // (CORRIGIDO P2.2) Passa o usuário autenticado (ator) para o serviço
+    const ator = req.usuario as AuthUsuario;
+    const novoUsuario = await usuariosService.criar(req.body, ator);
     return res.status(201).json(novoUsuario);
   }
 
   async atualizar(req: Request, res: Response) {
     const { id } = req.params;
-    const usuarioAtualizado = await usuariosService.atualizar(id, req.body);
+    // (CORRIGIDO P2.2) Passa o usuário autenticado (ator) para o serviço
+    const ator = req.usuario as AuthUsuario;
+    const usuarioAtualizado = await usuariosService.atualizar(id, req.body, ator);
     return res.status(200).json(usuarioAtualizado);
   }
 
   async deletar(req: Request, res: Response) {
     const { id } = req.params;
-    await usuariosService.deletar(id);
+     // (CORRIGIDO P2.2) Passa o usuário autenticado (ator) para o serviço
+    const ator = req.usuario as AuthUsuario;
+    await usuariosService.deletar(id, ator);
     return res.status(204).send();
   }
 }
