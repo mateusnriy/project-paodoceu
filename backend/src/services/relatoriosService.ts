@@ -1,30 +1,39 @@
-// mateusnriy/project-paodoceu/project-paodoceu-main/backend/src/services/relatoriosService.ts
-import { PrismaClient, Pedido, ItemPedido, Produto, Categoria, Prisma } from '@prisma/client';
+import { Prisma, PrismaClient, StatusPedido } from '@prisma/client';
 import { endOfDay, startOfDay, formatISO } from 'date-fns';
 import { prisma } from '../lib/prisma';
-import { logger } from '../lib/logger'; // <<< CORREÇÃO (Era import default)
+import { logger } from '../lib/logger';
 import { AppError } from '../middlewares/errorMiddleware';
 
 export class RelatoriosService {
-
   private getDateRange(dataInicio?: Date, dataFim?: Date) {
     const inicio = dataInicio ? startOfDay(dataInicio) : undefined;
     const fim = dataFim ? endOfDay(dataFim) : undefined;
-    return { gte: inicio, lte: fim };
+    return inicio || fim ? { gte: inicio, lte: fim } : undefined;
+  }
+
+  private get paidOrderFilter() {
+    return {
+      status: {
+        not: StatusPedido.PENDENTE,
+      },
+      pagamento: {
+        isNot: null,
+      },
+    };
   }
 
   private async vendasPorDia(dataInicio?: Date, dataFim?: Date) {
     const range = this.getDateRange(dataInicio, dataFim);
-    const dataInicioSql = range.gte ? range.gte : startOfDay(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
-    const dataFimSql = range.lte ? range.lte : endOfDay(new Date());
+    
+    const dataInicioSql = range?.gte ?? startOfDay(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+    const dataFimSql = range?.lte ?? endOfDay(new Date());
 
-    // <<< CORREÇÃO: Usar JOIN com 'pagamentos' (nome correto da tabela) >>>
     const query = Prisma.sql`
       SELECT
         DATE(p."criado_em") as data,
         SUM(p."valor_total") as total
       FROM "pedidos" p
-      INNER JOIN "pagamentos" pag ON p."id" = pag."pedido_id" -- <<< Garante que existe pagamento
+      INNER JOIN "pagamentos" pag ON p."id" = pag."pedido_id"
       WHERE p."criado_em" >= ${dataInicioSql}::timestamp
       AND p."criado_em" <= ${dataFimSql}::timestamp
       GROUP BY DATE(p."criado_em")
@@ -32,39 +41,39 @@ export class RelatoriosService {
     `;
 
     try {
-        const vendasAgrupadas: { data: Date; total: Prisma.Decimal }[] = await prisma.$queryRaw(query);
+      const vendasAgrupadas: { data: Date; total: number }[] =
+        await prisma.$queryRaw(query);
 
-        return vendasAgrupadas.map(item => ({
-            data: formatISO(new Date(item.data), { representation: 'date' }),
-            total: item.total.toNumber() || 0, // Converter Decimal para number
-        }));
-
+      return vendasAgrupadas.map((item) => ({
+        data: formatISO(new Date(item.data), { representation: 'date' }),
+        total: Number(item.total) || 0,
+      }));
     } catch (error: any) {
-        logger.error('Erro na query $queryRaw de vendasPorDia:', {
-            errorMessage: error.message,
-            query: query.sql,
-            values: query.values
-        });
-        throw new AppError('Erro ao processar relatório diário.', 500);
+      logger.error('Erro na query $queryRaw de vendasPorDia:', {
+        errorMessage: error.message,
+      });
+      throw new AppError('Erro ao processar relatório diário.', 500);
     }
   }
-
 
   async vendasPorPeriodo(dataInicio?: Date, dataFim?: Date) {
     const range = this.getDateRange(dataInicio, dataFim);
 
-    const pedidosPagos = await prisma.pedido.findMany({
+    const agregacao = await prisma.pedido.aggregate({
+      _sum: {
+        valor_total: true,
+      },
+      _count: {
+        id: true,
+      },
       where: {
-        // <<< CORREÇÃO: Filtrar pela relação 'pagamento' >>>
-        pagamento: {
-          isNot: null
-        },
+        ...this.paidOrderFilter,
         criado_em: range,
       },
     });
 
-    const totalVendido = pedidosPagos.reduce((acc: number, pedido: Pedido) => acc + pedido.valor_total, 0);
-    const totalPedidos = pedidosPagos.length;
+    const totalVendido = agregacao._sum.valor_total || 0;
+    const totalPedidos = agregacao._count.id || 0;
     const ticketMedio = totalPedidos > 0 ? totalVendido / totalPedidos : 0;
 
     return {
@@ -78,127 +87,121 @@ export class RelatoriosService {
     };
   }
 
-  async vendasPorProduto(dataInicio?: Date, dataFim?: Date, limite: number = 5) {
+  async vendasPorProduto(
+    dataInicio?: Date,
+    dataFim?: Date,
+    limite: number = 5,
+  ) {
     const range = this.getDateRange(dataInicio, dataFim);
 
     const itensVendidosAgrupados = await prisma.itemPedido.groupBy({
-        by: ['produto_id'],
-        where: {
-            pedido: {
-                // <<< CORREÇÃO: Filtrar pela relação 'pagamento' >>>
-                pagamento: {
-                  isNot: null
-                },
-                criado_em: range,
-            }
+      by: ['produto_id'],
+      where: {
+        pedido: {
+          ...this.paidOrderFilter,
+          criado_em: range,
         },
+      },
+      _sum: {
+        subtotal: true,
+        quantidade: true,
+      },
+      orderBy: {
         _sum: {
-            subtotal: true,
-            quantidade: true,
+          subtotal: 'desc',
         },
-        orderBy: {
-            _sum: {
-                subtotal: 'desc',
-            },
-        },
-        take: limite,
+      },
+      take: limite,
     });
 
-     const produtoIds = itensVendidosAgrupados.map(item => item.produto_id);
-     const produtos = await prisma.produto.findMany({
-         where: { id: { in: produtoIds } },
-         select: { id: true, nome: true }
-     });
-     const produtoMap = new Map(produtos.map(p => [p.id, p.nome]));
+    const produtoIds = itensVendidosAgrupados.map((item) => item.produto_id);
+    const produtos = await prisma.produto.findMany({
+      where: { id: { in: produtoIds } },
+      select: { id: true, nome: true },
+    });
+    const produtoMap = new Map(produtos.map((p) => [p.id, p.nome]));
 
-     return itensVendidosAgrupados.map(item => ({
-        nome: produtoMap.get(item.produto_id) || 'Produto Desconhecido',
-        quantidade: Number(item._sum.quantidade) || 0,
-        total: Number(item._sum.subtotal) || 0,
+    return itensVendidosAgrupados.map((item) => ({
+      nome: produtoMap.get(item.produto_id) || 'Produto Desconhecido',
+      quantidade: Number(item._sum.quantidade) || 0,
+      total: Number(item._sum.subtotal) || 0,
     }));
-
   }
 
   async vendasPorCategoria(dataInicio?: Date, dataFim?: Date) {
     const range = this.getDateRange(dataInicio, dataFim);
 
-    const agregacaoPorCategoria = await prisma.categoria.findMany({
-        select: {
-            id: true,
-            nome: true,
-            produtos: {
-                select: {
-                    itens_pedido: {
-                        where: {
-                            pedido: {
-                                // <<< CORREÇÃO: Filtrar pela relação 'pagamento' >>>
-                                pagamento: {
-                                  isNot: null
-                                },
-                                criado_em: range,
-                            }
-                        },
-                        select: {
-                            quantidade: true,
-                            subtotal: true
-                        }
-                    }
-                }
-            }
+    const itensAgrupados = await prisma.itemPedido.groupBy({
+      by: ['produto_id'],
+      where: {
+        pedido: {
+          ...this.paidOrderFilter,
+          criado_em: range,
         },
-         where: {
-              produtos: {
-                 some: {
-                     itens_pedido: {
-                         some: {
-                             pedido: {
-                                // <<< CORREÇÃO: Filtrar pela relação 'pagamento' >>>
-                                pagamento: {
-                                  isNot: null
-                                },
-                                criado_em: range,
-                             }
-                         }
-                     }
-                 }
-             }
-         }
+      },
+      _sum: {
+        quantidade: true,
+        subtotal: true,
+      },
     });
 
-    const relatorio: { nome: string; quantidade: number; valor: number }[] = [];
-    agregacaoPorCategoria.forEach(categoria => {
-        let quantidadeTotal = 0;
-        let valorTotal = 0;
-        categoria.produtos.forEach(produto => {
-            produto.itens_pedido.forEach(item => {
-                quantidadeTotal += item.quantidade;
-                valorTotal += item.subtotal;
-            });
-        });
-         if (quantidadeTotal > 0) {
-             relatorio.push({
-                nome: categoria.nome,
-                quantidade: quantidadeTotal,
-                valor: valorTotal,
-            });
-         }
+    const produtoIds = itensAgrupados.map((item) => item.produto_id);
+    const produtosComCategoria = await prisma.produto.findMany({
+      where: { id: { in: produtoIds } },
+      select: {
+        id: true,
+        categoria_id: true,
+        categoria: {
+          select: { nome: true },
+        },
+      },
     });
+    const produtoCategoriaMap = new Map(
+      produtosComCategoria.map((p) => [
+        p.id,
+        { id: p.categoria_id, nome: p.categoria.nome },
+      ]),
+    );
 
-    return relatorio.sort((a, b) => b.valor - a.valor);
+    const relatorioMap = new Map<string, { nome: string; quantidade: number; valor: number }>();
+
+    for (const item of itensAgrupados) {
+      const categoria = produtoCategoriaMap.get(item.produto_id);
+      if (!categoria) continue;
+
+      const { id, nome } = categoria;
+      const quantidade = Number(item._sum.quantidade) || 0;
+      const valor = Number(item._sum.subtotal) || 0;
+
+      const entrada = relatorioMap.get(id) || { nome, quantidade: 0, valor: 0 };
+      entrada.quantidade += quantidade;
+      entrada.valor += valor;
+      relatorioMap.set(id, entrada);
+    }
+
+    return Array.from(relatorioMap.values()).sort((a, b) => b.valor - a.valor);
   }
 
-  async relatorioDeVendas(tipo: string, dataInicio?: Date, dataFim?: Date, limite?: number) {
-      switch (tipo) {
-        case 'periodo':
-          return this.vendasPorPeriodo(dataInicio, dataFim);
-        case 'produto':
-          return this.vendasPorProduto(dataInicio, dataFim, limite);
-        case 'categoria':
-          return this.vendasPorCategoria(dataInicio, dataFim);
-        case 'diario':
-           return this.vendasPorDia(dataInicio, dataFim);
-        default:
-          throw new AppError("Tipo de relatório inválido. Valores válidos: 'periodo', 'produto', 'categoria', 'diario'.", 400);
-      }
+  async relatorioDeVendas(
+    tipo: string,
+    dataInicio?: Date,
+    dataFim?: Date,
+    limite?: number,
+  ) {
+    switch (tipo) {
+      case 'periodo':
+        return this.vendasPorPeriodo(dataInicio, dataFim);
+      case 'produto':
+        return this.vendasPorProduto(dataInicio, dataFim, limite);
+      case 'categoria':
+        return this.vendasPorCategoria(dataInicio, dataFim);
+      case 'diario':
+        return this.vendasPorDia(dataInicio, dataFim);
+      default:
+        throw new AppError(
+          "Tipo de relatório inválido. Valores válidos: 'periodo', 'produto', 'categoria', 'diario'.",
+          400,
+        );
+    }
   }
 }

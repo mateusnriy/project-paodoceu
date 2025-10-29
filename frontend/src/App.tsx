@@ -1,14 +1,16 @@
-import { BrowserRouter } from 'react-router-dom';
+// frontend/src/App.tsx
+
+// import { BrowserRouter } from 'react-router-dom'; // <<< REMOVIDO
 import { AuthProvider } from './contexts/AuthContext';
 import { NavigationProvider } from './contexts/NavigationContext';
 import AppRouter from './AppRouter';
-import { Toaster } from 'react-hot-toast'; // <--- (RF24) IMPORTAR
+import { Toaster } from 'react-hot-toast'; // (RF24)
 
 function App() {
   return (
-    <BrowserRouter>
-      {/* (RF24) Adiciona o provider de Toasts/Notificações */}
-      <Toaster 
+    // <BrowserRouter> {/* <<< REMOVIDO */}
+    <>
+      <Toaster
         position="top-right"
         toastOptions={{
           duration: 3000,
@@ -23,7 +25,8 @@ function App() {
           <AppRouter />
         </NavigationProvider>
       </AuthProvider>
-    </BrowserRouter>
+    </>
+    // </BrowserRouter> {/* <<< REMOVIDO */}
   );
 }
 

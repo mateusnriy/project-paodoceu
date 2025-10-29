@@ -1,3 +1,4 @@
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
@@ -8,6 +9,7 @@ generator client {
 }
 
 enum PerfilUsuario {
+  MASTER
   ADMINISTRADOR
   ATENDENTE
 }
@@ -29,11 +31,10 @@ enum MetodoPagamento {
 model Usuario {
   id            String        @id @default(uuid())
   nome          String
-  email         String        @unique // <<< CORREIDO (Mesma linha)
+  email         String        @unique
   senha         String
-  // Alterar o default aqui
-  perfil        PerfilUsuario @default(ADMINISTRADOR) // <<< ALTERADO de ATENDENTE para ADMINISTRADOR
-  ativo         Boolean       @default(true)
+  perfil        PerfilUsuario @default(ATENDENTE)
+  ativo         Boolean       @default(false)
   criado_em     DateTime      @default(now())
   atualizado_em DateTime      @updatedAt
   pedidos       Pedido[]
@@ -42,7 +43,7 @@ model Usuario {
 }
 
 model Categoria {
-  id            String    @id @default(uuid()) // <<< CORREIDO (Mesma linha)
+  id            String    @id @default(uuid())
   nome          String    @unique
   criado_em     DateTime  @default(now())
   atualizado_em DateTime  @updatedAt
@@ -55,11 +56,11 @@ model Produto {
   id            String       @id @default(uuid())
   nome          String
   descricao     String?
-  preco         Float // <<< CORREIDO (Removido )
+  preco         Float
   estoque       Int          @default(0)
   imagem_url    String?
-  ativo         Boolean      @default(true) // <<< Adicionado da correção anterior
-  categoria_id  String // <<< CORREIDO (Removido )
+  ativo         Boolean      @default(true)
+  categoria_id  String
   criado_em     DateTime     @default(now())
   atualizado_em DateTime     @updatedAt
   categoria     Categoria    @relation(fields: [categoria_id], references: [id])
@@ -72,16 +73,16 @@ model Pedido {
   id                    String       @id @default(uuid())
   numero_sequencial_dia Int
   valor_total           Float
-  cliente_nome          String? // <<< CORREIDO (Mesma linha)
+  cliente_nome          String?
   status                StatusPedido @default(PENDENTE)
   criado_em             DateTime     @default(now())
   atualizado_em         DateTime     @updatedAt
   atendente_id          String?
-  atendente             Usuario?     @relation(fields: [atendente_id], references: [id]) // <<< CORREIDO (Mesma linha)
+  atendente             Usuario?     @relation(fields: [atendente_id], references: [id], onDelete: SetNull) 
   itens                 ItemPedido[]
   pagamento             Pagamento?
 
-  @@map("pedidos") // <<< CORREIDO (Removido )
+  @@map("pedidos")
 }
 
 model ItemPedido {
@@ -91,20 +92,19 @@ model ItemPedido {
   quantidade     Int
   preco_unitario Float
   subtotal       Float
-  pedido         Pedido  @relation(fields: [pedido_id], references: [id])
-  produto        Produto @relation(fields: [produto_id], references: [id])
-
+  pedido         Pedido  @relation(fields: [pedido_id], references: [id], onDelete: Cascade) 
+  produto        Produto @relation(fields: [produto_id], references: [id], onDelete: Restrict) 
   @@map("itens_pedido")
 }
 
 model Pagamento {
-  id            String          @id @default(uuid()) // <<< CORREIDO (Mesma linha)
+  id            String          @id @default(uuid())
   pedido_id     String          @unique
   metodo        MetodoPagamento
   valor_pago    Float
   troco         Float           @default(0)
   criado_em     DateTime        @default(now())
-  pedido        Pedido          @relation(fields: [pedido_id], references: [id])
+  pedido        Pedido          @relation(fields: [pedido_id], references: [id], onDelete: Cascade)
 
   @@map("pagamentos")
 }

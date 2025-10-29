@@ -28,9 +28,9 @@ export class ImpressaoService {
 
     const comprovante = {
       cabecalho: {
-        nomeEstabelecimento: 'Padaria Pão do Céu',
-        endereco: 'Rua das Delícias, 123',
-        telefone: '(99) 99999-9999',
+        nomeEstabelecimento: 'Lanchonete Pão do Céu',
+        //endereco: 'Rua das Delícias, 123',
+        //telefone: '(99) 99999-9999',
       },
       pedido: {
         numero: pedido.numero_sequencial_dia,

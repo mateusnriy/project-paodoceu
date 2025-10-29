@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError } from 'zod';
-import { logger } from '../lib/logger'; // <<< CORREÇÃO (Era import default)
+import { logger } from '../lib/logger';
 
 export class AppError extends Error {
   public readonly statusCode: number;
@@ -15,9 +15,9 @@ export const errorMiddleware = (
   error: Error,
   req: Request,
   res: Response,
-  next: NextFunction // Embora não usado, é necessário para a assinatura do middleware de erro
+  next: NextFunction 
 ) => {
-  // Logar o erro com metadados da requisição
+
   const errorMeta = {
     method: req.method,
     url: req.originalUrl,
@@ -27,24 +27,23 @@ export const errorMiddleware = (
       name: error.name,
       message: error.message,
       stack: error.stack, // Inclui o stack trace no log
-      ...(error instanceof ZodError && { details: error.flatten().fieldErrors }), // Detalhes de validação Zod
+      ...(error instanceof ZodError && { details: error.flatten().fieldErrors }), 
     }
   };
 
   if (error instanceof AppError) {
-    logger.warn('AppError handled:', errorMeta); // Logar como aviso
+    logger.warn('AppError handled:', errorMeta);
     return res.status(error.statusCode).json({ message: error.message });
   }
 
   if (error instanceof ZodError) {
-    logger.warn('Zod validation error:', errorMeta); // Logar como aviso
+    logger.warn('Zod validation error:', errorMeta); 
     return res.status(400).json({
       message: 'Erro de validação.',
       errors: error.flatten().fieldErrors,
     });
   }
 
-  // Para erros inesperados (status 500), logar como erro
-  logger.error('Internal Server Error:', errorMeta); // <<< ALTERADO (era console.error)
+  logger.error('Internal Server Error:', errorMeta);
   return res.status(500).json({ message: 'Erro interno no servidor.' });
 };

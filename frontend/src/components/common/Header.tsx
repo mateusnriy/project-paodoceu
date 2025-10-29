@@ -3,7 +3,6 @@ import { LogOut, User } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigation, NavigationContextType } from '../../contexts/NavigationContext';
 
-// Componente de botão de contexto interno para melhor legibilidade
 const ContextButton: React.FC<{
   label: string;
   context: NavigationContextType;
@@ -15,11 +14,9 @@ const ContextButton: React.FC<{
   const baseClasses =
     'px-4 py-2 rounded-lg font-semibold transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2';
 
-  // Classes para o botão ATIVO
   const activeClasses =
     'bg-[#4A90E2] text-white focus:ring-[#4A90E2]'; // primary-blue
 
-  // Classes para o botão INATIVO
   const inactiveClasses =
     'bg-white text-[#4A90E2] hover:bg-[#F0F7FF] focus:ring-[#4A90E2]'; // background-light-blue no hover
 
@@ -38,7 +35,6 @@ const Header: React.FC = React.memo(() => {
   const { usuario, logout } = useAuth();
   const { activeContext, setActiveContext, availableContexts } = useNavigation();
 
-  // Memoiza os contextos visíveis para evitar recalcular
   const visibleContexts = useMemo(() => {
     return (['VENDAS', 'FILA', 'GESTAO'] as NavigationContextType[]).filter(
       (context) => availableContexts.includes(context)
@@ -52,7 +48,7 @@ const Header: React.FC = React.memo(() => {
   return (
     <header className="bg-white shadow-soft sticky top-0 z-40 border-b border-gray-200">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20"> {/* Altura aumentada para 80px (h-20) conforme design implícito */}
+        <div className="flex justify-between items-center h-20"> 
 
           {/* Lado Esquerdo: Logo/Título e Seletor de Contexto */}
           <div className="flex items-center gap-6"> {/* Espaçamento (gap-6) de 24px */}

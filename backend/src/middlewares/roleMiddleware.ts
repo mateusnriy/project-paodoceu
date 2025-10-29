@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { AppError } from './errorMiddleware';
 import { PerfilUsuario } from '@prisma/client';
 
 export const roleMiddleware = (perfisRequeridos: PerfilUsuario[]) => {
@@ -6,9 +7,10 @@ export const roleMiddleware = (perfisRequeridos: PerfilUsuario[]) => {
     const usuario = req.usuario;
 
     if (!usuario || !perfisRequeridos.includes(usuario.perfil)) {
-      return res.status(403).json({
-        message: 'Acesso negado.'
-      });
+      throw new AppError(
+        'Acesso negado. Você não tem permissão para este recurso.',
+        403,
+      );
     }
     next();
   };

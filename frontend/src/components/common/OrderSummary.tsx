@@ -1,25 +1,22 @@
 import React, { memo, ReactNode } from 'react';
-import { Trash2, Minus, Plus, ShoppingCart } from 'lucide-react'; // Adicionar ShoppingCart
-import { Pedido, PedidoItem } from '../../types'; // Importar PedidoItem aqui
+import { Trash2, Minus, Plus, ShoppingCart } from 'lucide-react'; 
+import { Pedido, PedidoItem } from '../../types'; 
 import { formatarMoeda } from '../../utils/formatters';
 
-// --- Props Refatoradas ---
 interface OrderSummaryProps {
-  pedido: Pedido; // Já espera Pedido
+  pedido: Pedido; 
   total: number;
-  onItemUpdateQuantity?: (itemId: string, quantidade: number) => void; // Usa itemId (que será produto.id no carrinho local)
-  onItemRemove?: (itemId: string) => void; // Usa itemId
-  children: ReactNode; // Para os botões de ação (ex: "Limpar Carrinho")
+  onItemUpdateQuantity?: (itemId: string, quantidade: number) => void; 
+  onItemRemove?: (itemId: string) => void; 
+  children: ReactNode;
 }
 
-// --- Componente ItemdoCarrinho (Interno) ---
 const CartItem: React.FC<{
   item: PedidoItem;
   onUpdateQuantity: OrderSummaryProps['onItemUpdateQuantity'];
   onRemove: OrderSummaryProps['onItemRemove'];
 }> = memo(({ item, onUpdateQuantity, onRemove }) => {
 
-  // Usar item.id (que no carrinho local é o produto.id)
   const handleDecrease = onUpdateQuantity
     ? () => onUpdateQuantity(item.id, item.quantidade - 1)
     : undefined;

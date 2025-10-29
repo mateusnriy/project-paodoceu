@@ -6,7 +6,6 @@ import { Pedido, Prisma, StatusPedido, Produto } from '@prisma/client';
 import { getIO } from '../lib/socketServer';
 import { logger } from '../lib/logger';
 
-// Tipo para a resposta do display
 interface DisplayData {
   emPreparacao: { id: string; numero_sequencial_dia: number; status: StatusPedido }[];
   prontos: { id: string; numero_sequencial_dia: number; status: StatusPedido }[];
@@ -45,7 +44,6 @@ export class PedidosService {
     const numeroSequencial = await this.gerarNumeroSequencialDia();
     let valorTotalPedido = 0;
 
-    // Usar transaction para garantir atomicidade
     const novoPedido = await prisma.$transaction(async (tx) => {
       // Validar produtos e calcular subtotal/total dentro da transação
       const itensPedidoCreateData: Prisma.ItemPedidoCreateManyPedidoInput[] = [];
@@ -53,7 +51,7 @@ export class PedidosService {
       
       const produtos = await tx.produto.findMany({
         where: { id: { in: produtoIds } },
-        select: { id: true, preco: true, ativo: true, nome: true } // Selecionar campos necessários
+        select: { id: true, preco: true, ativo: true, nome: true }
       });
       const produtosMap = new Map(produtos.map(p => [p.id, p]));
 
@@ -73,20 +71,19 @@ export class PedidosService {
         valorTotalPedido += subtotal;
 
         itensPedidoCreateData.push({
-          produto_id: itemDto.produto_id, // <<< CORRIGIDO (Já estava correto na versão anterior)
+          produto_id: itemDto.produto_id,
           quantidade: itemDto.quantidade,
-          preco_unitario: produto.preco, // <<< CORREÇÃO (Era precoUnitario)
+          preco_unitario: produto.preco, 
           subtotal: subtotal,
         });
       }
 
-      // Criar o pedido e os itens
       const pedidoCriado = await tx.pedido.create({
         data: {
           numero_sequencial_dia: numeroSequencial,
           valor_total: valorTotalPedido,
           cliente_nome: cliente_nome,
-          atendente_id: atendenteId, // (Corrigido na versão anterior)
+          atendente_id: atendenteId,
           status: StatusPedido.PENDENTE,
           itens: {
             createMany: {
@@ -189,7 +186,6 @@ export class PedidosService {
          throw new AppError(`Valor pago (R$ ${valor_pago.toFixed(2)}) difere do total do pedido (R$ ${valorTotalPedido.toFixed(2)}) para o método ${metodo}.`, 400);
       }
 
-      // 1. Atualizar estoque
       for (const item of pedidoExistente.itens) {
         const produto = await tx.produto.findUniqueOrThrow({
           where: { id: item.produto_id },
@@ -209,17 +205,15 @@ export class PedidosService {
         });
       }
 
-      // 2. Criar registro de pagamento
       await tx.pagamento.create({
         data: {
           pedido_id: id, 
           metodo: metodo,
-          valor_pago: valor_pago, // <<< CORREÇÃO (Era valorPago)
+          valor_pago: valor_pago,
           troco: troco,
         },
       });
 
-      // 3. Atualizar status do pedido
       const pedidoFinalizado = await tx.pedido.update({
         where: { id },
         data: {
@@ -237,7 +231,6 @@ export class PedidosService {
       return pedidoFinalizado;
     });
 
-    // 4. Emitir eventos Socket.IO
     io.emit('pedido:novo', pedidoAtualizado); 
     io.emit('pedido:display', pedidoAtualizado);
 
@@ -320,8 +313,6 @@ export class PedidosService {
     return pedidoCancelado;
   }
 
-
-  // NOVO MÉTODO PARA O DISPLAY (RF12)
   async listarParaDisplay(): Promise<DisplayData> {
     const [prontos, emPreparacao] = await Promise.all([
       prisma.pedido.findMany({

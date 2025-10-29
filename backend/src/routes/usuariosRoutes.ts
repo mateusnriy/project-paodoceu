@@ -10,16 +10,11 @@ const router = Router();
 const usuariosController = new UsuariosController();
 
 router.use(authMiddleware);
-router.use(roleMiddleware([PerfilUsuario.ADMINISTRADOR]));
-
+router.use(roleMiddleware([PerfilUsuario.ADMINISTRADOR])); 
 router.get('/', usuariosController.listarTodos);
-
 router.get('/:id', usuariosController.obterPorId);
-
 router.post('/', validate(criarUsuarioSchema), usuariosController.criar);
-
 router.put('/:id', validate(atualizarUsuarioSchema), usuariosController.atualizar);
-
 router.delete('/:id', usuariosController.deletar);
 
 export default router;

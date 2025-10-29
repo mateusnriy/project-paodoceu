@@ -1,12 +1,10 @@
-// (O arquivo original pode ter 'Usuario' do prisma client)
-// import { Usuario } from '@prisma/client';
+import { PerfilUsuario } from '@prisma/client';
 
-// Correção: Definir o tipo exato anexado pelo authMiddleware
-interface AuthUsuario {
+export interface AuthUsuario {
   id: string;
   nome: string;
   email: string;
-  perfil: 'ADMINISTRADOR' | 'ATENDENTE'; // Usar o Enum PerfilUsuario se importado
+  perfil: PerfilUsuario;
   ativo: boolean;
 }
 
@@ -18,5 +16,4 @@ declare global {
   }
 }
 
-// <<< CORREÇÃO: Adicionado para tornar este arquivo um módulo
 export {};

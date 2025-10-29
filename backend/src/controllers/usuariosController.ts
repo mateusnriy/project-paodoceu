@@ -1,4 +1,3 @@
-// mateusnriy/project-paodoceu/project-paodoceu-main/backend/src/controllers/usuariosController.ts
 import { Request, Response } from 'express';
 import { UsuariosService } from '../services/usuariosService';
 import { AppError } from '../middlewares/errorMiddleware';
@@ -7,10 +6,9 @@ const usuariosService = new UsuariosService();
 
 export class UsuariosController {
   async listarTodos(req: Request, res: Response) {
-    // <<< CORREÇÃO: Implementar lógica de paginação >>>
+  
     const { pagina, limite, nome } = req.query;
 
-    // Definir padrões de paginação
     const page = parseInt(pagina as string, 10) || 1;
     const limit = parseInt(limite as string, 10) || 10;
     const nomeQuery = nome as string | undefined;

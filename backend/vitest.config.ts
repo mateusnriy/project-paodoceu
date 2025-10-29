@@ -2,11 +2,10 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    globals: true, // Permite usar 'describe', 'it', 'expect' globalmente
+    globals: true, 
     environment: 'node',
-    // Arquivo de setup para rodar antes de cada teste (ex: limpar DB, mock logger)
     setupFiles: ['./src/tests/setup.ts'], 
-    include: ['src/tests/**/*.test.ts'], // Padrão de nomenclatura dos testes
+    include: ['src/tests/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
@@ -27,7 +26,6 @@ export default defineConfig({
         'src/tests',
       ],
       thresholds: {
-        // Mínimo de 90% para novos módulos (DRS)
         lines: 90,
         functions: 90,
         branches: 90,

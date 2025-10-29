@@ -1,4 +1,3 @@
-// mateusnriy/project-paodoceu/project-paodoceu-main/backend/src/services/usuariosService.ts
 import { PrismaClient, Usuario, PerfilUsuario, Prisma } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import { AppError } from '../middlewares/errorMiddleware';
@@ -36,7 +35,6 @@ export class UsuariosService {
     return usuarios.map(u => this.omitirSenha(u));
   }
   
-  // <<< CORREÇÃO: Renomeado para listarPaginado >>>
   async listarPaginado(
     pagina: number,
     limite: number,
@@ -51,12 +49,10 @@ export class UsuariosService {
       ];
     }
 
-    // Contagem total de itens
     const totalItens = await prisma.usuario.count({ where });
     const totalPaginas = Math.ceil(totalItens / limite);
     const skip = (pagina - 1) * limite;
 
-    // Busca paginada
     const usuarios = await prisma.usuario.findMany({
       where,
       orderBy: {
@@ -76,8 +72,6 @@ export class UsuariosService {
       },
     };
   }
-  
-  // <<< O método listarTodos() antigo foi removido pois não é usado em nenhum lugar >>>
 
   async obterPorId(id: string): Promise<Omit<Usuario, 'senha'> | null> {
     const usuario = await prisma.usuario.findUnique({ where: { id } });
@@ -125,14 +119,14 @@ export class UsuariosService {
       const salt = await bcrypt.genSalt(10);
       dadosParaAtualizar.senha = await bcrypt.hash(data.senha, salt);
     } else {
-      delete dadosParaAtualizar.senha; // Garante que não atualiza para 'undefined' ou string vazia
+      delete dadosParaAtualizar.senha; 
     }
 
      if (data.email) {
          const existingEmail = await prisma.usuario.findFirst({
              where: {
                  email: { equals: data.email, mode: 'insensitive' },
-                 id: { not: id } // Excluir o próprio ID
+                 id: { not: id }
              }
          });
          if (existingEmail) {
@@ -166,7 +160,6 @@ export class UsuariosService {
          if (error.code === 'P2025') { // "Record to delete does not exist"
               throw new AppError('Usuário não encontrado.', 404);
          }
-         // <<< CORREÇÃO: Tratar erro de FK (atendente_id em Pedido) >>>
          if (error.code === 'P2003') { 
               throw new AppError('Não é possível deletar o usuário pois ele está associado a pedidos.', 400);
          }

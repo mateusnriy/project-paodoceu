@@ -1,23 +1,20 @@
 import 'dotenv/config';
 import { app } from './app';
-import { createServer } from 'http'; // <--- IMPORTAR
+import { createServer } from 'http'; 
 import { env } from './config/env';
 import { logger } from './lib/logger';
-import { initSocketServer } from './lib/socketServer'; // <--- IMPORTAR
+import { initSocketServer } from './lib/socketServer'; 
 
 const PORT = env.PORT;
 
-// Criar servidor HTTP a partir do app Express
-const httpServer = createServer(app); // <--- MODIFICAR
+const httpServer = createServer(app);
 
-// Inicializar o Socket.IO Server, anexando-o ao servidor HTTP
-initSocketServer(httpServer); // <--- ADICIONAR
+initSocketServer(httpServer);
 
-const server = httpServer.listen(PORT, () => { // <--- USAR httpServer
+const server = httpServer.listen(PORT, () => {
   logger.info(`Servidor HTTP e Socket.IO rodando na porta ${PORT}`);
 });
 
-// Graceful shutdown (sem alteração)
 process.on('SIGINT', () => {
   logger.info('Recebido SIGINT. Fechando servidor...');
   server.close(() => {
@@ -25,4 +22,3 @@ process.on('SIGINT', () => {
     process.exit(0);
   });
 });
-

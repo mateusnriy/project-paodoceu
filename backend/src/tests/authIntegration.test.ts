@@ -1,16 +1,15 @@
+// mateusnriy/project-paodoceu/project-paodoceu-main/backend/src/tests/authIntegration.test.ts
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import supertest from 'supertest';
 import { app } from '../app'; // Importa o app Express
 import { prisma } from '../lib/prisma';
 import { Server } from 'http';
 import { hash } from 'bcryptjs';
+// <<< CORREÇÃO (1): Importar o Enum PerfilUsuario >>>
+import { PerfilUsuario } from '@prisma/client';
 
 let server: Server;
-// Correção (TS2322): Remover tipagem explícita 'SuperTest<Test>'.
-// O tipo será inferido no beforeAll para evitar conflitos.
-let request: any; 
-// Nota: 'any' é usado aqui para contornar o TS,
-// mas a inferência real ocorrerá no 'beforeAll'.
+let request: any; // (Mantido 'any' para evitar conflitos de tipo supertest)
 
 const testUser = {
   email: 'admin.seguranca@teste.com',
@@ -26,20 +25,24 @@ beforeAll(async () => {
       nome: 'Admin Teste Seguranca',
       email: testUser.email,
       senha: senhaHash, 
-      perfil: 'ADMINISTRADOR',
+      // <<< CORREÇÃO (2): Revertido para ADMINISTRADOR (valor correto do schema) >>>
+      perfil: PerfilUsuario.ADMINISTRADOR,
       ativo: true,
     },
   });
 
   server = app.listen(0); // Porta aleatória
-  // Inferência de tipo ocorre aqui (Linha 31)
   request = supertest(server); 
 });
 
 // Fechar o servidor e limpar usuário
 afterAll(async () => {
   await prisma.usuario.deleteMany({ where: { email: testUser.email } });
-  await server.close(); 
+  
+  // <<< CORREÇÃO (3): Adicionar verificação para evitar crash se 'beforeAll' falhar >>>
+  if (server) {
+    await server.close(); 
+  }
 });
 
 /**
@@ -98,7 +101,8 @@ describe('Fluxo de Autenticação e Segurança (SEG-01, SEG-02, SEG-03)', () => 
     const response = await request.get('/api/usuarios').set('Cookie', cookies);
 
     expect(response.status).toBe(200);
-    expect(Array.isArray(response.body.dados)).toBe(true);
+    // (usuariosController retorna um objeto paginado { data: [], meta: ... })
+    expect(Array.isArray(response.body.data)).toBe(true); 
   });
 
   it('(SEG-02) [Falha] Deve falhar (403) ao acessar rota (POST) sem header CSRF', async () => {

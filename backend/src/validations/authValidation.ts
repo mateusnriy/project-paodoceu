@@ -9,10 +9,15 @@ export const loginSchema = z.object({
 export const registrarSchema = z.object({
   nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres.'),
   email: z.string().email('Email inválido.'),
-  senha: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres.'),
-  perfil: z.nativeEnum(PerfilUsuario).optional(), // Perfil é opcional no DTO, definido pelo serviço
+  senha: z
+    .string()
+    .min(6, 'Senha deve ter pelo menos 6 caracteres.')
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/,
+      'Senha deve conter maiúscula, minúscula, número e caractere especial.',
+    ),
+  perfil: z.nativeEnum(PerfilUsuario).optional(),
 });
 
-// Correção: Exportar os tipos inferidos (DTOs)
 export type LoginDto = z.infer<typeof loginSchema>;
 export type RegistrarDto = z.infer<typeof registrarSchema>;

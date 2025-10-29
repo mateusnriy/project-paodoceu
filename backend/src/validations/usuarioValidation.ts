@@ -1,23 +1,26 @@
 import { z } from 'zod';
 import { PerfilUsuario } from '@prisma/client';
 
+const senhaSchema = z
+  .string()
+  .min(6, 'Senha deve ter pelo menos 6 caracteres.')
+  .regex(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/,
+    'Senha deve conter maiúscula, minúscula, número e caractere especial.',
+  );
+
 export const criarUsuarioSchema = z.object({
-  body: z.object({
-    nome: z.string({ required_error: "O nome é obrigatório." }).min(3, "O nome precisa ter no mínimo 3 caracteres."),
-    email: z.string({ required_error: "O email é obrigatório." }).email("Formato de email inválido."),
-    senha: z.string({ required_error: "A senha é obrigatória." }).min(6, "A senha precisa ter no mínimo 6 caracteres."),
-    perfil: z.nativeEnum(PerfilUsuario, { errorMap: () => ({ message: "Perfil inválido. Use 'ADMINISTRADOR' ou 'ATENDENTE'." }) }),
-  }),
+  nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres.'),
+  email: z.string().email('Email inválido.'),
+  senha: senhaSchema, 
+  perfil: z.nativeEnum(PerfilUsuario),
+  ativo: z.boolean().optional().default(false),
 });
 
 export const atualizarUsuarioSchema = z.object({
-  body: z.object({
-    nome: z.string().min(3, "O nome precisa ter no mínimo 3 caracteres.").optional(),
-    email: z.string().email("Formato de email inválido.").optional(),
-    senha: z.string().min(6, "A senha precisa ter no mínimo 6 caracteres.").optional(),
-    perfil: z.nativeEnum(PerfilUsuario).optional(),
-  }),
-  params: z.object({
-    id: z.string().uuid("ID de usuário inválido."),
-  })
+  nome: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres.').optional(),
+  email: z.string().email('Email inválido.').optional(),
+  senha: senhaSchema.optional().or(z.literal('')), 
+  perfil: z.nativeEnum(PerfilUsuario).optional(),
+  ativo: z.boolean().optional(),
 });

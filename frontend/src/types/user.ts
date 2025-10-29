@@ -1,6 +1,5 @@
-// src/types/user.ts
-
 export enum PerfilUsuario {
+  MASTER = 'MASTER',
   ADMINISTRADOR = 'ADMINISTRADOR',
   ATENDENTE = 'ATENDENTE',
 }
@@ -15,10 +14,8 @@ export interface Usuario {
   atualizado_em: string; // Corrigido de dataAtualizacao
 }
 
-// Tipo usado no AuthContext (removido campos que não vêm da API de login)
 export interface AuthUsuario extends Omit<Usuario, 'ativo' | 'criado_em' | 'atualizado_em'> {}
 
-// Tipo usado nos formulários de criação/edição
 export interface UsuarioFormData {
   nome: string;
   email: string;

@@ -10,17 +10,11 @@ const router = Router();
 const produtosController = new ProdutosController();
 
 router.use(authMiddleware);
-
-router.get('/', produtosController.listar); // <<< CORREÇÃO (Era listarTodos)
-
-router.get('/:id', produtosController.obter); // <<< CORREÇÃO (Era obterPorId)
-
+router.get('/', produtosController.listar);
+router.get('/:id', produtosController.obter);
 router.post('/', roleMiddleware([PerfilUsuario.ADMINISTRADOR]), validate(criarProdutoSchema), produtosController.criar);
-
 router.put('/:id', roleMiddleware([PerfilUsuario.ADMINISTRADOR]), validate(atualizarProdutoSchema), produtosController.atualizar);
-
 router.patch('/:id/estoque', roleMiddleware([PerfilUsuario.ADMINISTRADOR]), validate(ajustarEstoqueSchema), produtosController.ajustarEstoque);
-
 router.delete('/:id', roleMiddleware([PerfilUsuario.ADMINISTRADOR]), produtosController.deletar);
 
 export default router;
