@@ -2,7 +2,7 @@ import React from 'react';
 import { AlertCircle } from 'lucide-react'; // Ícone correto
 
 interface ErrorMessageProps {
-  message: string | null;
+  message: string | null | undefined; // CORREÇÃO (TS2322): Adicionado 'undefined'
   title?: string; // Título opcional
 }
 

@@ -1,12 +1,16 @@
 import { io, Socket } from 'socket.io-client';
+import { logError } from '@/utils/logger'; // (Limpeza) Usar alias de path
 
-const VITE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const VITE_WS_URL = import.meta.env.VITE_WS_URL;
 
-// Conecta ao namespace raiz do servidor (mesma URL da API)
-// A opção 'withCredentials' é vital para o CORS do Socket.IO
-export const socket: Socket = io(VITE_API_BASE_URL || 'http://localhost:3333', {
+if (!VITE_WS_URL) {
+  logError('VITE_WS_URL não está definida no .env');
+}
+
+// Conecta à URL raiz do servidor, onde o Socket.IO está escutando
+export const socket: Socket = io(VITE_WS_URL || 'http://localhost:3333', {
   withCredentials: true,
-  transports: ['websocket', 'polling'], // Fallback para polling se WS falhar
+  transports: ['websocket', 'polling'], // Fallback
 });
 
 socket.on('connect', () => {

@@ -1,113 +1,177 @@
-// frontend/src/pages/Register.tsx
-import React, { useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useForm, SubmitHandler } from 'react-hook-form';
-import { CloudIcon, Loader2 } from 'lucide-react';
-import { toast } from 'react-hot-toast'; // Correção B.1
-import { Button } from '../components/common/Button';
-import { FormInput } from '../components/admin/components/FormElements';
-import { ErrorMessage } from '../components/ui/ErrorMessage';
-import { authService } from '../services/authService'; // Correção B.3
-import { useAuth } from '../contexts/AuthContext';
-import { getErrorMessage } from '../utils/errors';
-import { logError } from '../utils/logger';
-import { RegisterPayload } from '../types'; // Usar tipo específico
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  registerSchema,
+  RegisterFormData,
+} from '@/validations/auth.schema.ts'; // CORRIGIDO
+import { Button } from '@/components/common/Button';
+import { getErrorMessage } from '@/utils/errors';
+import { ErrorMessage } from '@/components/ui/ErrorMessage';
+import { Lock, Mail, User } from 'lucide-react';
 
-// Interface para dados do formulário local
-interface RegisterFormData {
-  nome: string;
-  email: string;
-  senha: string;
-}
+export function Register() {
+  const [globalError, setGlobalError] = useState<string | null>(null);
+  const { register: authRegister } = useAuth(); // Renomeado para evitar conflito
 
-const Register: React.FC = () => {
-  const navigate = useNavigate();
-  const { setAuthData } = useAuth(); // Usado para login automático após registro do admin
-  const { register, handleSubmit, formState: { errors: formErrors } } = useForm<RegisterFormData>();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterFormData>({
+    resolver: zodResolver(registerSchema),
+  });
 
-  const [apiError, setApiError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoadingCheck, setIsLoadingCheck] = useState(true);
-  const [isFirstUser, setIsFirstUser] = useState(false);
-
-  // Verifica se é o primeiro usuário ao montar
-  const checkFirstUser = useCallback(async () => {
-    setIsLoadingCheck(true);
-    setApiError(null);
+  const onSubmit = async (data: RegisterFormData) => {
+    setGlobalError(null);
     try {
-      // Correção B.3: Usar authService
-      const { hasMaster } = await authService.checkFirstUser();
-      setIsFirstUser(!hasMaster); // Se NÃO tem master, é o primeiro usuário
-    } catch (err) {
-      logError('Erro crítico ao verificar primeiro usuário', err);
-      setApiError('Falha ao verificar o estado do sistema. Tente recarregar a página.');
-    } finally {
-      setIsLoadingCheck(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    checkFirstUser();
-  }, [checkFirstUser]);
-
-  // Handler de submit
-  const onSubmit: SubmitHandler<RegisterFormData> = async (data) => {
-    setApiError(null);
-    setIsSubmitting(true);
-    try {
-      // Prepara payload correto para o serviço
-      const payload: RegisterPayload = {
-        nome: data.nome,
-        email: data.email,
-        senha: data.senha,
-      };
-      // Correção B.3: Usar authService
-      const { usuario, message, token } = await authService.register(payload);
-
-      if (token && usuario) { // Primeiro usuário (Admin Master) foi criado e logado
-        setAuthData(usuario); // Loga o usuário no contexto
-        toast.success(message || 'Administrador Master criado com sucesso!'); // Correção B.1
-        navigate('/vendas', { replace: true });
-      } else if (message) { // Usuário normal (Atendente) criado, precisa de ativação
-        toast.success(message); // Correção B.1
-        navigate('/login', { replace: true }); // Redireciona para login
-      } else {
-         // Cenário inesperado
-         throw new Error("Resposta inesperada do servidor após registro.");
-      }
-
-    } catch (err) {
-      logError('Erro durante o registro do usuário:', err, { email: data.email });
-      const errorMsg = getErrorMessage(err);
-      setApiError(errorMsg);
-      toast.error(`Erro no registro: ${errorMsg}`); // Correção B.1
-    } finally {
-      setIsSubmitting(false);
+      // O backend/authService espera nome, email, senha (sem confirmarSenha)
+      const { confirmarSenha, ...payload } = data;
+      await authRegister(payload);
+      // O AuthContext cuidará de exibir o toast e redirecionar
+    } catch (error) {
+      setGlobalError(getErrorMessage(error));
     }
   };
 
-  // Renderização de Loading e da Página (mantida, mas usando toast agora)
-  // ... (código JSX similar ao original, mas com toast em vez de apenas setApiError)
-
-  // Exemplo de retorno simplificado:
   return (
-      <div> {/* Container principal */}
-          <h1>{isFirstUser ? 'Criar Admin Master' : 'Criar Conta Atendente'}</h1>
-          <form onSubmit={handleSubmit(onSubmit)}>
-              {/* Campos FormInput como no original */}
-              <FormInput id="nome" label="Nome" {...register('nome', { required: 'Nome obrigatório' })} error={formErrors.nome?.message} disabled={isSubmitting || isLoadingCheck} />
-              <FormInput id="email" label="Email" type="email" {...register('email', { required: 'Email obrigatório', pattern: /.../ })} error={formErrors.email?.message} disabled={isSubmitting || isLoadingCheck} />
-              <FormInput id="senha" label="Senha" type="password" {...register('senha', { required: 'Senha obrigatória', minLength: 6 })} error={formErrors.senha?.message} disabled={isSubmitting || isLoadingCheck} />
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
+      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-xl">
+        <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">
+          Pão do Céu
+        </h1>
+        <h2 className="mb-6 text-center text-xl text-gray-600">
+          Registrar Administrador
+        </h2>
 
-              {apiError && <ErrorMessage message={apiError} />}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {globalError && <ErrorMessage message={globalError} />}
 
-              <Button type="submit" disabled={isSubmitting || isLoadingCheck}>
-                  {isSubmitting ? <Loader2 className="animate-spin" /> : 'Criar Conta'}
-              </Button>
-          </form>
-          {!isFirstUser && <p>Já tem conta? <Link to="/login">Login</Link></p>}
+          <div>
+            <label
+              htmlFor="nome"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Nome Completo
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <User className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="nome"
+                type="text"
+                {...register('nome')}
+                className={`w-full rounded-md border p-3 pl-10 ${
+                  errors.nome ? 'border-red-500' : 'border-gray-300'
+                } focus:border-indigo-500 focus:ring-indigo-500`}
+                placeholder="Seu nome"
+              />
+            </div>
+            {errors.nome && <ErrorMessage message={errors.nome.message} />}
+          </div>
+
+          <div>
+            <label
+              htmlFor="email"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
+              E-mail
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <Mail className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="email"
+                type="email"
+                {...register('email')}
+                className={`w-full rounded-md border p-3 pl-10 ${
+                  errors.email ? 'border-red-500' : 'border-gray-300'
+                } focus:border-indigo-500 focus:ring-indigo-500`}
+                placeholder="seu.email@exemplo.com"
+              />
+            </div>
+            {errors.email && (
+              <ErrorMessage message={errors.email.message} />
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="senha"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Senha
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <Lock className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="senha"
+                type="password"
+                {...register('senha')}
+                className={`w-full rounded-md border p-3 pl-10 ${
+                  errors.senha ? 'border-red-500' : 'border-gray-300'
+                } focus:border-indigo-500 focus:ring-indigo-500`}
+                placeholder="Mínimo 6 caracteres"
+              />
+            </div>
+            {errors.senha && (
+              <ErrorMessage message={errors.senha.message} />
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="confirmarSenha"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Confirmar Senha
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <Lock className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="confirmarSenha"
+                type="password"
+                {...register('confirmarSenha')}
+                className={`w-full rounded-md border p-3 pl-10 ${
+                  errors.confirmarSenha ? 'border-red-500' : 'border-gray-300'
+                } focus:border-indigo-500 focus:ring-indigo-500`}
+                placeholder="Repita a senha"
+              />
+            </div>
+            {errors.confirmarSenha && (
+              <ErrorMessage message={errors.confirmarSenha.message} />
+            )}
+          </div>
+
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full"
+            variant="primary"
+            size="lg"
+          >
+            {isSubmitting ? 'Registrando...' : 'Registrar'}
+          </Button>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-gray-600">
+          Já tem uma conta?{' '}
+          <Link
+            to="/login"
+            className="font-medium text-indigo-600 hover:text-indigo-500"
+          >
+            Fazer login
+          </Link>
+        </p>
       </div>
+    </div>
   );
-};
-
-export default Register;
+}

@@ -1,17 +1,13 @@
 // frontend/src/hooks/useCustomerDisplay.ts
 import { useState, useEffect, useCallback } from 'react';
-// import api from '../services/api'; // Remover se usar camada de serviço
-import { orderService } from '../services/orderService'; // Correção B.2
-import { Pedido } from '../types'; // Tipo já corrigido (A.1)
+import { orderService } from '../services/orderService';
+import { Pedido } from '../types';
 import { logError } from '../utils/logger';
 import { socket } from '../lib/socket';
 import { getErrorMessage } from '../utils/errors';
 
-// Interface ajustada para refletir melhor o backend e o hook
-interface DisplayData {
-  pedidosEmPreparacao: Pedido[];
-  pedidosProntos: Pedido[];
-}
+// CORREÇÃO (Erro 7): Removida interface 'DisplayData' local.
+// O tipo será inferido pelo 'orderService.getDisplayData()'.
 
 const MAX_PRONTOS_DISPLAY = 5; // Quantos pedidos prontos mostrar na lista
 
@@ -35,7 +31,6 @@ export const useCustomerDisplay = () => {
     if (pedidosEmPreparacao.length === 0 && pedidosProntos.length === 0) setIsLoading(true);
     setError(null);
     try {
-      // Correção B.2: Usar orderService
       const data = await orderService.getDisplayData();
       // Ordenar prontos pelo mais recente (atualizado_em DESC)
       const prontosOrdenados = (data.pedidosProntos || []).sort(
@@ -60,7 +55,6 @@ export const useCustomerDisplay = () => {
 
   // Efeito para ouvir eventos Socket.IO
   useEffect(() => {
-    // Evento: Novo pedido ficou PRONTO (enviado pelo backend quando pagamento é processado)
     const handlePedidoProntoDisplay = (novoPedidoPronto: Pedido) => {
       console.log('Socket: pedido:pronto:display recebido', novoPedidoPronto);
       setPedidoChamado(novoPedidoPronto); // Define como o pedido chamado (pisca)
@@ -76,7 +70,6 @@ export const useCustomerDisplay = () => {
       playNotificationSound();
     };
 
-    // Correção: Listener para pedido entregue
     const handlePedidoEntregueDisplay = (data: { id: string }) => {
         console.log('Socket: pedido:entregue:display recebido', data);
         // Remove da lista de prontos
@@ -84,7 +77,6 @@ export const useCustomerDisplay = () => {
         // Se o pedido entregue era o que estava sendo chamado, limpa o chamado
         setPedidoChamado((atual) => (atual?.id === data.id ? null : atual));
     };
-
 
     socket.on('pedido:pronto:display', handlePedidoProntoDisplay); // Ouvir evento específico do display
     socket.on('pedido:entregue:display', handlePedidoEntregueDisplay); // Ouvir evento de entrega

@@ -1,141 +1,144 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+// frontend/src/hooks/usePOS.ts
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
-// import api from '../services/api'; // Remover se usar camada de serviço
-import { productService } from '../services/productService'; // <<< USAR CAMADA DE SERVIÇO
-import { categoryService } from '../services/categoryService'; // <<< USAR CAMADA DE SERVIÇO
+import { productService } from '@/services/productService';
+import { categoryService } from '@/services/categoryService';
+import { useCartStore } from './useCart';
+import { getErrorMessage } from '@/utils/errors';
 import {
-  Produto,
   Categoria,
-  PaginatedResponse,
+  Pedido,
+  Produto,
+  StatusPedido,
   ApiMeta,
-  Pedido, // Manter Pedido para o objeto de exibição
-} from '../types';
-import { logError } from '../utils/logger';
+} from '@/types';
 import { useDebounce } from './useDebounce';
-import { useCart } from './useCart'; // <<< Importar useCart
-import { getErrorMessage } from '../utils/errors'; // <<< Importar getErrorMessage
 
-export const usePOS = () => {
-  const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-  const [categoriaAtiva, setCategoriaAtiva] = useState<string | 'todos'>(
-    'todos',
-  );
+const POS_PAGE_LIMIT = 12;
 
-  // --- Estados de Paginação e Busca ---
-  const [meta, setMeta] = useState<ApiMeta | null>(null);
-  const [pagina, setPagina] = useState(1);
-  const [termoBusca, setTermoBusca] = useState('');
-  const debouncedTermoBusca = useDebounce(termoBusca, 300);
-
-  const [isLoading, setIsLoading] = useState(true); // Loading para produtos/categorias
-  const [error, setError] = useState<string | null>(null);
+export function usePOS() {
   const navigate = useNavigate();
 
-  // <<< Usar o hook do carrinho >>>
-  const { pedidoItens, total, onAddToCart, onRemove, onUpdateQuantity, limparCarrinho } = useCart();
+  const [categoriaAtiva, setCategoriaAtiva] = useState<string>('todos');
+  const [termoBusca, setTermoBusca] = useState('');
+  const [pagina, setPagina] = useState(1);
 
-  // Buscar Categorias (executa 1 vez)
-  const fetchCategorias = useCallback(async () => {
-    // Não precisa de setIsLoading aqui, pois o loading principal é dos produtos
-    try {
-      // const { data } = await api.get<Categoria[]>('/categorias'); // <<< REMOVER
-      const data = await categoryService.listAll(); // <<< USAR SERVIÇO
-      setCategorias(data);
-    } catch (err) {
-      logError('Erro ao buscar categorias', err);
-      setError('Falha ao carregar categorias.');
-    }
-  }, []);
+  const termoDebounced = useDebounce(termoBusca, 300);
 
-  useEffect(() => {
-    fetchCategorias();
-  }, [fetchCategorias]);
+  const {
+    items,
+    clienteNome,
+    total,
+    actions: { onAddToCart, onRemove, onUpdateQuantity, setClienteNome, clearCart: limparCarrinho }, // Renomear clearCart aqui
+  } = useCartStore();
 
-  // Buscar Produtos (agora paginado e com busca)
-  const fetchProdutos = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-        const params = {
-           pagina,
-           limite: 12, // Limite de 12 produtos por página no PDV
-           categoriaId: categoriaAtiva === 'todos' ? undefined : categoriaAtiva,
-           termo: debouncedTermoBusca || undefined,
-           // incluirInativos: false, // O backend deve filtrar ativos por padrão para o PDV
-        };
-      // const { data } = await api.get<PaginatedResponse<Produto>>(/* ... */); // <<< REMOVER
-      const responseData = await productService.list(params); // <<< USAR SERVIÇO
-      setProdutos(responseData.data); // Corrigido para responseData.data
-      setMeta(responseData.meta);
-    } catch (err) {
-      logError('Erro ao buscar produtos', err);
-      setError(getErrorMessage(err)); // Usar getErrorMessage
-      setProdutos([]); // Limpar produtos em caso de erro
-      setMeta(null); // Limpar meta em caso de erro
-    } finally {
-      setIsLoading(false);
-    }
-  }, [pagina, categoriaAtiva, debouncedTermoBusca]);
+  const { data: categoriasData, isLoading: isLoadingCategories } = useQuery({
+    queryKey: ['categorias-pos'],
+    queryFn: () => categoryService.listAll(),
+    staleTime: 1000 * 60 * 5,
+    select: (data: Categoria[]) => {
+      return data.filter((c) => c._count && c._count.produtos > 0);
+    },
+  });
 
-  useEffect(() => {
-    fetchProdutos();
-  }, [fetchProdutos]); // Dependência correta
+  const {
+    data: paginatedProducts,
+    isLoading: isLoadingProducts,
+    error: productsError,
+  } = useQuery({
+    queryKey: [
+      'produtos-pos',
+      categoriaAtiva,
+      termoDebounced,
+      pagina,
+      POS_PAGE_LIMIT,
+    ],
+    queryFn: async () => {
+      const response = await productService.list({
+        categoriaId: categoriaAtiva,
+        nome: termoDebounced || undefined,
+        pagina: pagina,
+        limite: POS_PAGE_LIMIT,
+      });
+      return response;
+    },
+    staleTime: 1000 * 60,
+  });
 
-  // Resetar página ao mudar filtro de categoria ou busca
-  useEffect(() => {
-    setPagina(1);
-  }, [categoriaAtiva, debouncedTermoBusca]);
+  // CORREÇÃO (Erro 10): Removida a função 'handleIrParaPagamento' assíncrona
+  // que estava duplicada e não era usada.
 
-  // --- Funções de Paginação ---
-  const irParaPagina = (novaPagina: number) => {
-    // Adicionar verificação de limites
-    if (novaPagina > 0 && (!meta || novaPagina <= meta.totalPaginas)) {
-      setPagina(novaPagina);
-    }
-  };
-
-  const handleIrParaPagamento = () => {
-    if (pedidoItens.length === 0) {
-      alert('O carrinho está vazio.'); // (Substituir por Toast - RF24)
+  // Esta é a função correta que é retornada pelo hook
+  const handleNavigateToPayment = () => {
+     if (items.length === 0) {
+      toast.error('O carrinho está vazio.');
       return;
     }
-    // O useCart já salva no localStorage
+    
+    // Salva o carrinho atual no localStorage 'pedidoLocal'
+    // para o usePaymentHandler ler na próxima página.
+    // (O usePaymentHandler também tem um fallback para o store do zustand)
+    const pedidoParaPagamento: Pedido = {
+        id: 'local-checkout',
+        itens: items,
+        valor_total: total,
+        cliente_nome: clienteNome,
+        status: StatusPedido.LOCAL,
+        criado_em: new Date().toISOString(),
+        atualizado_em: new Date().toISOString(),
+    };
+    localStorage.setItem('pedidoLocal', JSON.stringify(pedidoParaPagamento));
+
     navigate('/vendas/pagamento');
-  };
+  }
 
-   // Criar um objeto Pedido simulado para passar para OrderSummary
-   const pedidoParaExibicao = useMemo((): Pedido => ({
-      id: 'local', // ID Fixo para o carrinho local
-      itens: pedidoItens,
+  const produtos: Produto[] = paginatedProducts?.data ?? [];
+  const meta: ApiMeta | null = paginatedProducts?.meta ?? null;
+
+  const pedidoSimulado: Pedido = useMemo(
+    () => ({
+      id: 'local',
+      itens: items,
       valor_total: total,
-      status: 'LOCAL', // Status especial
-      // Usar a data de criação persistida se existir, senão a atual
-      criado_em: localStorage.getItem('pedidoLocal') ? JSON.parse(localStorage.getItem('pedidoLocal')!).criado_em : new Date().toISOString(),
+      status: StatusPedido.LOCAL,
+      criado_em: new Date().toISOString(),
       atualizado_em: new Date().toISOString(),
-      numero_sequencial_dia: 0, // Não aplicável localmente
-   }), [pedidoItens, total]);
-
+      cliente_nome: clienteNome,
+    }),
+    [items, total, clienteNome],
+  );
 
   return {
+    // Estado (Produtos e Categorias)
     produtos,
-    categorias,
+    meta,
+    categorias: categoriasData || [],
+    isLoading: isLoadingCategories || isLoadingProducts,
+    error: productsError ? getErrorMessage(productsError) : null,
+
+    // Estado (Filtros e Paginação)
     categoriaAtiva,
     setCategoriaAtiva,
-    pedido: pedidoParaExibicao, // Passar o objeto Pedido simulado
-    total,
-    isLoading,
-    error,
-    onAddToCart, // Vindo do useCart
-    onRemove, // Vindo do useCart
-    onUpdateQuantity, // Vindo do useCart
-    limparCarrinho, // Vindo do useCart
-    handleIrParaPagamento,
-    // Exportar controles de paginação/busca
     termoBusca,
     setTermoBusca,
-    meta,
-    irParaPagina,
-    pagina, // Exportar página atual
+    pagina,
+    irParaPagina: setPagina,
+
+    // Estado (Carrinho - vindo do Store)
+    pedido: pedidoSimulado,
+    total,
+    
+    // Ações (Carrinho - vindo do Store)
+    onAddToCart,
+    onRemove,
+    onUpdateQuantity,
+    limparCarrinho, // (Erro 11 já estava corrigido)
+    setClienteNome,
+
+    // Ações (Pagamento)
+    handleIrParaPagamento: handleNavigateToPayment,
+    isSubmitting: false, // (Não é mais usado)
   };
-};
+}

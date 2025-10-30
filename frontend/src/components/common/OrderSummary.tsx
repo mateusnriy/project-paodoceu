@@ -50,10 +50,10 @@ const CartItem: React.FC<{
       {/* Controles Interativos */}
       {isInteractive && (
         <div className="flex items-center gap-1 flex-shrink-0">
-          <button onClick={handleDecrease} disabled={isMinQuantity} className="..." aria-label={`Diminuir ${item.produto.nome}`}> <Minus size={16} /> </button>
-          <span className="w-8 text-center..." aria-live="polite"> {item.quantidade} </span>
-          <button onClick={handleIncrease} disabled={isOutOfStock} className="..." aria-label={`Aumentar ${item.produto.nome}`}> <Plus size={16} /> </button>
-          <button onClick={handleRemove} className="..." aria-label={`Remover ${item.produto.nome}`}> <Trash2 size={16} /> </button>
+          <button onClick={handleDecrease} disabled={isMinQuantity} className="p-1 rounded-md text-text-secondary hover:bg-gray-100 disabled:opacity-50" aria-label={`Diminuir ${item.produto.nome}`}> <Minus size={16} /> </button>
+          <span className="w-8 text-center text-sm font-medium" aria-live="polite"> {item.quantidade} </span>
+          <button onClick={handleIncrease} disabled={isOutOfStock} className="p-1 rounded-md text-text-secondary hover:bg-gray-100 disabled:opacity-50" aria-label={`Aumentar ${item.produto.nome}`}> <Plus size={16} /> </button>
+          <button onClick={handleRemove} className="p-1 rounded-md text-status-error hover:bg-status-error/10" aria-label={`Remover ${item.produto.nome}`}> <Trash2 size={16} /> </button>
         </div>
       )}
 

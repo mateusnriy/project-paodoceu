@@ -54,7 +54,7 @@ export const NavigationProvider: React.FC<{ children: ReactNode }> = ({
    * Define quais contextos estão disponíveis baseado no perfil do usuário.
    */
   const availableContexts = useMemo((): NavigationContextType[] => {
-    if (usuario?.perfil === 'ADMINISTRADOR') {
+    if (usuario?.perfil === 'ADMINISTRADOR' || usuario?.perfil === 'MASTER') {
       return ['VENDAS', 'FILA', 'GESTAO'];
     }
     // Atendente só vê Vendas e Fila

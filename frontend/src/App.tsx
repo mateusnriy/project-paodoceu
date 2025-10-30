@@ -3,7 +3,7 @@
 // import { BrowserRouter } from 'react-router-dom'; // <<< REMOVIDO
 import { AuthProvider } from './contexts/AuthContext';
 import { NavigationProvider } from './contexts/NavigationContext';
-import AppRouter from './AppRouter';
+import { AppRouter } from './AppRouter'; // <<< CORRIGIDO (Causa 4)
 import { Toaster } from 'react-hot-toast'; // (RF24)
 
 function App() {

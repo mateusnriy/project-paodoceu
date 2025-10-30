@@ -1,191 +1,162 @@
-// src/pages/admin/components/ProductFormModal.tsx
-import React, { useEffect, useState } from 'react';
-import { useForm, SubmitHandler } from 'react-hook-form';
-import { Produto, Categoria, ProdutoFormData } from '../../../types';
-import { Button } from '../../../components/common/Button';
-import { ErrorMessage } from '../../../components/ui/ErrorMessage';
-import { getErrorMessage } from '../../../utils/errors';
+// frontend/src/pages/admin/components/ProductFormModal.tsx
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  productFormSchema,
+  ProductFormData,
+} from '@/validations/product.schema.ts';
+import { Produto, Categoria } from '@/types';
 import { ModalWrapper } from './ModalWrapper';
-import { FormInput, FormTextarea, FormSelect } from './FormElements';
-import { Loader2 } from 'lucide-react';
-
-interface ProductFormInputs extends ProdutoFormData {}
+import {
+  FormInput,
+  FormTextarea,
+  FormSelect,
+  FormCheckbox,
+  FormActions,
+} from './FormElements';
+import { ErrorMessage } from '@/components/ui/ErrorMessage';
+// CORREÇÃO (Erro 19): 'getErrorMessage' não é usado aqui,
+// pois 'mutationError' já vem formatado do hook.
+// import { getErrorMessage } from '@/utils/errors';
 
 interface ProductFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: ProductFormInputs, id?: string) => Promise<Produto | void>; // Corrigido retorno
+  onSubmit: (data: ProductFormData, id?: string) => Promise<void>;
   produto: Produto | null;
-  categorias: Categoria[];
   isMutating: boolean;
-  mutationError: unknown; // <<< CORRIGIDO: Aceita unknown
+  categorias: Categoria[];
+  mutationError: string | null;
   isLoadingCategorias: boolean;
 }
 
-export const ProductFormModal: React.FC<ProductFormModalProps> = ({
+export function ProductFormModal({
   isOpen,
   onClose,
-  onSave,
+  onSubmit,
   produto,
-  categorias,
   isMutating,
+  categorias,
   mutationError,
   isLoadingCategorias,
-}) => {
+}: ProductFormModalProps) {
+  const isEditMode = !!produto;
+
   const {
     register,
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<ProductFormInputs>();
-
-  const [apiError, setApiError] = useState<string | null>(null);
+  } = useForm<ProductFormData>({
+    resolver: zodResolver(productFormSchema),
+  });
 
   useEffect(() => {
     if (isOpen) {
-        if (produto) {
-          reset({
-            nome: produto.nome,
-            descricao: produto.descricao || '',
-            preco: produto.preco,
-            quantidadeEstoque: produto.quantidadeEstoque,
-            categoriaId: produto.categoriaId,
-            imagemUrl: produto.imagemUrl || '',
-          });
-        } else {
-          reset({
+      const initialValues = produto
+        ? {
+            ...produto,
+            // CORREÇÃO (Erro 20): O tipo Produto tem 'descricao: string | null'
+            // O formulário (ProductFormData) espera 'descricao: string | undefined'.
+            // Converter 'null' para 'undefined'.
+            descricao: produto.descricao ?? undefined,
+            preco: Number(produto.preco),
+            estoque: Number(produto.estoque),
+          }
+        : {
             nome: '',
             descricao: '',
             preco: 0,
-            quantidadeEstoque: 0,
-            categoriaId: categorias[0]?.id || '',
-            imagemUrl: '',
-          });
-        }
-        setApiError(null);
+            estoque: 0,
+            categoria_id: '',
+            ativo: true,
+          };
+      reset(initialValues);
     }
-  }, [isOpen, produto, categorias, reset]);
+  }, [isOpen, produto, reset]);
 
-  useEffect(() => {
-    // CORREÇÃO: Converte 'unknown' para string de erro
-    setApiError(mutationError ? getErrorMessage(mutationError) : null);
-  }, [mutationError]);
-
-  const onSubmit: SubmitHandler<ProductFormInputs> = async (data) => {
-    setApiError(null);
-    const dataToSend = {
-      ...data,
-      preco: Number(data.preco),
-      quantidadeEstoque: Number(data.quantidadeEstoque),
-      descricao: data.descricao || undefined,
-      imagemUrl: data.imagemUrl || undefined,
-    };
-
-    try {
-        await onSave(dataToSend, produto?.id);
-    } catch (err) {
-        console.error("Erro capturado no onSubmit do modal (Produto):", err);
-        // O erro já está sendo tratado pela prop 'mutationError'
-    }
+  const handleFormSubmit = async (data: ProductFormData) => {
+    await onSubmit(data, produto?.id);
   };
 
   return (
     <ModalWrapper
       isOpen={isOpen}
       onClose={onClose}
-      title={produto ? 'Editar Produto' : 'Novo Produto'}
+      title={isEditMode ? 'Editar Produto' : 'Novo Produto'}
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+        {mutationError && <ErrorMessage message={mutationError} />}
 
-        <FormInput
-          id="nome"
-          label="Nome do Produto"
-          {...register('nome', { required: 'O nome é obrigatório' })}
-          error={errors.nome?.message}
-          disabled={isMutating}
-          autoFocus
-        />
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <FormInput
+            id="nome"
+            label="Nome do Produto"
+            {...register('nome')}
+            error={errors.nome?.message}
+            placeholder="Ex: X-Burger"
+            autoFocus
+          />
 
-        <FormTextarea
-          id="descricao"
-          label="Descrição (Opcional)"
-          {...register('descricao')}
-          disabled={isMutating}
-        />
+          <FormSelect
+            id="categoria_id"
+            label="Categoria"
+            {...register('categoria_id')}
+            error={errors.categoria_id?.message}
+            disabled={isLoadingCategorias}
+          >
+            <option value="">Selecione...</option>
+            {categorias.map((cat) => (
+              <option key={cat.id} value={cat.id}>
+                {cat.nome}
+              </option>
+            ))}
+          </FormSelect>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FormInput
             id="preco"
             label="Preço (R$)"
             type="number"
             step="0.01"
-            {...register('preco', {
-              required: 'O preço é obrigatório',
-              valueAsNumber: true,
-              min: { value: 0.01, message: 'O preço deve ser positivo' },
-            })}
+            {...register('preco')}
             error={errors.preco?.message}
-            disabled={isMutating}
+            placeholder="0.00"
           />
+
           <FormInput
-            id="quantidadeEstoque"
+            id="estoque"
             label="Estoque"
             type="number"
             step="1"
-            {...register('quantidadeEstoque', {
-              required: 'O estoque é obrigatório',
-              valueAsNumber: true,
-              min: { value: 0, message: 'O estoque não pode ser negativo' },
-            })}
-            error={errors.quantidadeEstoque?.message}
-            disabled={isMutating}
+            {...register('estoque')}
+            error={errors.estoque?.message}
+            placeholder="0"
           />
         </div>
 
-        <FormSelect
-          id="categoriaId"
-          label="Categoria"
-          {...register('categoriaId', { required: 'A categoria é obrigatória' })}
-          error={errors.categoriaId?.message}
-          disabled={isMutating || isLoadingCategorias}
-        >
-          <option value="" disabled>
-            {isLoadingCategorias ? 'Carregando...' : 'Selecione...'}
-          </option>
-          {categorias.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.nome}
-            </option>
-          ))}
-        </FormSelect>
-
-        <FormInput
-          id="imagemUrl"
-          label="URL da Imagem (Opcional)"
-          {...register('imagemUrl')}
-          disabled={isMutating}
+        <FormTextarea
+          id="descricao"
+          label="Descrição"
+          {...register('descricao')}
+          error={errors.descricao?.message}
+          placeholder="(Opcional) Pão, bife, queijo..."
+          rows={3}
         />
 
-        {apiError && <ErrorMessage message={apiError} />}
+        <FormCheckbox
+          id="ativo"
+          label="Produto Ativo (visível no PDV)"
+          {...register('ativo')}
+          error={errors.ativo?.message}
+        />
 
-        <div className="flex justify-end gap-4 pt-4">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onClose}
-            disabled={isMutating}
-          >
-            Cancelar
-          </Button>
-          <Button type="submit" variant="primary" disabled={isMutating || isLoadingCategorias}>
-            {isMutating ? (
-              <Loader2 size={20} className="animate-spin" />
-            ) : (
-              'Salvar'
-            )}
-          </Button>
-        </div>
+        <FormActions
+          onClose={onClose}
+          isSubmitting={isMutating}
+          submitText={isEditMode ? 'Salvar Alterações' : 'Criar Produto'}
+        />
       </form>
     </ModalWrapper>
   );
-};
+}

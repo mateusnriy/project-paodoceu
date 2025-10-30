@@ -57,7 +57,14 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({ produto, onAddToCa
             onClick={handleAddToCart}
             disabled={indisponivel}
             aria-label={`Adicionar ${produto.nome} ao carrinho`}
-            className="..." // Estilos mantidos como no original
+            className="
+              flex items-center justify-center w-9 h-9 
+              bg-primary-blue text-white rounded-lg 
+              hover:bg-primary-blue-hover
+              disabled:bg-status-disabled-bg disabled:text-status-disabled-text
+              transition-colors duration-150
+              focus:outline-none focus:ring-2 focus:ring-primary-blue focus:ring-offset-1
+            "
           >
             <Plus size={20} />
           </button>
@@ -67,10 +74,18 @@ const ProductCard: React.FC<ProductCardProps> = React.memo(({ produto, onAddToCa
       {/* Overlay Indisponível */}
       {indisponivel && (
         <div
-          className="..." // Estilos mantidos como no original
+          className="
+            absolute inset-0 bg-white/70 backdrop-blur-[2px] 
+            flex items-center justify-center
+          "
           aria-hidden="true"
         >
-          <span className="...">
+          <span
+            className="
+              px-3 py-1 bg-gray-700 text-white 
+              text-sm font-semibold rounded-full
+            "
+          >
             {produto.ativo ? 'Indisponível' : 'Inativo'} {/* Diferencia motivo */}
           </span>
         </div>

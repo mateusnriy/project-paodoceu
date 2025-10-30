@@ -1,6 +1,6 @@
 // src/hooks/useAdminCategories.ts
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../services/api';
+import api from '../services/api'; // CORREÇÃO (TS2614): Importação default
 // import { getErrorMessage } from '../utils/errors'; // REMOVIDO
 import { Categoria, PaginatedResponse } from '../types';
 import { logError } from '../utils/logger';
@@ -102,4 +102,3 @@ export const useAdminCategories = (pagina: number, termoBusca: string, limite: n
     categorias: data?.data ?? [],
   };
 };
-

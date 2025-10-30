@@ -7,8 +7,8 @@ import MainLayout from './components/common/MainLayout';
 import { LoadingSpinner } from './components/ui/LoadingSpinner'; // <<< Importação necessária
 
 // Páginas não-lazy
-import Login from './pages/Login';
-import Register from './pages/Register';
+import { Login } from './pages/Login'; // <<< CORRIGIDO (Causa 4)
+import { Register } from './pages/Register'; // <<< CORRIGIDO (Causa 4)
 import POS from './pages/POS';
 import Payment from './pages/Payment';
 import Orders from './pages/Orders';

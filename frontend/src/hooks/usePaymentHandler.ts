@@ -1,9 +1,9 @@
 // frontend/src/hooks/usePaymentHandler.ts
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast'; // Correção B.1
-import { orderService } from '../services/orderService'; // Correção B.2
-import { Pedido, TipoPagamento, PaymentPayload, CreateOrderPayload } from '../types'; // Tipos já corrigidos (A.1)
+import { toast } from 'react-hot-toast';
+import { orderService } from '../services/orderService';
+import { Pedido, TipoPagamento, PaymentPayload, CreateOrderPayload } from '../types';
 import { logError } from '../utils/logger';
 import { getErrorMessage } from '../utils/errors';
 
@@ -15,13 +15,13 @@ export const usePaymentHandler = () => {
   const [tipoPagamento, setTipoPagamento] = useState<TipoPagamento | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<unknown>(null); // Armazena erro original
+  const [error, setError] = useState<unknown>(null);
 
-  // Carrega pedido do localStorage
   useEffect(() => {
     setIsLoading(true);
     setError(null);
     try {
+      // Tenta ler do 'pedidoLocal' (localStorage)
       const pedidoString = localStorage.getItem('pedidoLocal');
       if (pedidoString) {
         const pedidoData = JSON.parse(pedidoString) as Pedido;
@@ -32,13 +32,39 @@ export const usePaymentHandler = () => {
           throw new Error('Dados do carrinho inválidos.');
         }
       } else {
-        setPedidoLocal(null); // Define como null se não houver carrinho
-        setTotalLocal(0);
+        // Fallback: Tenta ler do 'pao-do-ceu-cart-storage' (Zustand)
+        const zustandString = localStorage.getItem('pao-do-ceu-cart-storage');
+        if (zustandString) {
+            const zustandData = JSON.parse(zustandString);
+            const cartState = zustandData?.state;
+            if (cartState?.items?.length > 0 && typeof cartState.total === 'number') {
+                // Simula a estrutura de Pedido que o handler espera
+                const pedidoFromZustand: Pedido = {
+                    id: 'local-zustand',
+                    itens: cartState.items,
+                    valor_total: cartState.total,
+                    cliente_nome: cartState.clienteNome,
+                    status: 'LOCAL' as any,
+                    criado_em: new Date().toISOString(),
+                    atualizado_em: new Date().toISOString(),
+                };
+                setPedidoLocal(pedidoFromZustand);
+                setTotalLocal(cartState.total);
+                // Salva no 'pedidoLocal' para consistência se o usePOS salvar lá
+                localStorage.setItem('pedidoLocal', JSON.stringify(pedidoFromZustand));
+            } else {
+                 throw new Error('Dados do carrinho (Zustand) inválidos.');
+            }
+        } else {
+            setPedidoLocal(null);
+            setTotalLocal(0);
+        }
       }
     } catch (err) {
       logError('Erro ao carregar pedido do localStorage:', err);
       setError(err);
-      localStorage.removeItem('pedidoLocal'); // Limpa em caso de erro
+      localStorage.removeItem('pedidoLocal');
+      localStorage.removeItem('pao-do-ceu-cart-storage'); // Limpa ambos
       setPedidoLocal(null);
       setTotalLocal(0);
     } finally {
@@ -48,7 +74,7 @@ export const usePaymentHandler = () => {
 
   const handleFinalizarPedido = useCallback(async () => {
     if (!pedidoLocal?.itens?.length || !tipoPagamento) {
-      toast.error('Carrinho vazio ou método de pagamento não selecionado.'); // Correção B.1
+      toast.error('Carrinho vazio ou método de pagamento não selecionado.');
       return;
     }
 
@@ -56,48 +82,45 @@ export const usePaymentHandler = () => {
     setError(null);
 
     try {
-      // 1. Payload para criar pedido
       const criarPedidoPayload: CreateOrderPayload = {
-        cliente_nome: pedidoLocal.cliente_nome,
-        // Correção A.1: Mapeia para produto_id
+        // CORREÇÃO (Erro 9): 'cliente_nome' pode ser 'null', mas o payload espera 'string | undefined'.
+        // Usar '?? undefined' converte 'null' para 'undefined'.
+        cliente_nome: pedidoLocal.cliente_nome ?? undefined,
         itens: pedidoLocal.itens.map(item => ({
-          produto_id: item.produto.id, // Usa o ID do produto dentro do item
+          produto_id: item.produto.id,
           quantidade: item.quantidade,
         })),
       };
 
-      // 2. Criar o pedido via orderService (Correção B.2)
       const pedidoCriado = await orderService.create(criarPedidoPayload);
 
-      // 3. Payload para pagar o pedido
       const processarPagamentoPayload: PaymentPayload = {
         metodo: tipoPagamento,
-        valor_pago: totalLocal, // Usa o total salvo localmente
+        valor_pago: totalLocal,
       };
 
-      // 4. Processar o pagamento via orderService (Correção B.2 e Rota)
       await orderService.pay(pedidoCriado.id, processarPagamentoPayload);
 
-      // 5. Sucesso
+      // Limpa AMBOS os storages no sucesso
       localStorage.removeItem('pedidoLocal');
-      toast.success('Pedido finalizado com sucesso!'); // Correção B.1
-      navigate('/fila'); // Redireciona para a fila
+      localStorage.removeItem('pao-do-ceu-cart-storage');
+      
+      toast.success('Pedido finalizado com sucesso!');
+      navigate('/fila');
 
     } catch (err) {
       logError('Erro ao finalizar pedido e pagamento:', err, { tipoPagamento });
-      setError(err); // Armazena erro original para exibição
-      toast.error(`Erro ao finalizar: ${getErrorMessage(err)}`); // Correção B.1
+      setError(err);
+      toast.error(`Erro ao finalizar: ${getErrorMessage(err)}`);
     } finally {
       setIsSubmitting(false);
     }
   }, [pedidoLocal, totalLocal, tipoPagamento, navigate]);
 
-  // Função para cancelar e voltar (limpa localStorage)
   const handleLimparCarrinhoLocal = useCallback(() => {
-    // Correção B.1: Usar toast para confirmação (ou um modal dedicado)
-    // Exemplo simples com window.confirm por enquanto, idealmente trocar por modal/toast
     if (window.confirm('Tem certeza que deseja limpar o carrinho e voltar para vendas?')) {
         localStorage.removeItem('pedidoLocal');
+        localStorage.removeItem('pao-do-ceu-cart-storage'); // Limpa ambos
         setPedidoLocal(null);
         setTotalLocal(0);
         setError(null);
@@ -111,7 +134,7 @@ export const usePaymentHandler = () => {
     total: totalLocal,
     isLoading,
     isSubmitting,
-    error: error ? getErrorMessage(error) : null, // Retorna string formatada
+    error: error ? getErrorMessage(error) : null,
     tipoPagamento,
     setTipoPagamento,
     handleFinalizarPedido,

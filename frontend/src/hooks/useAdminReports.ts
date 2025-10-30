@@ -1,6 +1,6 @@
 // src/hooks/useAdminReports.ts
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../services/api';
+import api from '../services/api'; // CORREÇÃO (TS2614): Importação default
 // import { getErrorMessage } from '../utils/errors'; // REMOVIDO
 import { getDateRangeQuery, DateRangeOption } from '../utils/dates';
 import { logError } from '../utils/logger';

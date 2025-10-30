@@ -1,108 +1,136 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom'; // <<< Importa o componente Link
-import { CloudIcon, Loader2 } from 'lucide-react';
-import { Button } from '../components/common/Button';
-import { useAuth } from '../contexts/AuthContext';
-import { getErrorMessage } from '../utils/errors';
-import { ErrorMessage } from '../components/ui/ErrorMessage';
-import { FormInput } from '../components/admin/components/FormElements'; // Reutiliza FormInput
+// frontend/src/pages/Login.tsx
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useNavigate } from 'react-router-dom'; // (Causa 10: Link removido)
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  loginSchema,
+  LoginFormData,
+} from '@/validations/auth.schema.ts';
+import { Button } from '@/components/common/Button';
+import { getErrorMessage } from '@/utils/errors';
+import { ErrorMessage } from '@/components/ui/ErrorMessage';
+import { Lock, Mail } from 'lucide-react';
 
-const Login: React.FC = () => {
-  const { login } = useAuth(); // Hook de autenticação
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false); // Estado de carregamento para o botão
+export function Login() {
+  const [globalError, setGlobalError] = useState<string | null>(null);
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
-  /**
-   * Handler para submissão do formulário de login.
-   * @param {React.FormEvent} e - Evento de submissão do formulário.
-   */
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // Previne o comportamento padrão do formulário
-    setError(null); // Limpa erros anteriores
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
 
-    // Validação simples de campos vazios
-    if (!email || !password) {
-      setError('Por favor, preencha o email e a senha.');
-      return;
-    }
-
-    setIsLoading(true); // Ativa o estado de carregamento
+  const onSubmit = async (data: LoginFormData) => {
+    setGlobalError(null);
     try {
-      // Chama a função de login do AuthContext
-      await login(email, password);
-      // A navegação para '/vendas' ocorre dentro da função 'login' do contexto em caso de sucesso
-    } catch (err) {
-      // Captura e exibe erros de autenticação (ex: credenciais inválidas)
-      setError(getErrorMessage(err));
-    } finally {
-      setIsLoading(false); // Desativa o estado de carregamento
+      await login(data);
+    } catch (error) {
+      setGlobalError(getErrorMessage(error));
     }
   };
 
+  const handleRegisterRedirect = () => {
+    navigate('/register');
+  };
+
   return (
-    // Container principal que centraliza o conteúdo
-    <div className="min-h-screen bg-background-light-blue flex flex-col items-center justify-center p-4">
-      {/* Card de Login */}
-      <div className="w-full max-w-md bg-primary-white rounded-xl shadow-soft p-8 border border-gray-200">
-        {/* Cabeçalho com ícone e título */}
-        <div className="flex flex-col items-center mb-8">
-          <CloudIcon className="h-16 w-16 text-primary-blue mb-4" />
-          <h1 className="text-2xl font-bold text-text-primary text-center">
-            Lanchonete Pão do Céu
-          </h1>
-           <p className="text-base text-text-secondary mt-2">Acesse sua conta</p>
-        </div>
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
+      <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-xl">
+        <h1 className="mb-6 text-center text-3xl font-bold text-gray-800">
+          Pão do Céu
+        </h1>
+        <h2 className="mb-6 text-center text-xl text-gray-600">
+          Acesso ao PDV
+        </h2>
 
-        {/* Formulário de Login */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Exibe mensagem de erro, se houver */}
-          {error && <ErrorMessage message={error} />}
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {globalError && <ErrorMessage message={globalError} />}
 
-          {/* Campo Email - Reutilizando FormInput */}
-          <FormInput
-            id="email"
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Digite seu email"
-            disabled={isLoading}
-            autoComplete="email" // Ajuda navegadores a preencher
-            // Não usamos react-hook-form aqui, então não passamos 'register' ou 'errors'
-          />
+          <div>
+            <label
+              htmlFor="email"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
+              E-mail
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <Mail className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="email"
+                type="email"
+                {...register('email')}
+                className={`w-full rounded-md border p-3 pl-10 ${
+                  errors.email ? 'border-red-500' : 'border-gray-300'
+                } focus:border-indigo-500 focus:ring-indigo-500`}
+                placeholder="seu.email@exemplo.com"
+                autoComplete="email"
+              />
+            </div>
+            {errors.email && (
+              <ErrorMessage message={errors.email.message} />
+            )}
+          </div>
 
-          {/* Campo Senha - Reutilizando FormInput */}
-          <FormInput
-            id="password"
-            label="Senha"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Digite sua senha"
-            disabled={isLoading}
-            autoComplete="current-password" // Ajuda navegadores a preencher
-          />
+          <div>
+            <label
+              htmlFor="senha"
+              className="mb-2 block text-sm font-medium text-gray-700"
+            >
+              Senha
+            </label>
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <Lock className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                id="senha"
+                type="password"
+                {...register('senha')}
+                className={`w-full rounded-md border p-3 pl-10 ${
+                  errors.senha ? 'border-red-500' : 'border-gray-300'
+                } focus:border-indigo-500 focus:ring-indigo-500`}
+                placeholder="••••••••"
+                autoComplete="current-password"
+              />
+            </div>
+            {errors.senha && (
+              <ErrorMessage message={errors.senha.message} />
+            )}
+          </div>
 
-          {/* Botão de Login */}
-          <Button type="submit" variant="primary" className="w-full" size="lg" disabled={isLoading}>
-            {/* Mostra spinner ou texto dependendo do estado de carregamento */}
-            {isLoading ? <Loader2 size={20} className="animate-spin" /> : 'Entrar'}
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full"
+            variant="primary"
+            size="lg"
+          >
+            {isSubmitting ? 'Entrando...' : 'Entrar'}
           </Button>
         </form>
 
-        {/* Link para a página de Registro */}
-        <p className="mt-6 text-center text-sm text-text-secondary">
-          Não tem uma conta?{' '}
-          {/* Componente Link do react-router-dom para navegação SPA */}
-          <Link to="/register" className="font-medium text-primary-blue hover:underline focus:outline-none focus:ring-2 focus:ring-primary-blue rounded">
-            Crie uma agora
-          </Link>
-        </p>
+        <div className="mt-6 border-t pt-6">
+          <p className="text-center text-sm text-gray-600">
+            Não tem uma conta de Administrador?
+          </p>
+          <Button
+            onClick={handleRegisterRedirect}
+            variant="secondary" // (Correção: variant "outline" não existe)
+            className="mt-4 w-full"
+            disabled={isSubmitting}
+          >
+            Registrar Administrador
+          </Button>
+        </div>
       </div>
     </div>
   );
-};
-
-export default Login; // Exporta como default
+}

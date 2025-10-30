@@ -15,11 +15,18 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Alias Path CORREÇÃO (Causa 1) */
+    "baseUrl": "./src", // <<< CORRIGIDO
+    "paths": {
+      "@/*": ["*"] // <<< CORRIGIDO
+    },
+
     /* Linting */
     "strict": true,
-    "noUnusedLocals": true, // Manter true - força a correção de código não utilizado
-    "noUnusedParameters": true, // Manter true - força a correção de código não utilizado
-    "noFallthroughCasesInSwitch": true
+    "noUnusedLocals": true, // (Causa 10)
+    "noUnusedParameters": true, // (Causa 10)
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitAny": true // (Causa 9)
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]

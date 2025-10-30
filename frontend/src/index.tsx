@@ -2,7 +2,7 @@ import './index.css';
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom'; // <<< Importar BrowserRouter
-import { App } from './App';
+import App from './App'; // <<< CORRIGIDO (Causa 4)
 import * as Sentry from '@sentry/react';
 
 const _env = (import.meta as any).env;

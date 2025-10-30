@@ -1,47 +1,14 @@
 // frontend/src/services/productService.ts
 import api from './api';
-import { Produto, PaginatedResponse, ProdutoFormData } from '../types';
+import { Produto, PaginatedResponse, ProdutoFormData } from '@/types'; // Usar alias
 
 // Interface para parâmetros de listagem
 interface ListProductParams {
   pagina?: number;
   limite?: number;
-  nome?: string; // Backend usa 'nome' para buscar em nome/email/desc
+  nome?: string;
   categoriaId?: string | 'todos';
-  // incluirInativos?: boolean; // Backend Admin agora inclui por padrão
 }
-
-// Função auxiliar para mapear FormData (camelCase ou snake_case) para API (snake_case)
-// Se ProdutoFormData já for snake_case, este mapeamento é mais simples.
-const mapFormDataToApi = (data: Partial<ProdutoFormData>): any => {
-  const payload: any = {};
-  // Mapeia os campos garantindo snake_case
-  if (data.nome !== undefined) payload.nome = data.nome;
-  if (data.descricao !== undefined) payload.descricao = data.descricao || null; // Envia null se vazio
-  if (data.preco !== undefined) payload.preco = Number(data.preco);
-  if (data.estoque !== undefined) payload.estoque = Number(data.estoque); // Usa 'estoque'
-  if (data.categoria_id !== undefined) payload.categoria_id = data.categoria_id; // Usa 'categoria_id'
-  if (data.imagem_url !== undefined) payload.imagem_url = data.imagem_url || null; // Usa 'imagem_url', envia null se vazio
-  if (data.ativo !== undefined) payload.ativo = data.ativo;
-
-  return payload;
-};
-
-// Função auxiliar para mapear resposta da API (snake_case) para Tipo Frontend (snake_case)
-// Se os tipos já são snake_case, este mapeamento é direto.
-const mapProdutoFromApi = (apiProduto: any): Produto => ({
-  id: apiProduto.id,
-  nome: apiProduto.nome,
-  preco: Number(apiProduto.preco), // Garante que seja número
-  estoque: apiProduto.estoque,
-  imagem_url: apiProduto.imagem_url,
-  descricao: apiProduto.descricao,
-  categoria: apiProduto.categoria, // Assumindo que a categoria já vem correta
-  categoria_id: apiProduto.categoria_id,
-  criado_em: apiProduto.criado_em,
-  atualizado_em: apiProduto.atualizado_em,
-  ativo: apiProduto.ativo,
-});
 
 export const productService = {
   /**
@@ -52,18 +19,26 @@ export const productService = {
 
     if (params.pagina) queryParams.append('pagina', String(params.pagina));
     if (params.limite) queryParams.append('limite', String(params.limite));
-    if (params.nome) queryParams.append('nome', params.nome); // Backend usa 'nome'
+    if (params.nome) queryParams.append('nome', params.nome);
     if (params.categoriaId && params.categoriaId !== 'todos') {
-      queryParams.append('categoriaId', params.categoriaId); // Backend pode precisar de outro nome aqui
+      // (Suposição) O backend deve filtrar por 'categoria_id' ou 'categoriaId'
+      queryParams.append('categoriaId', params.categoriaId);
     }
 
-    // Correção A.3: Chamada SEM /api duplicado
-    const response = await api.get<PaginatedResponse<any>>(`/produtos?${queryParams.toString()}`);
+    const response = await api.get<PaginatedResponse<Produto>>(
+      `/produtos?${queryParams.toString()}`,
+    );
 
-    // Mapeia a resposta para o tipo do frontend
+    // Converte 'preco' para number, pois o Prisma ORM pode retornar como string
+    // O backend já retorna 'Decimal', mas o JSON o transforma em string.
+    const data = response.data.data.map((produto) => ({
+      ...produto,
+      preco: Number(produto.preco),
+    }));
+
     return {
       ...response.data,
-      data: response.data.data.map(mapProdutoFromApi),
+      data,
     };
   },
 
@@ -71,47 +46,54 @@ export const productService = {
    * Busca um produto pelo ID.
    */
   async getById(id: string): Promise<Produto> {
-    // Correção A.3: Chamada SEM /api duplicado
-    const response = await api.get<any>(`/produtos/${id}`);
-    return mapProdutoFromApi(response.data);
+    const response = await api.get<Produto>(`/produtos/${id}`);
+    return {
+      ...response.data,
+      preco: Number(response.data.preco),
+    };
   },
 
   /**
    * Cria um novo produto.
+   * Os tipos ProdutoFormData (frontend) já batem com o DTO do backend (snake_case)
    */
   async create(data: ProdutoFormData): Promise<Produto> {
-    const payload = mapFormDataToApi(data);
-    // Correção A.3: Chamada SEM /api duplicado
-    const response = await api.post<any>('/produtos', payload);
-    return mapProdutoFromApi(response.data);
+    const response = await api.post<Produto>('/produtos', data);
+    return {
+      ...response.data,
+      preco: Number(response.data.preco),
+    };
   },
 
   /**
    * Atualiza um produto existente.
    */
   async update(id: string, data: Partial<ProdutoFormData>): Promise<Produto> {
-    const payload = mapFormDataToApi(data);
-    // Correção A.3: Chamada SEM /api duplicado
-    const response = await api.put<any>(`/produtos/${id}`, payload);
-    return mapProdutoFromApi(response.data);
+    const response = await api.put<Produto>(`/produtos/${id}`, data);
+    return {
+      ...response.data,
+      preco: Number(response.data.preco),
+    };
   },
 
   /**
    * Ajusta o estoque de um produto (RF22).
+   * O backend espera { "quantidade": number } (Validations/produtoValidation.ts)
    */
   async adjustStock(id: string, quantidade: number): Promise<Produto> {
-    // Correção A.1: Backend espera { "estoque": number } (ajustado no backend para esperar 'quantidade' como no código original)
-    // Se backend esperar 'estoque', mudar aqui para { estoque: quantidade }
-    // Correção A.3: Chamada SEM /api duplicado
-    const response = await api.patch<any>(`/produtos/${id}/estoque`, { quantidade });
-    return mapProdutoFromApi(response.data);
+    const response = await api.patch<Produto>(`/produtos/${id}/estoque`, {
+      quantidade,
+    });
+    return {
+      ...response.data,
+      preco: Number(response.data.preco),
+    };
   },
 
   /**
    * Deleta um produto pelo ID.
    */
   async delete(id: string): Promise<void> {
-    // Correção A.3: Chamada SEM /api duplicado
     await api.delete(`/produtos/${id}`);
   },
 };

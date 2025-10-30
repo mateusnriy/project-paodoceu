@@ -1,127 +1,117 @@
-// src/hooks/useAdminUsers.ts
+// frontend/src/hooks/useAdminUsers.ts
 import { useState, useEffect, useCallback } from 'react';
-import { api } from '../services/api';
-import { getErrorMessage } from '../utils/errors';
-import { Usuario, PaginatedResponse, UsuarioFormData } from '../types'; // PerfilUsuario removido
+import { toast } from 'react-hot-toast';
+import { userService } from '../services/userService';
+import { Usuario, PaginatedResponse, UsuarioFormData } from '../types';
 import { logError } from '../utils/logger';
-import { useAuth } from '../contexts/AuthContext';
+import { getErrorMessage } from '../utils/errors';
+import { useAuth } from '../contexts/AuthContext'; // Para o idUsuarioLogado
 
-export const useAdminUsers = (pagina: number, termoBusca: string) => {
+const ITEMS_PER_PAGE = 10;
+
+export const useAdminUsers = (pagina: number, termoBusca: string, limite: number = ITEMS_PER_PAGE) => {
+  const { usuario } = useAuth(); // Pega o usuário logado
   const [data, setData] = useState<PaginatedResponse<Usuario> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
-  const { usuario: usuarioLogado } = useAuth();
-
-  const mutate = useCallback(async () => {
-    if (!data) setIsLoading(true);
-    setError(null);
-    try {
-      const params = {
-        pagina: pagina,
-        limite: 10,
-        nome: termoBusca || undefined,
-      };
-      const response = await api.get<PaginatedResponse<Usuario>>('/usuarios', {
-        params,
-      });
-      setData(response.data);
-    } catch (err) {
-      setError(err);
-      logError('Erro ao re-buscar usuários:', err, { pagina, termoBusca });
-      setData(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [pagina, termoBusca, data]); // 'data' adicionado de volta
-
-  useEffect(() => {
-    mutate();
-  }, [mutate]);
 
   const [isMutating, setIsMutating] = useState(false);
   const [mutationError, setMutationError] = useState<unknown>(null);
 
-  const handleCreate = useCallback(async (data: UsuarioFormData): Promise<Usuario> => {
+  const loadUsers = useCallback(async () => {
+    if (!data) setIsLoading(true);
+    setError(null);
+    try {
+      const params = { pagina, limite, nome: termoBusca || undefined };
+      // CORREÇÃO (Erro 1): O interceptador do Axios já retorna 'response.data'.
+      // O 'response' aqui *é* o PaginatedResponse<Usuario>.
+      const response = await userService.list(params);
+      
+      // CORREÇÃO (Erro 1): Atribuir o 'response' (PaginatedResponse) diretamente.
+      setData(response);
+    } catch (err) {
+      setError(err);
+      logError('Erro ao carregar usuários:', err, { pagina, termoBusca });
+      setData(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pagina, limite, termoBusca, data]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  const mutate = useCallback(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  const handleCreate = useCallback(async (formData: Partial<UsuarioFormData>): Promise<Usuario> => {
     setIsMutating(true);
     setMutationError(null);
-    if (!data.senha) {
-      const errorMsg = 'A senha é obrigatória para criar um novo usuário.';
-      logError(errorMsg, new Error(errorMsg), { data });
-      setIsMutating(false);
-      throw new Error(errorMsg);
-    }
     try {
-      const response = await api.post<Usuario>('/usuarios', data);
-      return response.data;
+      // Garantir que o formData completo seja enviado para criação
+      const response = await userService.create(formData as UsuarioFormData);
+      toast.success('Usuário criado com sucesso!');
+      mutate();
+      return response;
     } catch (err) {
-      const message = getErrorMessage(err);
       setMutationError(err);
-      logError('Erro ao CRIAR usuário:', err, { data });
-      throw new Error(message);
+      logError('Erro ao CRIAR usuário:', err, { formData });
+      toast.error(`Erro ao criar usuário: ${getErrorMessage(err)}`);
+      throw err;
     } finally {
       setIsMutating(false);
     }
-  }, []);
+  }, [mutate]);
 
-  const handleUpdate = useCallback(async (
-    id: string,
-    data: UsuarioFormData
-  ): Promise<Usuario> => {
+  const handleUpdate = useCallback(async (id: string, formData: Partial<UsuarioFormData>): Promise<Usuario> => {
     setIsMutating(true);
     setMutationError(null);
-    const dataToSend = { ...data };
-    if (!dataToSend.senha) {
-      delete dataToSend.senha;
-    }
-
     try {
-      const response = await api.put<Usuario>(`/usuarios/${id}`, dataToSend);
-      return response.data;
+      const response = await userService.update(id, formData);
+      toast.success('Usuário atualizado com sucesso!');
+      mutate();
+      return response;
     } catch (err) {
-      const message = getErrorMessage(err);
       setMutationError(err);
-      logError('Erro ao ATUALIZAR usuário:', err, { id, data: dataToSend });
-      throw new Error(message);
+      logError('Erro ao ATUALIZAR usuário:', err, { id, formData });
+      toast.error(`Erro ao atualizar usuário: ${getErrorMessage(err)}`);
+      throw err;
     } finally {
       setIsMutating(false);
     }
-  }, []);
+  }, [mutate]);
 
   const handleDelete = useCallback(async (id: string): Promise<void> => {
     setIsMutating(true);
     setMutationError(null);
-    if (id === usuarioLogado?.id) {
-      const errorMsg = 'Você não pode excluir seu próprio usuário.';
-      logError(errorMsg, new Error(errorMsg), { id });
-      setMutationError(new Error(errorMsg));
-      setIsMutating(false);
-      throw new Error(errorMsg);
-    }
     try {
-      await api.delete(`/usuarios/${id}`);
+      await userService.delete(id);
+      toast.success('Usuário excluído com sucesso!');
+      mutate();
     } catch (err) {
-      const message = getErrorMessage(err);
       setMutationError(err);
       logError('Erro ao DELETAR usuário:', err, { id });
-      throw new Error(message);
+      toast.error(`Erro ao excluir usuário: ${getErrorMessage(err)}`);
+      throw err;
     } finally {
       setIsMutating(false);
     }
-  }, [usuarioLogado?.id]);
-
+  }, [mutate]);
 
   return {
     data,
     isLoading,
-    error,
+    error: error ? getErrorMessage(error) : null,
     mutate,
     handleCreate,
     handleUpdate,
     handleDelete,
     isMutating,
-    setIsMutating,
-    mutationError,
+    mutationError: mutationError ? getErrorMessage(mutationError) : null,
     setMutationError,
-    idUsuarioLogado: usuarioLogado?.id,
+    idUsuarioLogado: usuario?.id, // Exporta o ID do usuário logado
   };
 };
+

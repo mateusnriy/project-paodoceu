@@ -1,153 +1,201 @@
 // frontend/src/pages/admin/components/UserFormModal.tsx
-import React, { useEffect, useState } from 'react';
-import { useForm, SubmitHandler } from 'react-hook-form';
-import { toast } from 'react-hot-toast'; // Correção B.1
-import { Usuario, PerfilUsuario, UsuarioFormData } from '../../../types'; // Tipos já corrigidos
-import { Button } from '../../../components/common/Button';
-import { ErrorMessage } from '../../../components/ui/ErrorMessage';
-import { getErrorMessage } from '../../../utils/errors';
+import { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  userFormSchema,
+  createUserFormSchema,
+  UserFormData,
+} from '@/validations/user.schema.ts';
+import { Usuario, PerfilUsuario } from '@/types';
 import { ModalWrapper } from './ModalWrapper';
-import { FormInput, FormSelect } from './FormElements';
-import { Loader2 } from 'lucide-react';
-
-interface UserFormInputs extends Omit<UsuarioFormData, 'ativo'> { // Ativo não está no form
-    // Senha é opcional na edição, mas react-hook-form precisa dela definida
-    senha?: string;
-}
+import {
+  FormInput,
+  FormSelect,
+  FormCheckbox,
+  FormActions,
+} from './FormElements';
+import { ErrorMessage } from '@/components/ui/ErrorMessage';
+import { getErrorMessage } from '@/utils/errors'; // (Importado)
 
 interface UserFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data: UsuarioFormData, id?: string) => Promise<Usuario | void>;
-  usuario: Usuario | null; // Usuário sendo editado (null para criar)
-  isLoading: boolean; // Estado de mutação (isMutating)
-  error: unknown; // Erro da mutação
-  perfilUsuarioLogado?: PerfilUsuario; // Correção A.4: Perfil de quem está logado
+  onSubmit: (data: Partial<UserFormData>, id?: string) => Promise<void>; // CORREÇÃO (Causa 7)
+  usuario: Usuario | null; // (Nome corrigido)
+  isLoading: boolean; // (Nome corrigido)
+  error: unknown; // (Nome corrigido)
+  perfilUsuarioLogado?: PerfilUsuario;
 }
 
-export const UserFormModal: React.FC<UserFormModalProps> = ({
+export function UserFormModal({
   isOpen,
   onClose,
-  onSave,
-  usuario, // Usuário alvo
-  isLoading,
-  error,
-  perfilUsuarioLogado, // Perfil do ator
-}) => {
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<UserFormInputs>();
-  const isEditing = !!usuario;
-  const [apiError, setApiError] = useState<string | null>(null);
+  onSubmit, // CORREÇÃO (Causa 7)
+  usuario, // (Nome corrigido)
+  isLoading, // (Nome corrigido)
+  error, // (Nome corrigido)
+  perfilUsuarioLogado,
+}: UserFormModalProps) {
+  const isEditMode = !!usuario;
+  const isMasterLogado = perfilUsuarioLogado === PerfilUsuario.MASTER;
 
-  // Correção A.4: Determina se o admin logado pode alterar o perfil do alvo
-  const canEditProfileField = useMemo(() => {
-      // Master pode sempre
-      if (perfilUsuarioLogado === PerfilUsuario.MASTER) return true;
-      // Admin comum não pode editar perfil (backend força ATENDENTE na criação/update)
-      if (perfilUsuarioLogado === PerfilUsuario.ADMINISTRADOR) return false;
-      return false; // Default seguro
-  }, [perfilUsuarioLogado]);
+  const {
+    register,
+    handleSubmit,
+    reset,
+    // watch, // (Causa 10 - Removido)
+    formState: { errors },
+  } = useForm<UserFormData>({
+    resolver: zodResolver(isEditMode ? userFormSchema : createUserFormSchema),
+    defaultValues: {
+      nome: '',
+      email: '',
+      perfil: PerfilUsuario.ATENDENTE,
+      ativo: true,
+      senha: '',
+      confirmarSenha: '',
+    },
+  });
+
+  // const watchedPerfil = watch('perfil'); // (Causa 10 - Removido)
 
   useEffect(() => {
     if (isOpen) {
-      if (usuario) { // Editando
-        reset({
-          nome: usuario.nome,
-          email: usuario.email,
-          perfil: usuario.perfil,
-          senha: '', // Senha sempre vazia ao editar
-        });
-      } else { // Criando
-        reset({
-          nome: '',
-          email: '',
-          // Correção A.4: Default é ATENDENTE se o criador for ADMIN
-          perfil: perfilUsuarioLogado === PerfilUsuario.ADMINISTRADOR ? PerfilUsuario.ATENDENTE : PerfilUsuario.ATENDENTE,
-          senha: '',
-        });
-      }
-      setApiError(null);
+      const initialValues = usuario
+        ? {
+            ...usuario,
+            senha: '',
+            confirmarSenha: '',
+          }
+        : {
+            nome: '',
+            email: '',
+            perfil: PerfilUsuario.ATENDENTE,
+            ativo: true, // (Default para true na criação)
+            senha: '',
+            confirmarSenha: '',
+          };
+      reset(initialValues);
     }
-  }, [usuario, reset, isOpen, perfilUsuarioLogado]);
+  }, [isOpen, usuario, reset]);
 
-  useEffect(() => {
-    setApiError(error ? getErrorMessage(error) : null);
-  }, [error]);
+  const handleFormSubmit = async (data: UserFormData) => {
+    const payload: Partial<UserFormData> = { ...data };
 
-  const onSubmit: SubmitHandler<UserFormInputs> = async (data) => {
-    setApiError(null);
-    const dataToSend: UsuarioFormData = {
-        ...data,
-        // Correção A.4: Garante que Admin Comum só envie perfil ATENDENTE
-        perfil: canEditProfileField ? data.perfil : PerfilUsuario.ATENDENTE,
-        // Ativo não é gerenciado aqui, backend define default ou mantém
-    };
-
-    // Remove senha se estiver editando e campo estiver vazio
-    if (isEditing && !data.senha) {
-      delete dataToSend.senha;
-    } else if (!isEditing && !data.senha) {
-      // Se criando, a senha é obrigatória (validado pelo hook/service)
-      toast.error("Senha é obrigatória para criar usuário."); // Correção B.1
-      return;
+    if (isEditMode && (!payload.senha || payload.senha === '')) {
+      delete payload.senha;
+      delete payload.confirmarSenha;
     }
 
-    try {
-      await onSave(dataToSend, usuario?.id);
-      // Sucesso é tratado no hook/página pai (fecha modal, mostra toast)
-    } catch (err) {
-      // Erro já tratado no hook/página pai e exibido via 'apiError' neste modal
-    }
+    await onSubmit(payload, usuario?.id); // (Causa 7)
   };
 
+  const displayError = error ? getErrorMessage(error) : null;
+
   return (
-    <ModalWrapper isOpen={isOpen} onClose={onClose} title={isEditing ? 'Editar Usuário' : 'Novo Usuário'}>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        {/* Campos Nome, Email, Senha mantidos */}
-        <FormInput id="nome" label="Nome" {...register('nome', { required: 'Nome obrigatório' })} error={errors.nome?.message} disabled={isLoading} autoFocus />
-        <FormInput id="email" label="Email" type="email" {...register('email', { required: 'Email obrigatório', pattern: /.../ })} error={errors.email?.message} disabled={isLoading} />
-        <FormInput id="senha" label={isEditing ? 'Nova Senha (opcional)' : 'Senha'} type="password" {...register('senha', { required: !isEditing, minLength: { value: 6, message: 'Mínimo 6 caracteres' }})} error={errors.senha?.message} disabled={isLoading} />
+    <ModalWrapper
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isEditMode ? 'Editar Usuário' : 'Novo Usuário'}
+    >
+      <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+        {displayError && <ErrorMessage message={displayError} />}
 
-        {/* Campo Perfil com Lógica Condicional */}
-        <FormSelect
-          id="perfil"
-          label="Perfil de Acesso"
-          {...register('perfil', { required: 'Perfil obrigatório' })}
-          error={errors.perfil?.message}
-          // Correção A.4: Desabilitado se não puder editar
-          disabled={isLoading || !canEditProfileField}
-          // Garante que o valor seja ATENDENTE se não puder editar
-          value={canEditProfileField ? undefined : PerfilUsuario.ATENDENTE}
-          onChange={(e) => {
-            if (canEditProfileField) {
-                 setValue('perfil', e.target.value as PerfilUsuario);
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <FormInput
+            id="nome"
+            label="Nome Completo"
+            {...register('nome')} // CORREÇÃO (Causa 7)
+            error={errors.nome?.message}
+            placeholder="Nome do usuário"
+            autoFocus
+          />
+
+          <FormInput
+            id="email"
+            label="E-mail"
+            type="email"
+            {...register('email')} // CORREÇÃO (Causa 7)
+            error={errors.email?.message}
+            placeholder="email@exemplo.com"
+            disabled={isEditMode}
+          />
+
+          <FormSelect
+            id="perfil"
+            label="Perfil"
+            {...register('perfil')} // CORREÇÃO (Causa 7)
+            error={errors.perfil?.message}
+            disabled={
+              !isMasterLogado || // (Admin não pode trocar perfil)
+              (isEditMode && usuario?.perfil === PerfilUsuario.MASTER) // (Master não pode ser rebaixado)
             }
-          }}
-        >
-          {/* Correção A.4: Opções disponíveis variam */}
-          {perfilUsuarioLogado === PerfilUsuario.MASTER && (
-             <>
-                <option value={PerfilUsuario.ATENDENTE}>Atendente</option>
-                <option value={PerfilUsuario.ADMINISTRADOR}>Administrador</option>
-                <option value={PerfilUsuario.MASTER}>Master</option>
-             </>
-          )}
-          {perfilUsuarioLogado === PerfilUsuario.ADMINISTRADOR && (
-             <option value={PerfilUsuario.ATENDENTE}>Atendente</option>
-             // Admin não pode selecionar outros perfis
-          )}
-        </FormSelect>
-        {!canEditProfileField && (
-            <p className="text-xs text-gray-500 -mt-2">Administradores só podem gerenciar Atendentes.</p>
-        )}
+          >
+            {/* Master só pode ser visto (se for) ou setado pelo MASTER */}
+            {isMasterLogado && (
+              <option value={PerfilUsuario.MASTER}>Master (Sistema)</option>
+            )}
+            
+            {(isMasterLogado || perfilUsuarioLogado === PerfilUsuario.ADMINISTRADOR) && (
+                 <option value={PerfilUsuario.ADMINISTRADOR}>Administrador</option>
+            )}
+            
+            <option value={PerfilUsuario.ATENDENTE}>Atendente</option>
 
+            {/* Se for Master, mostra a opção mas desabilitada */}
+            {isEditMode &&
+              usuario?.perfil === PerfilUsuario.MASTER &&
+              !isMasterLogado && (
+                <option value={PerfilUsuario.MASTER}>Master (Sistema)</option>
+              )}
+          </FormSelect>
 
-        {apiError && <ErrorMessage message={apiError} />}
-
-        <div className="flex justify-end gap-4 pt-4">
-          <Button type="button" variant="secondary" onClick={onClose} disabled={isLoading}> Cancelar </Button>
-          <Button type="submit" variant="primary" disabled={isLoading}> {isLoading ? <Loader2 className="animate-spin" /> : 'Salvar'} </Button>
+          <FormCheckbox
+            id="ativo"
+            label="Usuário Ativo"
+            {...register('ativo')} // CORREÇÃO (Causa 7)
+            error={errors.ativo?.message}
+            disabled={
+              isEditMode && usuario?.perfil === PerfilUsuario.MASTER
+            }
+          />
         </div>
+
+        <div className="border-t pt-6">
+          <h3 className="text-lg font-medium text-text-primary">
+            {isEditMode ? 'Alterar Senha (Opcional)' : 'Definir Senha'}
+          </h3>
+          <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-2">
+            <FormInput
+              id="senha"
+              label="Nova Senha"
+              type="password"
+              {...register('senha')} // CORREÇÃO (Causa 7)
+              error={errors.senha?.message}
+              placeholder="••••••••"
+              autoComplete="new-password"
+            />
+            <FormInput
+              id="confirmarSenha"
+              label="Confirmar Nova Senha"
+              type="password"
+              {...register('confirmarSenha')} // CORREÇÃO (Causa 7)
+              error={errors.confirmarSenha?.message}
+              placeholder="••••••••"
+              autoComplete="new-password"
+            />
+          </div>
+          {/* Erro de senha/confirmação (que não são do campo) */}
+          {errors.root && <ErrorMessage message={errors.root.message} />}
+        </div>
+
+        <FormActions
+          onClose={onClose}
+          isSubmitting={isLoading}
+          submitText={isEditMode ? 'Salvar Alterações' : 'Criar Usuário'}
+        />
       </form>
     </ModalWrapper>
   );
-};
+}
